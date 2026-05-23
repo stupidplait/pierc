@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
+      "comment": "Hobby tier caps crons at 1/day — sweeps forgotten Tripo jobs every morning at 09:00 UTC. Admins use the 'Обновить статус' button for live polling during a session. Upgrade to Pro for sub-day schedules like '*/2 * * * *'.",
       "path": "/api/cron/poll-jobs",
-      "schedule": "*/2 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }

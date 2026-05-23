@@ -145,7 +145,28 @@ Set these in **Vercel → Project Settings → Environment Variables** for the P
 
 ### 4. Vercel Cron
 
-`vercel.json` ships configured to hit `/api/cron/poll-jobs` every 2 minutes — this is what drives the auto-3D pipeline (poll Tripo, re-host the GLB, surface for admin review). You don't need to do anything beyond setting `CRON_SECRET`. Verify in the Vercel dashboard → your project → Crons that the schedule is active.
+`vercel.json` ships configured to hit `/api/cron/poll-jobs` once a day at **09:00 UTC** — this is the maximum frequency Vercel's **Hobby** tier allows (1 cron/day). The cron is a safety net for forgotten Tripo jobs; during a live admin session the **Обновить статус** button polls on demand.
+
+You don't need to do anything beyond setting `CRON_SECRET`. Verify in the Vercel dashboard → your project → Crons that the schedule is active.
+
+**If you want more frequent polling** (every 2 minutes, say), three options:
+
+1. **Upgrade to Vercel Pro** — change `vercel.json`'s schedule to `*/2 * * * *` and Vercel will run it every 2 minutes.
+2. **External free cron** — services like [cron-job.org](https://cron-job.org), [EasyCron](https://www.easycron.com), or GitHub Actions can hit `https://<your-deploy>/api/cron/poll-jobs` on any schedule. Send `Authorization: Bearer <CRON_SECRET>` so the route accepts the request. GitHub Actions example:
+   ```yaml
+   # .github/workflows/poll-3d.yml
+   on:
+     schedule:
+       - cron: "*/2 * * * *"
+   jobs:
+     poll:
+       runs-on: ubuntu-latest
+       steps:
+         - run: |
+             curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+               https://your-deploy.vercel.app/api/cron/poll-jobs
+   ```
+3. **Skip the cron entirely** — the admin's **Обновить статус** button does the same work. The cron is purely a "I forgot the tab open" safety net.
 
 ### 5. Smoke checklist
 
