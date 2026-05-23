@@ -1,0 +1,27 @@
+{
+  "name": "pierc",
+  "description": "3D Piercing Studio web app — Next.js 16 + React 19 + Three.js + Prisma + Neon. Russian-language UI, 3D virtual jewelry try-on, no-payment booking system. Loads frontend-design, next-best-practices, userinterface-wiki, vercel-react-best-practices, and web-design-guidelines skills on demand.",
+  "tools": ["*"],
+  "allowedTools": [
+    "fs_read",
+    "read",
+    "grep",
+    "glob",
+    "code",
+    "web_fetch",
+    "web_search",
+    "introspect",
+    "todo_list",
+    "knowledge"
+  ],
+  "resources": [
+    "file://README.md",
+    "file://AGENTS.md",
+    "file://docs/**/*.md",
+    "file://prisma/schema.prisma",
+    "file://app/**/*.{ts,tsx,css}",
+    "file://lib/**/*.ts",
+    "skill://.kiro/skills/**/SKILL.md"
+  ],
+  "welcomeMessage": "Working on the 3D Piercing Studio. Frontend-design, next-best-practices, userinterface-wiki, vercel-react-best-practices, and web-design-guidelines skills are loaded on demand."
+}

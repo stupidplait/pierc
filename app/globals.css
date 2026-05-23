@@ -1,26 +1,168 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ─── Theme tokens ─────────────────────────────────────────────
+ * Light is the default. Dark applies automatically via
+ * prefers-color-scheme. Manual overrides via .theme-light /
+ * .theme-dark classes on <html> are pre-wired for a future
+ * user-controlled toggle.
+ *
+ * Brand primary: #fe017e (kept identical across themes).
+ * --warn / --error semantic tokens replace ad-hoc red-500 /
+ * yellow-500 inline colors so dark mode reads correctly.
+ * ──────────────────────────────────────────────────────────── */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  color-scheme: light;
+
+  /* Light theme (default) */
+  --page:         #ffffff;
+  --card:         #f7f5f2;
+  --ink:          #0a0908;
+  --mute:         #6b6359;
+  --line:         #e6e1da;
+  --primary:      #fe017e;
+  --primary-soft: #d10268;
+  --on-primary:   #ffffff;
+
+  /* Semantic feedback colors. Tuned for AA contrast on --page in light. */
+  --warn:         #b45309;  /* amber-700 */
+  --warn-soft:    #fef3c7;  /* amber-100 */
+  --error:        #b91c1c;  /* red-700 */
+  --error-soft:   #fee2e2;  /* red-100 */
+  --success:      #047857;  /* emerald-700 */
+  --success-soft: #d1fae5;  /* emerald-100 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+
+    --page:         #0a0908;
+    --card:         #14110f;
+    --ink:          #efe7d8;
+    --mute:         #a39d92;
+    --line:         #2a241e;
+    --primary:      #fe017e;
+    --primary-soft: #ff4ca0;
+    --on-primary:   #ffffff;
+
+    --warn:         #fbbf24;  /* amber-400 */
+    --warn-soft:    #422006;  /* amber-950 */
+    --error:        #f87171;  /* red-400 */
+    --error-soft:   #450a0a;  /* red-950 */
+    --success:      #34d399;  /* emerald-400 */
+    --success-soft: #022c22;  /* emerald-950 */
   }
 }
 
+/* Manual overrides (used by a future <ThemeToggle>). */
+:root.theme-light {
+  color-scheme: light;
+
+  --page:         #ffffff;
+  --card:         #f7f5f2;
+  --ink:          #0a0908;
+  --mute:         #6b6359;
+  --line:         #e6e1da;
+  --primary:      #fe017e;
+  --primary-soft: #d10268;
+  --on-primary:   #ffffff;
+
+  --warn:         #b45309;
+  --warn-soft:    #fef3c7;
+  --error:        #b91c1c;
+  --error-soft:   #fee2e2;
+  --success:      #047857;
+  --success-soft: #d1fae5;
+}
+
+:root.theme-dark {
+  color-scheme: dark;
+
+  --page:         #0a0908;
+  --card:         #14110f;
+  --ink:          #efe7d8;
+  --mute:         #a39d92;
+  --line:         #2a241e;
+  --primary:      #fe017e;
+  --primary-soft: #ff4ca0;
+  --on-primary:   #ffffff;
+
+  --warn:         #fbbf24;
+  --warn-soft:    #422006;
+  --error:        #f87171;
+  --error-soft:   #450a0a;
+  --success:      #34d399;
+  --success-soft: #022c22;
+}
+
+/* Expose vars to Tailwind utilities (bg-page, text-ink, text-primary, ...) */
+@theme inline {
+  --color-page:         var(--page);
+  --color-card:         var(--card);
+  --color-ink:          var(--ink);
+  --color-mute:         var(--mute);
+  --color-line:         var(--line);
+  --color-primary:      var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary:   var(--on-primary);
+
+  --color-warn:         var(--warn);
+  --color-warn-soft:    var(--warn-soft);
+  --color-error:        var(--error);
+  --color-error-soft:   var(--error-soft);
+  --color-success:      var(--success);
+  --color-success-soft: var(--success-soft);
+
+  --font-sans:    var(--font-inter);
+  --font-display: var(--font-onest);
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Smooth jumps to in-page anchors (landing chapters, /about#contact, etc).
+ * Combined with `scroll-mt-*` utilities on each chapter / section heading,
+ * this lands content below the sticky header instead of behind it.
+ *
+ * scroll-padding-top reserves 4.5rem (header height + small gap) globally
+ * so descendants don't need to repeat scroll-margin-top. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
+}
+
+/* Respect prefers-reduced-motion as a hard accessibility override.
+ * Disables every transition + animation site-wide AND reverts smooth
+ * scroll to instant. Components that need the original easing for a
+ * specific reason can opt back in via `@media (prefers-reduced-motion: no-preference)`. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* Native form-control styling. color-scheme on :root already lets the
+ * browser switch to dark scrollbars + form controls, but we tighten the
+ * placeholder color so it reads as muted in both themes. */
+::placeholder {
+  color: var(--mute);
+  opacity: 0.7;
 }

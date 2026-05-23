@@ -1,0 +1,959 @@
+[
+  {
+    "slug": "left-ear-lobe",
+    "name": "Левая мочка",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.08138,
+      "y": 1.561,
+      "z": -0.035
+    },
+    "rotation": {
+      "x": 0.33789,
+      "y": 1.41286,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.38138,
+          "y": 1.561,
+          "z": -0.035
+        },
+        "target": {
+          "x": 0.08138,
+          "y": 1.561,
+          "z": -0.035
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-ear-lobe",
+    "name": "Правая мочка",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.08138,
+      "y": 1.561,
+      "z": -0.035
+    },
+    "rotation": {
+      "x": 0.33789,
+      "y": -1.41286,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.38138,
+          "y": 1.561,
+          "z": -0.035
+        },
+        "target": {
+          "x": -0.08138,
+          "y": 1.561,
+          "z": -0.035
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-helix",
+    "name": "Левый хеликс",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.08449,
+      "y": 1.595,
+      "z": -0.03
+    },
+    "rotation": {
+      "x": 0.37921,
+      "y": 0.89952,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.38449,
+          "y": 1.595,
+          "z": -0.03
+        },
+        "target": {
+          "x": 0.08449,
+          "y": 1.595,
+          "z": -0.03
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-helix",
+    "name": "Правый хеликс",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.08449,
+      "y": 1.595,
+      "z": -0.03
+    },
+    "rotation": {
+      "x": 0.37921,
+      "y": -0.89952,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.38449,
+          "y": 1.595,
+          "z": -0.03
+        },
+        "target": {
+          "x": -0.08449,
+          "y": 1.595,
+          "z": -0.03
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-tragus",
+    "name": "Левый козелок",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.07876,
+      "y": 1.58,
+      "z": -0.028
+    },
+    "rotation": {
+      "x": 0.10243,
+      "y": 0.7425,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.37876,
+          "y": 1.58,
+          "z": -0.028
+        },
+        "target": {
+          "x": 0.07876,
+          "y": 1.58,
+          "z": -0.028
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-tragus",
+    "name": "Правый козелок",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.07876,
+      "y": 1.58,
+      "z": -0.028
+    },
+    "rotation": {
+      "x": 0.10243,
+      "y": -0.7425,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.37876,
+          "y": 1.58,
+          "z": -0.028
+        },
+        "target": {
+          "x": -0.07876,
+          "y": 1.58,
+          "z": -0.028
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-conch",
+    "name": "Левая конха",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.07237,
+      "y": 1.577,
+      "z": -0.03
+    },
+    "rotation": {
+      "x": 0.21592,
+      "y": 1.01855,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.37237,
+          "y": 1.577,
+          "z": -0.03
+        },
+        "target": {
+          "x": 0.07237,
+          "y": 1.577,
+          "z": -0.03
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-conch",
+    "name": "Правая конха",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.07237,
+      "y": 1.577,
+      "z": -0.03
+    },
+    "rotation": {
+      "x": 0.21592,
+      "y": -1.01855,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.37237,
+          "y": 1.577,
+          "z": -0.03
+        },
+        "target": {
+          "x": -0.07237,
+          "y": 1.577,
+          "z": -0.03
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-daith",
+    "name": "Левый дейс",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.07692,
+      "y": 1.582,
+      "z": -0.025
+    },
+    "rotation": {
+      "x": 0.15517,
+      "y": 0.93388,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.37692,
+          "y": 1.582,
+          "z": -0.025
+        },
+        "target": {
+          "x": 0.07692,
+          "y": 1.582,
+          "z": -0.025
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-daith",
+    "name": "Правый дейс",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.07692,
+      "y": 1.582,
+      "z": -0.025
+    },
+    "rotation": {
+      "x": 0.15517,
+      "y": -0.93388,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.37692,
+          "y": 1.582,
+          "z": -0.025
+        },
+        "target": {
+          "x": -0.07692,
+          "y": 1.582,
+          "z": -0.025
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-rook",
+    "name": "Левый рук",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.07962,
+      "y": 1.585,
+      "z": -0.028
+    },
+    "rotation": {
+      "x": 0.02821,
+      "y": 0.78826,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.37962,
+          "y": 1.585,
+          "z": -0.028
+        },
+        "target": {
+          "x": 0.07962,
+          "y": 1.585,
+          "z": -0.028
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-rook",
+    "name": "Правый рук",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.07962,
+      "y": 1.585,
+      "z": -0.028
+    },
+    "rotation": {
+      "x": 0.02821,
+      "y": -0.78826,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.37962,
+          "y": 1.585,
+          "z": -0.028
+        },
+        "target": {
+          "x": -0.07962,
+          "y": 1.585,
+          "z": -0.028
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-industrial",
+    "name": "Левый индастриал",
+    "place": "EAR",
+    "side": "L",
+    "position": {
+      "x": 0.07962,
+      "y": 1.595,
+      "z": -0.025
+    },
+    "rotation": {
+      "x": 1.23018,
+      "y": 2.506,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.37962,
+          "y": 1.595,
+          "z": -0.025
+        },
+        "target": {
+          "x": 0.07962,
+          "y": 1.595,
+          "z": -0.025
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-industrial",
+    "name": "Правый индастриал",
+    "place": "EAR",
+    "side": "R",
+    "position": {
+      "x": -0.07962,
+      "y": 1.595,
+      "z": -0.025
+    },
+    "rotation": {
+      "x": 1.23017,
+      "y": -2.506,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.37962,
+          "y": 1.595,
+          "z": -0.025
+        },
+        "target": {
+          "x": -0.07962,
+          "y": 1.595,
+          "z": -0.025
+        },
+        "fov": 22
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-nostril",
+    "name": "Левая ноздря",
+    "place": "NOSE",
+    "side": "L",
+    "position": {
+      "x": 0.011,
+      "y": 1.557,
+      "z": 0.08
+    },
+    "rotation": {
+      "x": -0.07683,
+      "y": 0.4539,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0.011,
+          "y": 1.557,
+          "z": 0.38
+        },
+        "target": {
+          "x": 0.011,
+          "y": 1.557,
+          "z": 0.08
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-nostril",
+    "name": "Правая ноздря",
+    "place": "NOSE",
+    "side": "R",
+    "position": {
+      "x": -0.011,
+      "y": 1.557,
+      "z": 0.08
+    },
+    "rotation": {
+      "x": -0.07683,
+      "y": -0.4539,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": -0.011,
+          "y": 1.557,
+          "z": 0.38
+        },
+        "target": {
+          "x": -0.011,
+          "y": 1.557,
+          "z": 0.08
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "septum",
+    "name": "Септум",
+    "place": "NOSE",
+    "side": "CENTER",
+    "position": {
+      "x": 0,
+      "y": 1.53,
+      "z": 0.08224
+    },
+    "rotation": {
+      "x": 0.25395,
+      "y": -0.17203,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0,
+          "y": 1.53,
+          "z": 0.38224
+        },
+        "target": {
+          "x": 0,
+          "y": 1.53,
+          "z": 0.08224
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "lip-medusa",
+    "name": "Медуза",
+    "place": "LIPS",
+    "side": "CENTER",
+    "position": {
+      "x": 0,
+      "y": 1.536,
+      "z": 0.08
+    },
+    "rotation": {
+      "x": 0.10068,
+      "y": -0.07376,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0,
+          "y": 1.536,
+          "z": 0.38
+        },
+        "target": {
+          "x": 0,
+          "y": 1.536,
+          "z": 0.08
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "lip-labret",
+    "name": "Лабрет",
+    "place": "LIPS",
+    "side": "CENTER",
+    "position": {
+      "x": 0,
+      "y": 1.512,
+      "z": 0.072
+    },
+    "rotation": {
+      "x": 1.29588,
+      "y": -0.26548,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0,
+          "y": 1.512,
+          "z": 0.372
+        },
+        "target": {
+          "x": 0,
+          "y": 1.512,
+          "z": 0.072
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-eyebrow",
+    "name": "Левая бровь",
+    "place": "EYEBROW",
+    "side": "L",
+    "position": {
+      "x": 0.03,
+      "y": 1.598,
+      "z": 0.07104
+    },
+    "rotation": {
+      "x": 0.27544,
+      "y": 0.06258,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0.03,
+          "y": 1.598,
+          "z": 0.37104
+        },
+        "target": {
+          "x": 0.03,
+          "y": 1.598,
+          "z": 0.07104
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-eyebrow",
+    "name": "Правая бровь",
+    "place": "EYEBROW",
+    "side": "R",
+    "position": {
+      "x": -0.03,
+      "y": 1.598,
+      "z": 0.07104
+    },
+    "rotation": {
+      "x": 0.27544,
+      "y": -0.06258,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": -0.03,
+          "y": 1.598,
+          "z": 0.37104
+        },
+        "target": {
+          "x": -0.03,
+          "y": 1.598,
+          "z": 0.07104
+        },
+        "fov": 24
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "tongue",
+    "name": "Язык",
+    "place": "TONGUE",
+    "side": "CENTER",
+    "position": {
+      "x": 0,
+      "y": 1.495,
+      "z": 0.06
+    },
+    "rotation": {
+      "x": 1.5708,
+      "y": 0,
+      "z": 3.14159
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0,
+          "y": 1.495,
+          "z": 0.41
+        },
+        "target": {
+          "x": 0,
+          "y": 1.495,
+          "z": 0.06
+        },
+        "fov": 28
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-nipple",
+    "name": "Левый сосок",
+    "place": "NIPPLE",
+    "side": "L",
+    "position": {
+      "x": 0.105,
+      "y": 1.275,
+      "z": 0.111
+    },
+    "rotation": {
+      "x": -0.35181,
+      "y": -0.02385,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0.105,
+          "y": 1.275,
+          "z": 0.611
+        },
+        "target": {
+          "x": 0.105,
+          "y": 1.275,
+          "z": 0.111
+        },
+        "fov": 30
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-nipple",
+    "name": "Правый сосок",
+    "place": "NIPPLE",
+    "side": "R",
+    "position": {
+      "x": -0.105,
+      "y": 1.275,
+      "z": 0.111
+    },
+    "rotation": {
+      "x": -0.35181,
+      "y": 0.02385,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": -0.105,
+          "y": 1.275,
+          "z": 0.611
+        },
+        "target": {
+          "x": -0.105,
+          "y": 1.275,
+          "z": 0.111
+        },
+        "fov": 30
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "navel",
+    "name": "Пупок",
+    "place": "NAVEL",
+    "side": "CENTER",
+    "position": {
+      "x": 0,
+      "y": 1.055,
+      "z": 0.091
+    },
+    "rotation": {
+      "x": -0.19397,
+      "y": 0.0612,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Спереди",
+        "position": {
+          "x": 0,
+          "y": 1.055,
+          "z": 0.591
+        },
+        "target": {
+          "x": 0,
+          "y": 1.055,
+          "z": 0.091
+        },
+        "fov": 30
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-hip",
+    "name": "Левое бедро",
+    "place": "HIP",
+    "side": "L",
+    "position": {
+      "x": 0.15821,
+      "y": 0.91,
+      "z": -0.005
+    },
+    "rotation": {
+      "x": -0.08661,
+      "y": 1.56334,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.60821,
+          "y": 0.91,
+          "z": -0.005
+        },
+        "target": {
+          "x": 0.15821,
+          "y": 0.91,
+          "z": -0.005
+        },
+        "fov": 30
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-hip",
+    "name": "Правое бедро",
+    "place": "HIP",
+    "side": "R",
+    "position": {
+      "x": -0.1582,
+      "y": 0.91,
+      "z": -0.005
+    },
+    "rotation": {
+      "x": -0.08649,
+      "y": -1.56354,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.6082,
+          "y": 0.91,
+          "z": -0.005
+        },
+        "target": {
+          "x": -0.1582,
+          "y": 0.91,
+          "z": -0.005
+        },
+        "fov": 30
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "left-ankle",
+    "name": "Левая лодыжка",
+    "place": "ANKLE",
+    "side": "L",
+    "position": {
+      "x": 0.10594,
+      "y": 0.085,
+      "z": -0.01
+    },
+    "rotation": {
+      "x": -0.03071,
+      "y": 1.7753,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": 0.50594,
+          "y": 0.085,
+          "z": -0.01
+        },
+        "target": {
+          "x": 0.10594,
+          "y": 0.085,
+          "z": -0.01
+        },
+        "fov": 32
+      }
+    ],
+    "auto": true
+  },
+  {
+    "slug": "right-ankle",
+    "name": "Правая лодыжка",
+    "place": "ANKLE",
+    "side": "R",
+    "position": {
+      "x": -0.10594,
+      "y": 0.085,
+      "z": -0.01
+    },
+    "rotation": {
+      "x": -0.03072,
+      "y": -1.77526,
+      "z": 0
+    },
+    "cameraPresets": [
+      {
+        "name": "Сбоку",
+        "position": {
+          "x": -0.50594,
+          "y": 0.085,
+          "z": -0.01
+        },
+        "target": {
+          "x": -0.10594,
+          "y": 0.085,
+          "z": -0.01
+        },
+        "fov": 32
+      }
+    ],
+    "auto": true
+  }
+]

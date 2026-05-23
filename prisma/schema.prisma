@@ -1,0 +1,299 @@
+// Prisma schema — Tasks 1+4 subset.
+// Future tasks will add catalog/booking/3D-pipeline models per docs/04-data-model.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───── Auth ─────
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  phone           String?
+  name            String
+  passwordHash    String? // null for guest
+  isGuest         Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  appointments    Appointment[]
+  jewelryBookings JewelryBooking[]
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}
+
+// ───── 3D anchors & body ─────
+
+enum BodyPlace {
+  EAR // мочка, хеликс, козелок, конха, дейс, рук, индастриал
+  NOSE // ноздри, септум
+  LIPS // медуза, лабрет
+  EYEBROW // бровь
+  TONGUE // язык
+  NIPPLE // сосок
+  NAVEL // пупок
+  HIP // бедро
+  ANKLE // лодыжка
+}
+
+enum AnchorSide {
+  L
+  R
+  CENTER
+}
+
+model AnchorPoint {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  name          String
+  place         BodyPlace
+  side          AnchorSide @default(CENTER)
+  // { x, y, z } in body.glb local space (Y-up)
+  position      Json
+  // { x, y, z } default jewelry orientation (Euler XYZ rad)
+  rotation      Json
+  // [{ name, position, target, fov }, ...]
+  cameraPresets Json
+  jewelries     Jewelry[]  @relation("JewelryAnchors")
+  createdAt     DateTime   @default(now())
+}
+
+// ───── Catalog ─────
+
+enum JewelryStatus {
+  DRAFT
+  PROCESSING
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+model JewelryCategory {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  order     Int       @default(0)
+  jewelries Jewelry[]
+}
+
+model Jewelry {
+  id          String          @id @default(cuid())
+  // Stable slug used by the parametric jewelry seed pipeline
+  // (`prisma/seed-data/jewelry.json`) for idempotent upsert. Nullable so
+  // admin-created pieces don't need one. Unique when present so re-running
+  // the seed never produces duplicates.
+  slug        String?         @unique
+  name        String
+  description String?
+  category    JewelryCategory @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  material    String
+  gauge       Float?
+  size        Float?
+  color       String?
+  stones      String?
+  price       Decimal         @db.Decimal(10, 2)
+  inStock     Int             @default(0)
+  // [{ url: string, alt: string }]
+  photos      Json            @default("[]")
+  glbUrl      String?
+  // Per-piece render-time scale multiplier in `EquippedPieces.JewelryGLB`.
+  // Defaults to 1.0 — the parametric Blender pipeline exports models in
+  // real-world meters, so they need no scaling. Tripo3D-generated models
+  // arrive at unknown scale and can use this field to compensate
+  // (historically `0.025` was hardcoded in the renderer).
+  glbScale    Float           @default(1)
+  glbThumbUrl String?
+  status      JewelryStatus   @default(DRAFT)
+  featured    Boolean         @default(false)
+  anchors     AnchorPoint[]   @relation("JewelryAnchors")
+  jobs        GenerationJob[]
+  bookings    JewelryBooking[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([featured])
+}
+
+// ───── 3D generation pipeline ─────
+
+enum GenerationJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+// One row per attempted auto-3D generation. Manual .glb uploads bypass this
+// table entirely (they write straight to Jewelry.glbUrl). The pipeline:
+//   QUEUED -> PROCESSING -> (SUCCEEDED with resultGlbUrl) | FAILED
+model GenerationJob {
+  id            String              @id @default(cuid())
+  jewelry       Jewelry             @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+  jewelryId     String
+  // "tripo3d" | "manual" — adapter that should poll/own this job.
+  provider      String
+  // External provider's id; null for synchronous providers like manual.
+  providerJobId String?
+  status        GenerationJobStatus @default(QUEUED)
+  // [{ url, alt }] — snapshot of jewelry.photos at job-creation time.
+  inputPhotos   Json                @default("[]")
+  // Populated on SUCCEEDED, copied onto Jewelry.glbUrl on admin approval.
+  resultGlbUrl  String?
+  // Populated on FAILED.
+  errorMessage  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  @@index([jewelryId])
+  @@index([status])
+}
+
+// ───── Booking — slots, appointments, jewelry bookings ─────
+
+// One bookable time slot. `appointment` is 1:1 (a slot can hold at most one
+// appointment); the @unique constraint on Appointment.slotId is what enforces
+// that. `isOpen` lets the admin temporarily hide a slot from the public picker
+// without deleting (e.g. holiday).
+model AvailabilitySlot {
+  id          String       @id @default(cuid())
+  startsAt    DateTime
+  endsAt      DateTime
+  isOpen      Boolean      @default(true)
+  appointment Appointment?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([startsAt])
+  @@index([isOpen])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// An admin-confirmable visit. May be jewelry-only (slotId=null) when the user
+// only reserved jewelry without booking a piercing session, or full
+// (slot + bookings) for the combined flow. `bookings` is many — one
+// appointment can carry several jewelries.
+model Appointment {
+  id        String            @id @default(cuid())
+  user      User              @relation(fields: [userId], references: [id])
+  userId    String
+  slot      AvailabilitySlot? @relation(fields: [slotId], references: [id])
+  slotId    String?           @unique
+  status    AppointmentStatus @default(PENDING)
+  notes     String?
+  bookings  JewelryBooking[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([slotId])
+}
+
+enum JewelryBookingStatus {
+  RESERVED
+  CONFIRMED
+  FULFILLED
+  CANCELLED
+}
+
+// One row per chosen jewelry per booking (multi-piece flows produce many of
+// these per Appointment). Stock is decremented at creation; cancellation
+// restores it.
+model JewelryBooking {
+  id            String               @id @default(cuid())
+  jewelry       Jewelry              @relation(fields: [jewelryId], references: [id])
+  jewelryId     String
+  user          User                 @relation(fields: [userId], references: [id])
+  userId        String
+  appointment   Appointment?         @relation(fields: [appointmentId], references: [id])
+  appointmentId String?
+  quantity      Int                  @default(1)
+  status        JewelryBookingStatus @default(RESERVED)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([jewelryId])
+  @@index([userId])
+  @@index([appointmentId])
+  @@index([status])
+}
+
+// ───── CMS ─────
+
+// Free-form structured content keyed by slug ("about", "hero", "footer").
+// `content` is Json so each key can have its own shape (e.g. about = { body: string }).
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  content   Json
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  durationMin Int
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FAQItem {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GalleryPhoto {
+  id        String   @id @default(cuid())
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ───── Settings (singleton) ─────
+
+model Settings {
+  id               String  @id @default("default")
+  contactEmail     String?
+  contactPhone     String?
+  contactAddress  String?
+  instagramUrl     String?
+  telegramUrl      String?
+  telegramChatId   String?
+  workingHoursHint String?
+}
