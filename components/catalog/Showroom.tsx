@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { CatalogSidebar } from "./CatalogSidebar";
-import { CatalogGridFallback } from "./CatalogGridFallback";
+import { LiteMode } from "@/components/lite/LiteMode";
+import { JewelryBookingDrawer } from "@/components/booking/JewelryBookingDrawer";
 import {
   type AnchorWire,
   type EquippedMap,
   type JewelryWire,
   SOFT_CAP,
 } from "@/lib/catalog/types";
+import type { BookingUser, WizardJewelry } from "@/lib/booking/wizard-types";
 import { catalogStrings } from "@/lib/i18n/ru";
 import { serializeEquipped } from "@/lib/catalog/url-state";
 import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
@@ -45,6 +47,8 @@ interface ShowroomProps {
    * embed doesn't need it because the user is on the storytelling flow.
    */
   hideGridLink?: boolean;
+  /** Signed-in user, used to prefill the booking drawer's contact fields. */
+  user?: BookingUser | null;
 }
 
 export function Showroom({
@@ -54,6 +58,7 @@ export function Showroom({
   initialEquipped,
   pathname = "/catalog",
   hideGridLink = false,
+  user = null,
 }: ShowroomProps) {
   const { replace } = useRouter();
   const searchParams = useSearchParams();
@@ -63,7 +68,30 @@ export function Showroom({
     initialSelectedId,
   );
   const [equipped, setEquipped] = useState<EquippedMap>(initialEquipped);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const webgl2Supported = useWebGL2Supported();
+
+  // Distinct jewelry pieces in the tray (a multi-anchor piece counts once),
+  // shaped for the booking drawer.
+  const bookingItems = useMemo<WizardJewelry[]>(() => {
+    const seen = new Set<string>();
+    const out: WizardJewelry[] = [];
+    for (const jewelryId of Object.values(equipped)) {
+      if (seen.has(jewelryId)) continue;
+      seen.add(jewelryId);
+      const j = jewelry.find((x) => x.id === jewelryId);
+      if (j) {
+        out.push({
+          id: j.id,
+          name: j.name,
+          price: j.price,
+          photo: j.photo,
+          inStock: j.inStock,
+        });
+      }
+    }
+    return out;
+  }, [equipped, jewelry]);
 
   const anchorIdToSlug = useMemo(() => {
     const m = new Map<string, string>();
@@ -141,54 +169,66 @@ export function Showroom({
   // the page wraps with `lg:h-[calc(100vh-4.5rem)]`; on / the chapter wraps
   // with a fixed `90vh`-ish container.
 
-  // ── WebGL2 capability check — render the 2D grid when 3D isn't available.
-  // useWebGL2Supported returns null briefly during the initial paint; we
-  // render the loading shell during that window (handled inside the Canvas
-  // dynamic-import below). Once it resolves false, swap to the fallback.
+  // ── WebGL2 capability check — render lite mode (selfie + sprite overlay)
+  // when 3D isn't available. The explicit `?view=grid` opt-in continues
+  // to render <CatalogGridFallback> via the catalog page (handled at the
+  // server-component level). useWebGL2Supported returns null briefly
+  // during the initial paint; we render the loading shell during that
+  // window (handled inside the dynamic-import below). Once it resolves
+  // false, swap to lite mode. See docs/15-lite-mode.md.
   if (webgl2Supported === false) {
     return (
-      <CatalogGridFallback
+      <LiteMode
+        anchors={anchors}
         jewelry={jewelry}
-        reason="fallback"
-        showroomHref="/catalog"
+        initialEquipped={initialEquipped}
+        initialSelectedId={initialSelectedId}
+        pathname={pathname}
+        user={user}
       />
     );
   }
 
   return (
-    <div className="flex h-full flex-col lg:grid lg:grid-cols-[1fr_360px]">
-      <div className="relative h-[60vh] bg-page lg:h-auto">
-        <ShowroomScene
+    <>
+      <div className="flex h-full flex-col lg:grid lg:grid-cols-[1fr_360px]">
+        <div className="relative h-[60vh] bg-page lg:h-auto">
+          <ShowroomScene
+            anchors={anchors}
+            jewelry={jewelry}
+            selectedId={selectedId}
+            equipped={equipped}
+            onSelectAnchor={handleSelectAnchor}
+          />
+          {!hideGridLink ? (
+            <Link
+              href="/catalog?view=grid"
+              className="absolute right-3 top-3 rounded-full border border-line bg-page/80 px-3 py-1 text-xs text-mute backdrop-blur transition-colors hover:border-primary hover:text-primary"
+            >
+              {catalogStrings.showroom.gridLink}
+            </Link>
+          ) : null}
+        </div>
+
+        <CatalogSidebar
           anchors={anchors}
           jewelry={jewelry}
-          selectedId={selectedId}
+          selectedAnchorId={selectedId}
           equipped={equipped}
+          canBook={bookingItems.length > 0}
+          onBook={() => setBookingOpen(true)}
           onSelectAnchor={handleSelectAnchor}
+          onEquip={handleEquip}
+          onUnequip={handleUnequip}
         />
-        {!hideGridLink ? (
-          <Link
-            href="/catalog?view=grid"
-            className="absolute right-3 top-3 rounded-full border border-line bg-page/80 px-3 py-1 text-xs text-mute backdrop-blur transition-colors hover:border-primary hover:text-primary"
-          >
-            {catalogStrings.showroom.gridLink}
-          </Link>
-        ) : null}
       </div>
 
-      <CatalogSidebar
-        anchors={anchors}
-        jewelry={jewelry}
-        selectedAnchorId={selectedId}
-        equipped={equipped}
-        bookHref={(() => {
-          const ids = Object.values(equipped);
-          if (ids.length === 0) return null;
-          return `/book?items=${encodeURIComponent(ids.join(","))}`;
-        })()}
-        onSelectAnchor={handleSelectAnchor}
-        onEquip={handleEquip}
-        onUnequip={handleUnequip}
+      <JewelryBookingDrawer
+        open={bookingOpen}
+        onClose={() => setBookingOpen(false)}
+        items={bookingItems}
+        user={user}
       />
-    </div>
+    </>
   );
 }

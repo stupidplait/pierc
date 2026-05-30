@@ -31,6 +31,7 @@ if _HERE not in sys.path:
 import bpy  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_uv_sphere,
     apply_transforms,
     assign_material,
@@ -87,7 +88,7 @@ def _build_arc(
     return mesh_obj
 
 
-def build(params: dict, material_color: str) -> bpy.types.Object:
+def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
     diameter_mm = float(params["diameterMm"])
     gauge_mm = float(params["gaugeMm"])
     ball_size_mm = float(params.get("ballSizeMm", max(2.5, gauge_mm * 1.6)))
@@ -128,4 +129,20 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
 
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
-    return obj
+
+    # Attach points: ring center is `attach:primary` (used when type=RING for
+    # septum / lip-medusa — the user wears the horseshoe through a single
+    # piercing). The two ball tips are `attach:secondary` and `attach:tertiary`
+    # only consumed when type=CIRCULAR_BARBELL (worn through 2 holes). For a
+    # type=CIRCULAR_BARBELL horseshoe, the renderer reads both ball-tip
+    # empties and the "ring center" empty is unused.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+    attach_secondary = add_attach_empty(
+        "attach:secondary", location=left_tip
+    )
+    attach_tertiary = add_attach_empty(
+        "attach:tertiary", location=right_tip
+    )
+    return obj, attach_primary, attach_secondary, attach_tertiary

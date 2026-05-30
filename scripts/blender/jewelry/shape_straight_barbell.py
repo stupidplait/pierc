@@ -30,17 +30,19 @@ if _HERE not in sys.path:
 import bpy  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_cylinder,
     add_uv_sphere,
     apply_transforms,
     assign_material,
     join_meshes,
     make_metal_material,
+    mm,
     set_origin_to_world,
 )
 
 
-def build(params: dict, material_color: str) -> bpy.types.Object:
+def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
     shaft_length_mm = float(params["shaftLengthMm"])
     gauge_mm = float(params["gaugeMm"])
     ball_size_mm = float(params.get("ballSizeMm", max(2.5, gauge_mm * 1.8)))
@@ -76,4 +78,18 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
 
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
-    return obj
+
+    # Attach points: "in" ball at origin, "out" ball at z = shaft_length.
+    # When the piece is type=BARBELL (industrial, surface bar), the renderer
+    # equips both anchors and uses these to compute the rigid transform that
+    # maps the bar between them. When the piece is type=STUD (1-anchor for
+    # tongue/nipple), the renderer uses only attach:primary and the bar's
+    # extent is fixed visually.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+    attach_secondary = add_attach_empty(
+        "attach:secondary", location=(0.0, 0.0, mm(shaft_length_mm))
+    )
+
+    return obj, attach_primary, attach_secondary

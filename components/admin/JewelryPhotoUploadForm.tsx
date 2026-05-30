@@ -2,9 +2,11 @@
 
 import { useActionState } from "react";
 import {
-  FormStatus,
-  PrimarySubmit,
-} from "@/components/admin/FormFields";
+  FileField,
+  InlineStatus,
+  SubmitPill,
+} from "@/components/admin/form/atelier";
+import { CARD } from "@/components/admin/form/styles";
 import {
   uploadJewelryPhotos,
   type ActionState,
@@ -27,36 +29,28 @@ export function JewelryPhotoUploadForm({
   const t = ru.admin.jewelry.photo;
 
   return (
-    <form
-      action={action}
-      className="flex flex-col gap-4 rounded-2xl border border-line bg-card/40 p-5"
-    >
+    <form action={action} className={`${CARD} flex flex-col gap-4 p-5 sm:p-6`}>
       <input type="hidden" name="id" value={jewelryId} />
 
       {!blobConfigured ? (
-        <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary">
+        <p className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">
           {t.blobNotConfigured}
         </p>
       ) : null}
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">{t.fileLabel}</span>
-        <input
-          type="file"
-          name="files"
-          accept="image/*"
-          multiple
-          required
-          aria-label={t.fileLabel}
-          className="block w-full text-sm text-ink file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-on-primary hover:file:bg-primary-soft"
-        />
-      </label>
+      <FileField
+        name="files"
+        label={t.fileLabel}
+        accept="image/*"
+        multiple
+        required
+      />
 
-      <FormStatus state={state} />
-      <div>
-        <PrimarySubmit pending={pending}>
+      <div className="flex flex-wrap items-center gap-4">
+        <SubmitPill pending={pending}>
           {pending ? "…" : t.upload}
-        </PrimarySubmit>
+        </SubmitPill>
+        <InlineStatus state={state} />
       </div>
     </form>
   );

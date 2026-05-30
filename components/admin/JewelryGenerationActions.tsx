@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   startJewelryGeneration,
   pollJewelryJob,
@@ -9,6 +9,7 @@ import {
   type ActionState,
 } from "@/lib/admin/jewelry-generation-actions";
 import { ru } from "@/lib/i18n/ru";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface JewelryGenerationActionsProps {
   jewelryId: string;
@@ -57,9 +58,11 @@ export function JewelryGenerationActions({
     FormData
   >(rejectJewelryJob, undefined);
 
+  const [rejectOpen, setRejectOpen] = useState(false);
+
   if (!autoAvailable) {
     return (
-      <p className="rounded-lg border border-line bg-page/60 px-4 py-3 text-sm text-mute">
+      <p className="rounded-xl border border-line bg-ink/3 px-4 py-3 text-sm text-mute">
         {t.autoUnavailable}
       </p>
     );
@@ -97,7 +100,7 @@ export function JewelryGenerationActions({
           href={latestJob.resultGlbUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-9 w-fit items-center rounded-full border border-line px-3 text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
+          className="inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
         >
           {t.autoPreview} ↗
         </a>
@@ -108,18 +111,30 @@ export function JewelryGenerationActions({
               {t.autoApprove}
             </SubmitButton>
           </form>
-          <form
-            action={rejectAction}
-            onSubmit={(e) => {
-              if (!confirm(t.autoConfirmReject)) e.preventDefault();
-            }}
+          <button
+            type="button"
+            onClick={() => setRejectOpen(true)}
+            disabled={rejectPending}
+            className="inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-medium text-mute transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
           >
-            <input type="hidden" name="jobId" value={latestJob.id} />
-            <SubmitButton variant="ghost" pending={rejectPending}>
-              {t.autoReject}
-            </SubmitButton>
-          </form>
+            {rejectPending ? "…" : t.autoReject}
+          </button>
         </div>
+        <ConfirmDialog
+          open={rejectOpen}
+          onClose={() => setRejectOpen(false)}
+          onConfirm={() => {
+            const fd = new FormData();
+            fd.append("jobId", latestJob.id);
+            rejectAction(fd);
+            setRejectOpen(false);
+          }}
+          title={t.autoConfirmReject}
+          confirmLabel={t.autoReject}
+          cancelLabel={ru.admin.common.cancel}
+          pending={rejectPending}
+          tone="danger"
+        />
         <FeedbackLine state={approveState} />
         <FeedbackLine state={rejectState} />
       </div>
@@ -160,7 +175,7 @@ function Badge({
 }) {
   const cls =
     tone === "success"
-      ? "border-primary/40 bg-primary/10 text-primary"
+      ? "border-success/40 bg-success-soft text-success"
       : tone === "error"
         ? "border-error/40 bg-error-soft text-error"
         : "border-line bg-card text-ink";
@@ -196,13 +211,13 @@ function SubmitButton({
   children: React.ReactNode;
 }) {
   const base =
-    "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
   const tone =
     variant === "primary"
-      ? "bg-primary text-on-primary hover:bg-primary-soft"
+      ? "bg-ink text-bg hover:bg-ink/90"
       : variant === "secondary"
-        ? "border border-line text-ink hover:border-primary"
-        : "text-mute hover:text-primary";
+        ? "border border-ink/15 text-ink hover:border-ink/40"
+        : "text-mute hover:text-ink";
   return (
     <button
       type="submit"

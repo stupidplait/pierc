@@ -40,6 +40,7 @@ if _HERE not in sys.path:
 import bpy  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_cylinder,
     add_ico_sphere,
     add_uv_sphere,
@@ -152,4 +153,9 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
     obj.name = "labret_stud"
 
     set_origin_to_world(obj, (0.0, 0.0, 0.0))
-    return obj
+
+    # Attach point: body surface (origin), post going outward = +Z.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+    return obj, attach_primary

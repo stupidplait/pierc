@@ -380,17 +380,66 @@ def add_cylinder(
 
 
 # ────────────────────────────────────────────────────────────────────────
+# Attach-point empties — Phase B multi-anchor jewelry system.
+# ────────────────────────────────────────────────────────────────────────
+
+
+def add_attach_empty(
+    name: str,
+    *,
+    location: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    rotation: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> bpy.types.Object:
+    """Add a named empty marking a jewelry attach point.
+
+    Convention (see docs/20-multi-anchor-jewelry.md):
+      • The empty's local +Z axis points OUTWARD from the body, matching
+        the piece's piece-local +Z convention.
+      • `attach:primary` corresponds to JewelryAnchorBinding.order == 0.
+      • `attach:secondary` corresponds to order == 1, etc.
+
+    The renderer (components/catalog/EquippedPieces.tsx) traverses the
+    loaded glTF, finds these empties by name, reads their world
+    positions, and computes the rigid transform that maps them onto
+    the equipped anchors.
+    """
+    bpy.ops.object.empty_add(
+        type="PLAIN_AXES",
+        location=location,
+        rotation=rotation,
+    )
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.empty_display_size = 0.004  # 4 mm — visible but not loud in the viewport
+    obj.show_name = False  # exporter doesn't need the label
+    return obj
+
+
+# ────────────────────────────────────────────────────────────────────────
 # Export
 # ────────────────────────────────────────────────────────────────────────
 
 
-def export_glb_draco(path: str, root_obj: bpy.types.Object) -> int:
-    """Export the single root_obj to `.glb` with Draco compression.
+def export_glb_draco(
+    path: str,
+    root_obj: bpy.types.Object,
+    *extras: bpy.types.Object,
+) -> int:
+    """Export `root_obj` (and any `extras` like attach:* empties) to `.glb`
+    with Draco mesh compression.
+
+    Convention: pass the main mesh first, then any additional objects
+    (empties, attach points) that should ride along in the same GLB.
+    All listed objects are selected; export uses `use_selection=True`.
 
     Returns the exported filesize in bytes.
     """
     ensure_dir(path)
-    select_only(root_obj)
+    deselect_all()
+    root_obj.select_set(True)
+    for x in extras:
+        x.select_set(True)
+    bpy.context.view_layer.objects.active = root_obj
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
@@ -405,6 +454,10 @@ def export_glb_draco(path: str, root_obj: bpy.types.Object) -> int:
         export_animations=False,
         export_lights=False,
         export_cameras=False,
+        # Empties have no mesh data but glTF nodes carry the names we
+        # rely on (`attach:primary`, `attach:secondary`). The default
+        # export_extras=False is fine — we just need the node, not custom
+        # properties.
     )
     return os.path.getsize(path)
 
@@ -442,6 +495,7 @@ __all__ = [
     "add_ico_sphere",
     "add_torus",
     "add_uv_sphere",
+    "add_attach_empty",
     "apply_transforms",
     "assign_material",
     "deselect_all",

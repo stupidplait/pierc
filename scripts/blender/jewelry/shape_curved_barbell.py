@@ -31,6 +31,7 @@ if _HERE not in sys.path:
 import bpy  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_uv_sphere,
     apply_transforms,
     assign_material,
@@ -86,7 +87,7 @@ def _build_curved_shaft(
     return mesh_obj
 
 
-def build(params: dict, material_color: str) -> bpy.types.Object:
+def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
     shaft_length_mm = float(params["shaftLengthMm"])
     gauge_mm = float(params["gaugeMm"])
     ball_size_mm = float(params.get("ballSizeMm", max(2.5, gauge_mm * 1.8)))
@@ -119,4 +120,16 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
 
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
-    return obj
+
+    # Attach points: "in" ball at origin (post enters body here for a 1-anchor
+    # navel/eyebrow piercing), "out" ball at the bowed-shaft far end. For a
+    # 1-anchor wearing (current usage), only attach:primary is consumed by
+    # the renderer; for a hypothetical 2-anchor curved-barbell (e.g. snug
+    # piercing), both endpoints are consumed.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+    attach_secondary = add_attach_empty(
+        "attach:secondary", location=(0.0, 0.0, mm(shaft_length_mm))
+    )
+    return obj, attach_primary, attach_secondary

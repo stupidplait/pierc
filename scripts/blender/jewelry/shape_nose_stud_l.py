@@ -38,6 +38,7 @@ import bpy  # noqa: E402
 import math  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_cylinder,
     add_ico_sphere,
     add_uv_sphere,
@@ -140,4 +141,11 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
     obj.name = "nose_stud_l"
 
     set_origin_to_world(obj, (0.0, 0.0, 0.0))
-    return obj
+
+    # Attach point: the elbow (origin) — where the visible arm meets the body
+    # surface. The retainer arm sits inside the nostril; the user only ever
+    # sees the visible arm + top.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+    return obj, attach_primary

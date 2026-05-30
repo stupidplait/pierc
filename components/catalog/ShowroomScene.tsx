@@ -31,6 +31,30 @@ export function ShowroomScene({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const focusedAnchor = anchors.find((a) => a.id === selectedId) ?? null;
 
+  // For multi-anchor framing: if the selected anchor has a jewelry equipped
+  // on it, find that jewelry. Then collect ALL the anchors that share the
+  // same equipped jewelry (the multi-anchor binding set) so CameraRig can
+  // expand the frame to fit all endpoints. Single-anchor / nothing equipped
+  // → these are null/empty and CameraRig falls back to the per-anchor preset.
+  const equippedJewelryAtSelected = (() => {
+    if (!selectedId) return null;
+    const jewelryId = equipped[selectedId];
+    if (!jewelryId) return null;
+    return jewelry.find((j) => j.id === jewelryId) ?? null;
+  })();
+
+  const multiAnchorFramingSet = (() => {
+    if (!equippedJewelryAtSelected) return [];
+    if (equippedJewelryAtSelected.piercingCount < 2) return [];
+    const anchorsForThisJewelry = new Set<string>();
+    for (const [anchorId, jewelryId] of Object.entries(equipped)) {
+      if (jewelryId === equippedJewelryAtSelected.id) {
+        anchorsForThisJewelry.add(anchorId);
+      }
+    }
+    return anchors.filter((a) => anchorsForThisJewelry.has(a.id));
+  })();
+
   return (
     <div className="relative h-full w-full">
       <Canvas
@@ -78,7 +102,11 @@ export function ShowroomScene({
           equipped={equipped}
         />
 
-        <CameraRig anchor={focusedAnchor} />
+        <CameraRig
+          anchor={focusedAnchor}
+          equippedAnchorsForFraming={multiAnchorFramingSet}
+          equippedJewelry={equippedJewelryAtSelected}
+        />
       </Canvas>
 
       {/* Hint badge */}

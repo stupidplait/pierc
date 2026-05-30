@@ -26,6 +26,7 @@ if _HERE not in sys.path:
 import bpy  # noqa: E402
 
 from _jewelry_helpers import (  # noqa: E402
+    add_attach_empty,
     add_torus,
     apply_transforms,
     assign_material,
@@ -33,7 +34,7 @@ from _jewelry_helpers import (  # noqa: E402
 )
 
 
-def build(params: dict, material_color: str) -> bpy.types.Object:
+def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
     diameter_mm = float(params["diameterMm"])
     gauge_mm = float(params["gaugeMm"])
 
@@ -54,4 +55,12 @@ def build(params: dict, material_color: str) -> bpy.types.Object:
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
 
-    return obj
+    # Attach point: ring center, post outward = +Z (the empty's local +Z
+    # points OUT of the ring face). For ORBITAL usage (one ring through 2
+    # piercings), an additional `attach:secondary` would be added at the
+    # opposite point of the torus; not yet supported.
+    attach_primary = add_attach_empty(
+        "attach:primary", location=(0.0, 0.0, 0.0)
+    )
+
+    return obj, attach_primary

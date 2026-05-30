@@ -129,9 +129,20 @@ def build_piece(piece: dict) -> dict:
         if not hasattr(mod, "build"):
             raise AttributeError(f"shape_{shape}.py is missing a `build()` function")
 
-        obj = mod.build(piece.get("params", {}) or {}, material_color)
+        result = mod.build(piece.get("params", {}) or {}, material_color)
+        # Phase B: shape build() may return either the legacy single mesh
+        # OR a tuple/list `[mesh, *attach_empties]` so that the GLB carries
+        # `attach:primary` / `attach:secondary` nodes for the renderer.
+        if isinstance(result, (list, tuple)):
+            objs = list(result)
+            obj = objs[0]
+            extras = objs[1:]
+        else:
+            obj = result
+            extras = []
+
         select_only(obj)
-        size = export_glb_draco(out_path, obj)
+        size = export_glb_draco(out_path, obj, *extras)
         s = stats(obj)
         return {
             "slug": slug,

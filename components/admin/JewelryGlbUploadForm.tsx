@@ -2,9 +2,10 @@
 
 import { useActionState } from "react";
 import {
-  FormStatus,
-  PrimarySubmit,
-} from "@/components/admin/FormFields";
+  FileField,
+  InlineStatus,
+  SubmitPill,
+} from "@/components/admin/form/atelier";
 import {
   uploadJewelryGlb,
   type ActionState,
@@ -26,33 +27,30 @@ export function JewelryGlbUploadForm({
   );
   const t = ru.admin.jewelry.model;
 
+  // Card-less on purpose — this form is a sub-block inside the model manager
+  // card, so an outer surface would read as a card-in-card.
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={jewelryId} />
 
       {!blobConfigured ? (
-        <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary">
+        <p className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">
           {ru.admin.jewelry.photo.blobNotConfigured}
         </p>
       ) : null}
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">{t.fileLabel}</span>
-        <input
-          type="file"
-          name="file"
-          accept=".glb,model/gltf-binary"
-          required
-          aria-label={t.fileLabel}
-          className="block w-full text-sm text-ink file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-on-primary hover:file:bg-primary-soft"
-        />
-      </label>
+      <FileField
+        name="file"
+        label={t.fileLabel}
+        accept=".glb,model/gltf-binary"
+        required
+      />
 
-      <FormStatus state={state} />
-      <div>
-        <PrimarySubmit pending={pending}>
+      <div className="flex flex-wrap items-center gap-4">
+        <SubmitPill pending={pending}>
           {pending ? "…" : t.upload}
-        </PrimarySubmit>
+        </SubmitPill>
+        <InlineStatus state={state} />
       </div>
     </form>
   );

@@ -9,7 +9,7 @@ import {
   type JewelryWire,
   SOFT_CAP,
 } from "@/lib/catalog/types";
-import { bodyPlaceLabels, bodyPlaceOrder, catalogStrings } from "@/lib/i18n/ru";
+import { bodyPlaceLabels, bodyPlaceOrder, catalogStrings, piercingCountLabel } from "@/lib/i18n/ru";
 import { formatPrice } from "@/lib/jewelry/format";
 
 interface CatalogSidebarProps {
@@ -17,8 +17,13 @@ interface CatalogSidebarProps {
   jewelry: JewelryWire[];
   selectedAnchorId: string | null;
   equipped: EquippedMap;
-  /** When at least one piece is equipped, the URL to hand off to the booking flow. */
-  bookHref: string | null;
+  /**
+   * LiteMode hands off to a URL (`/book?items=…`). The 3D Showroom instead
+   * opens an in-context drawer via `onBook` + `canBook`.
+   */
+  bookHref?: string | null;
+  canBook?: boolean;
+  onBook?: () => void;
   onSelectAnchor: (id: string | null) => void;
   onEquip: (anchorId: string, jewelryId: string) => void;
   onUnequip: (anchorId: string) => void;
@@ -30,6 +35,8 @@ export function CatalogSidebar({
   selectedAnchorId,
   equipped,
   bookHref,
+  canBook,
+  onBook,
   onSelectAnchor,
   onEquip,
   onUnequip,
@@ -72,7 +79,7 @@ export function CatalogSidebar({
     : undefined;
 
   return (
-    <aside className="flex h-full flex-col gap-5 overflow-y-auto border-line bg-card/40 p-5 lg:border-l">
+    <aside className="flex h-full flex-col gap-5 overflow-y-auto border-line bg-card p-5 lg:border-l">
       {/* Anchor picker */}
       <label className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-[0.2em] text-mute">
@@ -144,7 +151,17 @@ export function CatalogSidebar({
             {t.trayLimitReached.replace("{n}", String(SOFT_CAP))}
           </p>
         ) : null}
-        {bookHref ? (
+        {onBook ? (
+          canBook ? (
+            <button
+              type="button"
+              onClick={onBook}
+              className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-soft active:scale-[0.99]"
+            >
+              {catalogStrings.bookCta}
+            </button>
+          ) : null
+        ) : bookHref ? (
           <a
             href={bookHref}
             className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-soft"
@@ -190,6 +207,14 @@ export function CatalogSidebar({
                     <p className="truncate text-xs text-mute">
                       {j.categoryName} В· {formatPrice(j.price)}
                     </p>
+                    {j.piercingCount > 1 ? (
+                      <p
+                        className="mt-1 inline-flex w-fit rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                        title={catalogStrings.showroom.multiAnchorHint}
+                      >
+                        {piercingCountLabel(j.piercingCount)}
+                      </p>
+                    ) : null}
                   </div>
                   {isEquippedHere ? (
                     <button

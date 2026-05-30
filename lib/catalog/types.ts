@@ -55,9 +55,79 @@ export interface JewelryWire {
    * on `Jewelry.glbScale` if a Tripo upload is added back.
    */
   glbScale: number;
+  /**
+   * Transparent-background PNG used as the 2D sprite in lite mode
+   * (docs/15-lite-mode.md). When null, the piece is hidden from the
+   * lite-mode try-on list but still appears in the "Все украшения"
+   * grid view inside lite mode. Phase 1 showroom ignores this field.
+   */
+  spriteUrl: string | null;
   categoryName: string;
-  /** Anchors this jewelry can be fitted to. */
+  /**
+   * Drives renderer math + UX. See docs/20-multi-anchor-jewelry.md.
+   * STUD/RING are 1-anchor (pickable from `anchorBindings` as a compat
+   * list); the others are multi-anchor with fixed bindings.
+   */
+  type: JewelryType;
+  /**
+   * Ordered list of (anchorId, order) pairs.
+   *
+   * - For STUD/RING (semantics="compat-list"): each entry is one anchor the
+   *   user can equip the piece on. All entries have order=0.
+   * - For BARBELL/CIRCULAR_BARBELL/ORBITAL/CHAIN_LADDER (semantics="fixed"):
+   *   the entries are an ordered sequence of attach points (order=0 → mesh's
+   *   `attach:primary` empty, order=1 → `attach:secondary`, …). Length equals
+   *   the type's expected attach-point count, and ALL entries are equipped
+   *   together when the user picks the piece.
+   */
+  anchorBindings: AnchorBinding[];
+  /**
+   * Convenience union of all anchorIds across bindings, deduplicated.
+   * Useful for filter/eligibility checks ("does this jewelry occupy/work-with
+   * the selected anchor?"). Server populates this from `anchorBindings`.
+   */
   anchorIds: string[];
+  /**
+   * Number of pierced holes this jewelry occupies when equipped:
+   *   STUD / RING                        → 1
+   *   BARBELL / CIRCULAR_BARBELL /
+   *   ORBITAL                            → 2
+   *   CHAIN_LADDER                       → bindings.length
+   * Surfaced on cards and in the booking flow.
+   */
+  piercingCount: number;
+}
+
+export type JewelryType =
+  | "STUD"
+  | "RING"
+  | "BARBELL"
+  | "CIRCULAR_BARBELL"
+  | "ORBITAL"
+  | "CHAIN_LADDER";
+
+export interface AnchorBinding {
+  anchorId: string;
+  /** 0=primary, 1=secondary, … See JewelryWire.anchorBindings. */
+  order: number;
+}
+
+/**
+ * Returns true when this jewelry's bindings are a "compatibility list" —
+ * each entry is an alternative anchor the user can equip onto. STUD and
+ * RING are compat-list; everything else has fixed multi-anchor bindings.
+ */
+export function isSingleAnchorType(type: JewelryType): boolean {
+  return type === "STUD" || type === "RING";
+}
+
+export function piercingCountForType(
+  type: JewelryType,
+  bindingsLength: number,
+): number {
+  if (isSingleAnchorType(type)) return 1;
+  if (type === "CHAIN_LADDER") return bindingsLength;
+  return 2; // BARBELL / CIRCULAR_BARBELL / ORBITAL
 }
 
 export type EquippedMap = Record<string, string>; // anchorId -> jewelryId

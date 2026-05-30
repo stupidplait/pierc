@@ -1,16 +1,19 @@
 import type { Provider, ProviderId } from "./types";
 import { manualProvider } from "./manual";
+import { replicateProvider } from "./replicate";
 import { tripo3dProvider } from "./tripo3d";
 
-// Auto-generation priority. Currently Tripo3D-only; future providers
-// (Replicate-hosted open-source models, etc.) slot in here without touching
-// the calling code.
+// Auto-generation priority. Replicate (Hunyuan3D-2 by default — see
+// docs/18-replicate-3d.md) is the new primary; Tripo3D demoted to the
+// fallback slot. Both are roughly equivalent on jewelry shapes and the
+// chain falls through gracefully if either fails or is unconfigured.
 //
-// Manual is intentionally not in the auto chain — it's only invoked from
-// the manual upload UI.
-const AUTO_PRIORITY: ProviderId[] = ["tripo3d"];
+// Manual is intentionally not in the auto chain — it's only invoked
+// from the manual upload UI.
+const AUTO_PRIORITY: ProviderId[] = ["replicate", "tripo3d"];
 
 const all: Record<ProviderId, Provider> = {
+  replicate: replicateProvider,
   tripo3d: tripo3dProvider,
   manual: manualProvider,
 };
@@ -29,8 +32,9 @@ export function pickAutoProvider(): Provider | null {
 
 /**
  * Returns the next available auto-provider after `after` in the priority
- * chain. With only Tripo3D in the chain today, this always returns null;
- * kept so future fallback providers slot in without touching call sites.
+ * chain. With Replicate at the head and Tripo3D as the fallback, this
+ * returns Tripo3D when a Replicate generation fails (assuming
+ * `TRIPO3D_API_KEY` is set).
  */
 export function pickNextAutoProvider(after: ProviderId): Provider | null {
   const idx = AUTO_PRIORITY.indexOf(after);
@@ -44,6 +48,7 @@ export function pickNextAutoProvider(after: ProviderId): Provider | null {
 /** Status report for the admin UI: which providers are wired up. */
 export function getProviderStatus() {
   return {
+    replicate: replicateProvider.isAvailable(),
     tripo3d: tripo3dProvider.isAvailable(),
     manual: manualProvider.isAvailable(),
     autoAvailable: pickAutoProvider() !== null,
