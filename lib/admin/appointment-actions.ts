@@ -5,7 +5,11 @@ import { after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "./auth-helpers";
-import { sendStatusChangeNotification } from "@/lib/notifications";
+import { cancelAppointmentInTx } from "@/lib/booking/cancel";
+import {
+  sendStatusChangeNotification,
+  sendReviewRequestEmail,
+} from "@/lib/notifications";
 
 export type AppointmentActionState =
   | { ok: true; message?: string }
@@ -39,9 +43,11 @@ function revalidateForAppointments(id?: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Transition: PENDING → CONFIRMED → COMPLETED / NO_SHOW, or anywhere → CANCELLED
 //
-// COMPLETED cascades all linked JewelryBookings to FULFILLED.
-// CANCELLED does NOT auto-cancel linked bookings (per spec — admin chooses
-// per booking). Cancellation frees the slot via the @unique relation.
+// Cascades (one click drives the appointment AND its jewelry):
+//   CONFIRMED  → linked RESERVED bookings become CONFIRMED
+//   COMPLETED  → linked active bookings become FULFILLED
+//   CANCELLED  → cancelAppointmentInTx: cancel linked active bookings + restore
+//                stock + release the slot (slotId → null) so it can be rebooked
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function transitionAppointment(
@@ -88,10 +94,26 @@ export async function transitionAppointment(
         throw new Error("«Не явился» применимо только к подтверждённой записи.");
       }
 
+      // Cancel cascades through the shared helper (frees slot + restores stock).
+      if (action === "cancel") {
+        const result = await cancelAppointmentInTx(tx, id);
+        cascadedCount = result.cancelledBookings;
+        return;
+      }
+
       await tx.appointment.update({
         where: { id },
         data: { status: newStatus },
       });
+
+      // Cascade CONFIRMED → linked RESERVED bookings become CONFIRMED.
+      if (newStatus === "CONFIRMED") {
+        const result = await tx.jewelryBooking.updateMany({
+          where: { appointmentId: id, status: "RESERVED" },
+          data: { status: "CONFIRMED" },
+        });
+        cascadedCount = result.count;
+      }
 
       // Cascade COMPLETED → all linked active bookings become FULFILLED.
       if (newStatus === "COMPLETED") {
@@ -123,19 +145,57 @@ export async function transitionAppointment(
           newStatus,
         });
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error("[admin] appointment notify failed:", e);
       }
     });
+
+    // When transitioning to COMPLETED, also send the magic-link review
+    // request. Guarded server-side: skipped if the appointment was
+    // already reviewed or email isn't configured. See docs/16-reviews.md.
+    if (newStatus === "COMPLETED") {
+      after(async () => {
+        try {
+          await sendReviewRequestEmail({ appointmentId: id });
+        } catch (e) {
+          console.error("[admin] review-request email failed:", e);
+        }
+      });
+    }
   }
 
-  return {
-    ok: true,
-    message:
-      newStatus === "COMPLETED" && cascadedCount > 0
-        ? `Статус обновлён. ${cascadedCount} связанн${cascadedCount === 1 ? "ая бронь" : "ых броней"} выполнен${cascadedCount === 1 ? "а" : "ы"}.`
-        : "Статус обновлён.",
-  };
+  let message = "Статус обновлён.";
+  if (newStatus === "CANCELLED") {
+    message =
+      cascadedCount > 0
+        ? `Запись отменена, слот освобождён. Отменено украшений: ${cascadedCount}.`
+        : "Запись отменена, слот освобождён.";
+  } else if (cascadedCount > 0) {
+    const verb = newStatus === "CONFIRMED" ? "Подтверждено" : "Выполнено";
+    message = `Статус обновлён. ${verb} украшений: ${cascadedCount}.`;
+  }
+
+  return { ok: true, message };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manual resend of the magic-link review email (for COMPLETED appointments
+// that haven't been reviewed yet — useful if the auto-email failed or the
+// appointment was completed before this feature shipped).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function resendReviewRequest(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  after(async () => {
+    try {
+      await sendReviewRequestEmail({ appointmentId: id });
+    } catch (e) {
+      console.error("[admin] resend review-request failed:", e);
+    }
+  });
+  revalidatePath(`/admin/appointments/${id}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

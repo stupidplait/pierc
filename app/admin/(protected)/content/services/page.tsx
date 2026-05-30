@@ -7,49 +7,37 @@ export const metadata: Metadata = {
   title: `${ru.admin.content.tabs.services} — ${ru.admin.panel}`,
 };
 
+// Admin page — auth-walled and reads Service rows on every request.
+export const dynamic = "force-dynamic";
+
 export default async function AdminServicesPage() {
   const services = await prisma.service.findMany({
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   });
 
   return (
-    <section className="flex flex-col gap-6">
-      <div>
-        <h2 className="font-display text-2xl font-medium text-ink">
-          {ru.admin.content.services.title}
-        </h2>
-        <p className="mt-1 text-sm text-mute">
-          {ru.admin.content.services.lead}
-        </p>
-      </div>
-
+    <section className="flex flex-col gap-5">
       {services.length === 0 ? (
-        <p className="text-mute">{ru.admin.content.services.empty}</p>
+        <p className="text-sm text-mute">{ru.admin.content.services.empty}</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {services.map((s) => (
-            <ServiceForm
-              key={s.id}
-              initial={{
-                id: s.id,
-                name: s.name,
-                description: s.description,
-                price: s.price.toString(),
-                durationMin: s.durationMin,
-                order: s.order,
-                published: s.published,
-              }}
-            />
-          ))}
-        </div>
+        services.map((s, i) => (
+          <ServiceForm
+            key={s.id}
+            delay={Math.min(i, 6) * 0.05}
+            initial={{
+              id: s.id,
+              name: s.name,
+              description: s.description,
+              price: s.price.toString(),
+              durationMin: s.durationMin,
+              order: s.order,
+              published: s.published,
+            }}
+          />
+        ))
       )}
 
-      <div className="mt-2">
-        <h3 className="mb-3 text-lg font-medium text-ink">
-          {ru.admin.content.services.addHeading}
-        </h3>
-        <ServiceForm isNew />
-      </div>
+      <ServiceForm isNew delay={Math.min(services.length, 6) * 0.05} />
     </section>
   );
 }

@@ -22,7 +22,7 @@ export function NotificationTestButton() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-fit items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
+        className="inline-flex h-11 w-fit items-center justify-center rounded-xl border border-ink-line-strong px-5 text-sm font-medium text-ink transition-colors duration-150 hover:border-ink active:scale-[0.98] disabled:opacity-60"
       >
         {pending ? t.testRunning : t.testButton}
       </button>

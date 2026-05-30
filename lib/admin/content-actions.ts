@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
+import { isFaqCategoryKey } from "@/components/faq/faqData";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -135,7 +136,13 @@ export async function upsertFaq(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
   }
 
-  const { id, ...data } = parsed.data;
+  // Category arrives as a raw key; keep it only if it's a known bucket,
+  // otherwise store null (the page falls back to the keyword classifier).
+  const rawCategory = String(formData.get("category") ?? "");
+  const category = isFaqCategoryKey(rawCategory) ? rawCategory : null;
+
+  const { id, ...rest } = parsed.data;
+  const data = { ...rest, category };
 
   if (id) {
     await prisma.fAQItem.update({ where: { id }, data });

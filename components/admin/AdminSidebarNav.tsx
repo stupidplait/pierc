@@ -13,7 +13,7 @@ export function AdminSidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label={ru.admin.panel} className="flex flex-col gap-1">
+    <nav aria-label={ru.admin.panel} className="flex flex-col gap-0.5">
       {adminNavLinks.map((link) => {
         const active = isActive(link.href, pathname);
         return (
@@ -21,12 +21,22 @@ export function AdminSidebarNav() {
             key={link.href}
             href={link.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${
               active
-                ? "bg-primary/10 text-primary"
-                : "text-ink hover:bg-card hover:text-primary"
+                ? "bg-ink/10 text-ink"
+                : "text-mute hover:bg-ink/5 hover:text-ink"
             }`}
           >
+            {/* Accent rail marker — the single magenta moment, lit only on the
+                active route (a faint dot on the rest). */}
+            <span
+              aria-hidden
+              className={`size-1.5 rounded-full transition-colors duration-150 ${
+                active
+                  ? "bg-accent"
+                  : "bg-ink/20 group-hover:bg-ink/40"
+              }`}
+            />
             {link.label}
           </Link>
         );

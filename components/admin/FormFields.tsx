@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 
 const inputBase =
   "h-11 w-full rounded-xl border border-line bg-page px-4 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -39,12 +40,42 @@ export function TextField({
   );
 }
 
+/** Phone variant of TextField — submits via `name` while applying the RU
+ *  +7 (XXX) XXX-XX-XX live mask. */
+export function PhoneField({
+  name,
+  label,
+  defaultValue,
+  required,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  defaultValue?: string | null;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-sm font-medium text-ink">{label}</span>
+      <PhoneInput
+        name={name}
+        required={required}
+        defaultValue={defaultValue ?? ""}
+        placeholder={placeholder}
+        className={inputBase}
+      />
+    </label>
+  );
+}
+
 export function TextAreaField({
   name,
   label,
   defaultValue,
   required,
   rows = 6,
+  placeholder,
   autoComplete,
 }: {
   name: string;
@@ -52,6 +83,7 @@ export function TextAreaField({
   defaultValue?: string | null;
   required?: boolean;
   rows?: number;
+  placeholder?: string;
   autoComplete?: string;
 }) {
   return (
@@ -62,6 +94,7 @@ export function TextAreaField({
         rows={rows}
         required={required}
         defaultValue={defaultValue ?? ""}
+        placeholder={placeholder}
         autoComplete={autoComplete}
         className="w-full rounded-xl border border-line bg-page px-4 py-3 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
       />
@@ -96,6 +129,37 @@ export function NumberField({
         defaultValue={defaultValue ?? ""}
         className={inputBase}
       />
+    </label>
+  );
+}
+
+export function SelectField({
+  name,
+  label,
+  defaultValue,
+  options,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  defaultValue?: string | null;
+  options: { value: string; label: string }[];
+  /** Rendered as a leading empty-value option (e.g. "— none —"). */
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-sm font-medium text-ink">{label}</span>
+      <select name={name} defaultValue={defaultValue ?? ""} className={inputBase}>
+        {placeholder !== undefined ? (
+          <option value="">{placeholder}</option>
+        ) : null}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

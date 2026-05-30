@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { SettingsForm } from "@/components/admin/SettingsForm";
-import { NotificationTestButton } from "@/components/admin/NotificationTestButton";
+import { SettingsTabs } from "@/components/admin/settings/SettingsTabs";
 
 export const metadata: Metadata = {
   title: `${ru.admin.settings.title} — ${ru.admin.panel}`,
@@ -19,25 +20,22 @@ export default async function AdminSettingsPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-5xl">
       <PageHeader
-        eyebrow={ru.admin.panel}
         title={ru.admin.settings.title}
         lead={ru.admin.settings.lead}
       />
-      <SettingsForm initial={settings} />
-
-      <section className="mt-12">
-        <Card>
-          <h2 className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-            {ru.admin.settings.notificationsHeading}
-          </h2>
-          <p className="mb-4 max-w-prose text-sm text-mute">
-            {ru.admin.settings.notificationsLead}
-          </p>
-          <NotificationTestButton />
-        </Card>
-      </section>
+      <SettingsTabs
+        initial={{
+          contactEmail: settings.contactEmail,
+          contactPhone: settings.contactPhone,
+          contactAddress: settings.contactAddress,
+          instagramUrl: settings.instagramUrl,
+          telegramUrl: settings.telegramUrl,
+          telegramChatId: settings.telegramChatId,
+          workingHoursHint: settings.workingHoursHint,
+        }}
+      />
     </div>
   );
 }

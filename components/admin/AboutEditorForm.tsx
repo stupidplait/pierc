@@ -2,10 +2,13 @@
 
 import { useActionState } from "react";
 import {
-  TextAreaField,
-  FormStatus,
-  PrimarySubmit,
-} from "@/components/admin/FormFields";
+  CardHeader,
+  InlineStatus,
+  Reveal,
+  SubmitPill,
+  TextArea,
+} from "@/components/admin/form/atelier";
+import { CARD } from "@/components/admin/form/styles";
 import {
   updateAbout,
   type ActionState,
@@ -21,22 +24,30 @@ export function AboutEditorForm({ initialBody }: AboutEditorFormProps) {
     updateAbout,
     undefined,
   );
+  const t = ru.admin.content.about;
 
   return (
-    <form action={action} className="flex flex-col gap-5">
-      <TextAreaField
-        name="body"
-        label={ru.admin.content.about.bodyLabel}
-        defaultValue={initialBody}
-        required
-        rows={10}
-      />
-      <FormStatus state={state} />
-      <div>
-        <PrimarySubmit pending={pending}>
-          {pending ? "…" : ru.admin.content.about.save}
-        </PrimarySubmit>
-      </div>
-    </form>
+    <Reveal>
+      <form
+        action={action}
+        className={`${CARD} flex flex-col gap-6 p-7 sm:p-9`}
+      >
+        <CardHeader title={t.title} lead={t.lead} />
+        <TextArea
+          name="body"
+          label={t.bodyLabel}
+          defaultValue={initialBody}
+          required
+          rows={12}
+          placeholder={t.bodyPlaceholder}
+        />
+        <div className="flex flex-wrap items-center gap-4">
+          <SubmitPill pending={pending}>
+            {pending ? "…" : t.save}
+          </SubmitPill>
+          <InlineStatus state={state} />
+        </div>
+      </form>
+    </Reveal>
   );
 }

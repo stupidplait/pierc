@@ -7,45 +7,36 @@ export const metadata: Metadata = {
   title: `${ru.admin.content.tabs.faq} — ${ru.admin.panel}`,
 };
 
+// Admin page — auth-walled and reads FAQItem rows on every request.
+export const dynamic = "force-dynamic";
+
 export default async function AdminFaqPage() {
   const items = await prisma.fAQItem.findMany({
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   });
 
   return (
-    <section className="flex flex-col gap-6">
-      <div>
-        <h2 className="font-display text-2xl font-medium text-ink">
-          {ru.admin.content.faq.title}
-        </h2>
-        <p className="mt-1 text-sm text-mute">{ru.admin.content.faq.lead}</p>
-      </div>
-
+    <section className="flex flex-col gap-5">
       {items.length === 0 ? (
-        <p className="text-mute">{ru.admin.content.faq.empty}</p>
+        <p className="text-sm text-mute">{ru.admin.content.faq.empty}</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {items.map((q) => (
-            <FaqForm
-              key={q.id}
-              initial={{
-                id: q.id,
-                question: q.question,
-                answer: q.answer,
-                order: q.order,
-                published: q.published,
-              }}
-            />
-          ))}
-        </div>
+        items.map((q, i) => (
+          <FaqForm
+            key={q.id}
+            delay={Math.min(i, 6) * 0.05}
+            initial={{
+              id: q.id,
+              question: q.question,
+              answer: q.answer,
+              category: q.category,
+              order: q.order,
+              published: q.published,
+            }}
+          />
+        ))
       )}
 
-      <div className="mt-2">
-        <h3 className="mb-3 text-lg font-medium text-ink">
-          {ru.admin.content.faq.addHeading}
-        </h3>
-        <FaqForm isNew />
-      </div>
+      <FaqForm isNew delay={Math.min(items.length, 6) * 0.05} />
     </section>
   );
 }

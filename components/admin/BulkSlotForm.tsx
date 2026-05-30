@@ -5,7 +5,10 @@ import {
   bulkCreateSlots,
   type BulkSlotState,
 } from "@/lib/admin/slot-actions";
+import { CardHeader, Reveal } from "@/components/admin/form/atelier";
+import { CARD, FIELD_H, LABEL, SUBMIT } from "@/components/admin/form/styles";
 import { ru } from "@/lib/i18n/ru";
+import { pluralRu } from "@/lib/i18n/plural";
 
 // 0=Mon ... 6=Sun (ISO order).
 const DAYS = [
@@ -18,7 +21,7 @@ const DAYS = [
   { value: 6, label: ru.admin.slots.dayShort.sun },
 ] as const;
 
-// Sensible defaults: today в†’ end of next month, Tue-Sat 11:00вЂ“19:00, 60 min.
+// Sensible defaults: today → end of next month, Tue-Sat 11:00–19:00, 60 min.
 function defaultRange() {
   const from = new Date();
   from.setHours(0, 0, 0, 0);
@@ -37,7 +40,7 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function BulkSlotForm() {
+export function BulkSlotForm({ delay = 0 }: { delay?: number }) {
   const [state, action, pending] = useActionState<BulkSlotState, FormData>(
     bulkCreateSlots,
     undefined,
@@ -65,144 +68,156 @@ export function BulkSlotForm() {
   };
 
   return (
-    <form action={action} className="flex flex-col gap-5">
-      {/* Range */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.15em] text-mute">
-            {t.bulkFromLabel}
-          </span>
-          <input
-            type="date"
-            name="from"
-            required
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="h-11 rounded-xl border border-line bg-page px-4 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.15em] text-mute">
-            {t.bulkToLabel}
-          </span>
-          <input
-            type="date"
-            name="to"
-            required
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-11 rounded-xl border border-line bg-page px-4 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-          />
-        </label>
-      </div>
+    <Reveal delay={delay}>
+      <form action={action} className={`${CARD} flex flex-col gap-6 p-6 sm:p-7`}>
+        <CardHeader title={t.bulkHeading} lead={t.bulkLead} />
 
-      {/* Days of week */}
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-xs uppercase tracking-[0.15em] text-mute">
-          {t.bulkDaysLabel}
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {DAYS.map((d) => {
-            const active = days.includes(d.value);
-            return (
-              <label
-                key={d.value}
-                className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "border-primary bg-primary text-on-primary"
-                    : "border-line text-ink hover:border-primary"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="days"
-                  value={d.value}
-                  checked={active}
-                  onChange={() => toggleDay(d.value)}
-                  className="sr-only"
-                />
-                {d.label}
-              </label>
-            );
-          })}
+        {/* Range */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t.bulkFromLabel}</span>
+            <input
+              type="date"
+              name="from"
+              required
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className={FIELD_H}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t.bulkToLabel}</span>
+            <input
+              type="date"
+              name="to"
+              required
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className={FIELD_H}
+            />
+          </label>
         </div>
-      </fieldset>
 
-      {/* Hours + slot length */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.15em] text-mute">
-            {t.bulkHoursLabel}
-          </span>
-          <div className="flex items-center gap-2">
-            <input
-              type="time"
-              name="start"
-              required
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="h-11 w-full rounded-xl border border-line bg-page px-3 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-            />
-            <span className="text-mute">вЂ“</span>
-            <input
-              type="time"
-              name="end"
-              required
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="h-11 w-full rounded-xl border border-line bg-page px-3 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-            />
+        {/* Days of week */}
+        <fieldset className="flex flex-col gap-2.5">
+          <legend className={LABEL}>{t.bulkDaysLabel}</legend>
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((d) => {
+              const active = days.includes(d.value);
+              return (
+                <label
+                  key={d.value}
+                  className={`cursor-pointer select-none rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-ink bg-ink text-bg"
+                      : "border-ink/15 text-mute hover:border-ink/40 hover:text-ink"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="days"
+                    value={d.value}
+                    checked={active}
+                    onChange={() => toggleDay(d.value)}
+                    className="sr-only"
+                  />
+                  {d.label}
+                </label>
+              );
+            })}
           </div>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-[0.15em] text-mute">
-            {t.bulkSlotMinLabel}
-          </span>
-          <input
-            type="number"
-            name="slotMin"
-            min={15}
-            max={480}
-            step={5}
-            required
-            value={slotMin}
-            onChange={(e) => setSlotMin(Number(e.target.value))}
-            className="h-11 rounded-xl border border-line bg-page px-4 text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-          />
-        </label>
-        <div className="flex flex-col justify-end">
-          <p className="rounded-xl border border-line bg-card px-4 py-3 text-sm text-mute">
-            {t.bulkPreview.replace("{n}", String(previewCount))}
-          </p>
+        </fieldset>
+
+        {/* Hours + slot length + live preview */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t.bulkHoursLabel}</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                name="start"
+                required
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className={FIELD_H}
+              />
+              <span className="text-mute">–</span>
+              <input
+                type="time"
+                name="end"
+                required
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className={FIELD_H}
+              />
+            </div>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t.bulkSlotMinLabel}</span>
+            <input
+              type="number"
+              name="slotMin"
+              min={15}
+              max={480}
+              step={5}
+              required
+              value={slotMin}
+              onChange={(e) => setSlotMin(Number(e.target.value))}
+              className={FIELD_H}
+            />
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t.bulkPreviewLabel}</span>
+            <div className="flex h-11 items-baseline gap-1.5 rounded-xl border border-ink/10 bg-ink/3 px-4">
+              <span className="text-lg font-medium tabular-nums text-ink">
+                {previewCount}
+              </span>
+              <span className="text-sm text-mute">
+                {pluralRu(previewCount, t.windows)}
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {state ? (
-        state.ok ? (
-          <p className="rounded-lg border border-success/40 bg-success-soft px-4 py-3 text-sm text-success">
-            {t.bulkResult
-              .replace("{created}", String(state.created))
-              .replace("{skipped}", String(state.skipped))}
-          </p>
-        ) : (
-          <p className="rounded-lg border border-error/40 bg-error-soft px-4 py-3 text-sm text-error">
-            {state.error}
-          </p>
-        )
-      ) : null}
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={pending || previewCount === 0}
+            className={SUBMIT}
+          >
+            {pending ? t.bulkSubmitting : t.bulkSubmit}
+          </button>
+          <BulkStatus state={state} />
+        </div>
 
-      <div>
-        <button
-          type="submit"
-          disabled={pending || previewCount === 0}
-          className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-on-primary transition-colors hover:bg-primary-soft disabled:opacity-50"
-        >
-          {pending ? t.bulkSubmitting : t.bulkSubmit}
-        </button>
-      </div>
+        <p className="text-xs text-mute">{t.timezoneNote}</p>
+      </form>
+    </Reveal>
+  );
+}
 
-      <p className="text-xs text-mute">{t.timezoneNote}</p>
-    </form>
+// Quiet inline status — matches the settings/atelier `InlineStatus` vocabulary
+// rather than the old full-width banners.
+function BulkStatus({ state }: { state: BulkSlotState }) {
+  if (!state) return null;
+  const t = ru.admin.slots;
+  if (state.ok) {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        className="text-sm font-medium text-success"
+      >
+        {t.bulkResult
+          .replace("{created}", String(state.created))
+          .replace("{skipped}", String(state.skipped))}
+      </span>
+    );
+  }
+  return (
+    <span role="alert" aria-live="assertive" className="text-sm text-error">
+      {state.error}
+    </span>
   );
 }
 

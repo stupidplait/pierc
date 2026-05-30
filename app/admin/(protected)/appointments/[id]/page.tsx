@@ -2,16 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
   AppointmentStatusBadge,
   BookingStatusBadge,
 } from "@/components/admin/StatusBadges";
 import { AppointmentTransitionForm } from "@/components/admin/AppointmentTransitionForm";
+import { CARD } from "@/components/admin/form/styles";
+import { Reveal } from "@/components/admin/form/atelier";
 import { formatPrice } from "@/lib/jewelry/format";
+
+// Quiet small-caps sub-header shared by every dossier card on this page.
+const DOSSIER_HEADING =
+  "mb-3 text-xs font-medium uppercase tracking-[0.2em] text-mute";
 
 const RU_DT = new Intl.DateTimeFormat("ru-RU", {
   weekday: "long",
@@ -48,6 +57,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },
       slot: true,
+      service: { select: { name: true, price: true, durationMin: true } },
       bookings: {
         include: { jewelry: { select: { id: true, name: true, price: true } } },
         orderBy: { createdAt: "asc" },
@@ -73,18 +83,16 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
         </span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* ── Left column ────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
-          <Card>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-              {t.detail.clientHeading}
-            </h2>
+          <Reveal className={`${CARD} p-6 sm:p-8`}>
+            <h2 className={DOSSIER_HEADING}>{t.detail.clientHeading}</h2>
             <p className="text-base text-ink">{appt.user.name}</p>
             <p className="mt-1 text-sm text-mute">
               <a
                 href={`mailto:${appt.user.email}`}
-                className="hover:text-primary"
+                className="transition-colors hover:text-ink"
               >
                 {appt.user.email}
               </a>
@@ -92,20 +100,34 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
                 <>
                   {" · "}
                   <a
-                    href={`tel:${appt.user.phone.replace(/\s|\(|\)|-/g, "")}`}
-                    className="hover:text-primary"
+                    href={`tel:${ruPhoneHref(appt.user.phone)}`}
+                    className="transition-colors hover:text-ink"
                   >
-                    {appt.user.phone}
+                    {formatRuPhone(appt.user.phone)}
                   </a>
                 </>
               ) : null}
             </p>
-          </Card>
+          </Reveal>
 
-          <Card>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-              {t.detail.slotHeading}
-            </h2>
+          <Reveal delay={0.06} className={`${CARD} p-6 sm:p-8`}>
+            <h2 className={DOSSIER_HEADING}>{t.detail.serviceHeading}</h2>
+            {appt.service ? (
+              <p className="text-base text-ink">
+                {appt.service.name}
+                <span className="text-mute">
+                  {" · "}
+                  {formatPrice(appt.service.price.toString())} ·{" "}
+                  {appt.service.durationMin} мин
+                </span>
+              </p>
+            ) : (
+              <p className="text-mute">{t.detail.noService}</p>
+            )}
+          </Reveal>
+
+          <Reveal delay={0.12} className={`${CARD} p-6 sm:p-8`}>
+            <h2 className={DOSSIER_HEADING}>{t.detail.slotHeading}</h2>
             {appt.slot ? (
               <p className="text-base text-ink">
                 {RU_DT.format(appt.slot.startsAt)} –{" "}
@@ -114,23 +136,21 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
             ) : (
               <p className="text-mute">{t.noSlot}</p>
             )}
-          </Card>
+          </Reveal>
 
           {appt.bookings.length > 0 ? (
-            <Card>
-              <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-                {t.linkedBookings}
-              </h2>
-              <ul className="flex flex-col gap-2">
+            <Reveal delay={0.18} className={`${CARD} p-6 sm:p-8`}>
+              <h2 className={DOSSIER_HEADING}>{t.linkedBookings}</h2>
+              <ul className="flex flex-col">
                 {appt.bookings.map((b) => (
                   <li
                     key={b.id}
-                    className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2 last:border-0 last:pb-0"
+                    className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 py-2.5 first:pt-0 last:border-0 last:pb-0"
                   >
                     <BookingStatusBadge status={b.status} />
                     <Link
                       href={`/admin/bookings/${b.id}`}
-                      className="min-w-0 flex-1 truncate text-sm text-ink hover:text-primary"
+                      className="min-w-0 flex-1 truncate text-sm text-ink transition-colors hover:text-mute"
                     >
                       {b.jewelry.name}
                     </Link>
@@ -140,18 +160,18 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
                   </li>
                 ))}
               </ul>
-            </Card>
+            </Reveal>
           ) : null}
         </div>
 
-        {/* ── Right column ───────────────────────────────────────── */}
-        <div className="rounded-2xl border border-line bg-card/40 p-5">
+        {/* ── Right column: status & notes rail ──────────────────── */}
+        <Reveal delay={0.1} className={`${CARD} h-fit p-6 lg:sticky lg:top-8`}>
           <AppointmentTransitionForm
             appointmentId={appt.id}
             status={appt.status}
             initialNotes={appt.notes}
           />
-        </div>
+        </Reveal>
       </div>
     </div>
   );

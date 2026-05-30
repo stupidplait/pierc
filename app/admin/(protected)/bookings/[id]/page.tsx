@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { CARD } from "@/components/admin/form/styles";
+import { Reveal } from "@/components/admin/form/atelier";
 import { BookingStatusBadge } from "@/components/admin/StatusBadges";
 import { BookingTransitionForm } from "@/components/admin/BookingTransitionForm";
 import { formatPrice } from "@/lib/jewelry/format";
@@ -55,94 +61,97 @@ export default async function AdminBookingDetailPage({ params }: Props) {
   const t = ru.admin.bookings;
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <PageHeader
-        eyebrow={ru.admin.panel}
-        title={t.detail.title}
-      >
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader eyebrow={ru.admin.panel} title={t.detail.title}>
         <Button href="/admin/bookings" variant="ghost" size="sm">
           ← {t.backToList}
         </Button>
       </PageHeader>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <BookingStatusBadge status={booking.status} />
-        <span className="text-xs text-mute">
-          {RU_DT.format(booking.createdAt)}
-        </span>
-      </div>
+      <Reveal>
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          {/* ── Dossier: status + client + jewelry + appointment ─────── */}
+          <div className={`${CARD} divide-y divide-line/70 overflow-hidden`}>
+            <div className="flex flex-wrap items-center gap-3 px-7 py-5 sm:px-8">
+              <BookingStatusBadge status={booking.status} />
+              <span className="text-xs text-mute tabular-nums">
+                {RU_DT.format(booking.createdAt)}
+              </span>
+            </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* ── Left column: client + jewelry + appointment summary ─── */}
-        <div className="flex flex-col gap-6">
-          <Card>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-              {t.detail.clientHeading}
-            </h2>
-            <p className="text-base text-ink">{booking.user.name}</p>
-            <p className="mt-1 text-sm text-mute">
-              <a
-                href={`mailto:${booking.user.email}`}
-                className="hover:text-primary"
-              >
-                {booking.user.email}
-              </a>
-              {booking.user.phone ? (
-                <>
-                  {" · "}
-                  <a
-                    href={`tel:${booking.user.phone.replace(/\s|\(|\)|-/g, "")}`}
-                    className="hover:text-primary"
-                  >
-                    {booking.user.phone}
-                  </a>
-                </>
-              ) : null}
-            </p>
-          </Card>
+            <Section title={t.detail.clientHeading}>
+              <p className="text-base text-ink">{booking.user.name}</p>
+              <p className="mt-1.5 text-sm text-mute">
+                <a
+                  href={`mailto:${booking.user.email}`}
+                  className="transition-colors hover:text-accent"
+                >
+                  {booking.user.email}
+                </a>
+                {booking.user.phone ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={`tel:${ruPhoneHref(booking.user.phone)}`}
+                      className="transition-colors hover:text-accent"
+                    >
+                      {formatRuPhone(booking.user.phone)}
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            </Section>
 
-          <Card>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-              {t.detail.jewelryHeading}
-            </h2>
-            <Link
-              href={`/admin/jewelry/${booking.jewelry.id}/edit`}
-              className="text-base font-medium text-ink hover:text-primary"
-            >
-              {booking.jewelry.name}
-            </Link>
-            <p className="mt-1 text-sm text-mute">
-              {booking.jewelry.material} ·{" "}
-              {formatPrice(booking.jewelry.price.toString())}
-            </p>
-          </Card>
-
-          {booking.appointment ? (
-            <Card>
-              <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-                {t.detail.appointmentHeading}
-              </h2>
+            <Section title={t.detail.jewelryHeading}>
               <Link
-                href={`/admin/appointments/${booking.appointment.id}`}
-                className="text-base text-ink hover:text-primary"
+                href={`/admin/jewelry/${booking.jewelry.id}/edit`}
+                className="text-base font-medium text-ink transition-colors hover:text-accent"
               >
-                {booking.appointment.slot
-                  ? RU_DT.format(booking.appointment.slot.startsAt)
-                  : "Без слота"}
+                {booking.jewelry.name}
               </Link>
-            </Card>
-          ) : null}
-        </div>
+              <p className="mt-1.5 text-sm text-mute">
+                {booking.jewelry.material} ·{" "}
+                {formatPrice(booking.jewelry.price.toString())}
+              </p>
+            </Section>
 
-        {/* ── Right column: transition + notes ────────────────────── */}
-        <div className="rounded-2xl border border-line bg-card/40 p-5">
-          <BookingTransitionForm
-            bookingId={booking.id}
-            status={booking.status}
-            initialNotes={booking.notes}
-          />
+            {booking.appointment ? (
+              <Section title={t.detail.appointmentHeading}>
+                <Link
+                  href={`/admin/appointments/${booking.appointment.id}`}
+                  className="text-base text-ink transition-colors hover:text-accent"
+                >
+                  {booking.appointment.slot
+                    ? RU_DT.format(booking.appointment.slot.startsAt)
+                    : ru.admin.appointments.noSlot}
+                </Link>
+              </Section>
+            ) : null}
+          </div>
+
+          {/* ── Status transition + admin notes ──────────────────────── */}
+          <div className={`${CARD} h-fit p-7 sm:p-8`}>
+            <BookingTransitionForm
+              bookingId={booking.id}
+              status={booking.status}
+              initialNotes={booking.notes}
+            />
+          </div>
         </div>
-      </div>
+      </Reveal>
     </div>
+  );
+}
+
+/** One labelled block of the dossier card — small-caps heading over content,
+ *  matching the section labels used across the redesigned admin. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="px-7 py-6 sm:px-8">
+      <h2 className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-mute">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }

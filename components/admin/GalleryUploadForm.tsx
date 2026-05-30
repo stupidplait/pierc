@@ -2,17 +2,25 @@
 
 import { useActionState } from "react";
 import {
-  TextField,
-  FormStatus,
-  PrimarySubmit,
-} from "@/components/admin/FormFields";
+  CardHeader,
+  Field,
+  FileField,
+  InlineStatus,
+  Reveal,
+  SubmitPill,
+} from "@/components/admin/form/atelier";
+import { CARD } from "@/components/admin/form/styles";
 import {
   uploadGalleryPhoto,
   type ActionState,
 } from "@/lib/admin/content-actions";
 import { ru } from "@/lib/i18n/ru";
 
-export function GalleryUploadForm() {
+export function GalleryUploadForm({
+  blobConfigured = true,
+}: {
+  blobConfigured?: boolean;
+}) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     uploadGalleryPhoto,
     undefined,
@@ -20,28 +28,37 @@ export function GalleryUploadForm() {
   const t = ru.admin.content.gallery;
 
   return (
-    <form
-      action={action}
-      className="flex flex-col gap-4 rounded-2xl border border-line bg-card/40 p-5"
-    >
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-ink">{t.fileLabel}</span>
-        <input
-          type="file"
-          name="file"
-          accept="image/*"
-          required
-          aria-label={t.fileLabel}
-          className="block w-full text-sm text-ink file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-on-primary hover:file:bg-primary-soft"
-        />
-      </label>
-      <TextField name="caption" label={t.captionLabel} />
-      <FormStatus state={state} />
-      <div>
-        <PrimarySubmit pending={pending}>
-          {pending ? "…" : t.upload}
-        </PrimarySubmit>
-      </div>
-    </form>
+    <Reveal>
+      <form action={action} className={`${CARD} flex flex-col gap-5 p-7 sm:p-9`}>
+        <CardHeader title={t.uploadHeading} />
+
+        {!blobConfigured ? (
+          <p className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">
+            {t.blobNotConfigured}
+          </p>
+        ) : null}
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FileField
+            name="file"
+            label={t.fileLabel}
+            accept="image/*"
+            required
+          />
+          <Field
+            name="caption"
+            label={t.captionLabel}
+            placeholder={t.captionPlaceholder}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <SubmitPill pending={pending}>
+            {pending ? "…" : t.upload}
+          </SubmitPill>
+          <InlineStatus state={state} />
+        </div>
+      </form>
+    </Reveal>
   );
 }

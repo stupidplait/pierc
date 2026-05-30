@@ -7,7 +7,6 @@ export default function ContentLayout({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-5xl">
       <PageHeader
-        eyebrow={ru.admin.panel}
         title={ru.admin.content.title}
         lead={ru.admin.content.lead}
       />

@@ -7,8 +7,18 @@ import {
   type BookingActionState,
 } from "@/lib/admin/booking-actions";
 import { ru } from "@/lib/i18n/ru";
+import { FIELD_AREA, GHOST_DELETE, SUBMIT } from "@/components/admin/form/styles";
 
 type BookingStatus = "RESERVED" | "CONFIRMED" | "FULFILLED" | "CANCELLED";
+
+// Small-caps section label shared with the dossier card next to this form.
+const SECTION_LABEL =
+  "text-xs font-medium uppercase tracking-[0.2em] text-mute";
+
+// Neutral secondary button — the notes save, kept quieter than the ink action
+// pills so it doesn't compete with the status transition.
+const GHOST_NEUTRAL =
+  "inline-flex h-11 items-center justify-center rounded-xl border border-ink/15 px-5 text-sm font-medium text-ink transition-colors duration-150 hover:border-ink/40 hover:bg-ink/[0.03] active:scale-[0.98] disabled:opacity-50";
 
 interface Props {
   bookingId: string;
@@ -36,34 +46,23 @@ export function BookingTransitionForm({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* в”Ђв”Ђ Status & transition buttons в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ */}
+      {/* ── Status & transition actions ───────────────────────────── */}
       <section>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-          {t.statusHeading}
-        </h3>
+        <h3 className={SECTION_LABEL}>{t.statusHeading}</h3>
 
         {closed ? (
-          <p className="text-sm text-mute">
+          <p className="mt-3 text-sm text-mute">
             {ru.admin.statusLabels.booking[status]}.
           </p>
         ) : (
-          <form action={transitionAction} className="flex flex-col gap-3">
+          <form action={transitionAction} className="mt-4 flex flex-col gap-4">
             <input type="hidden" name="id" value={bookingId} />
 
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                name="notify"
-                defaultChecked
-                className="size-4 rounded border-line text-primary focus:ring-primary"
-              />
-              <span>{t.notify}</span>
-            </label>
+            <NotifyToggle />
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {status === "RESERVED" ? (
                 <ActionButton
-                  name="action"
                   value="confirm"
                   pending={transitionPending}
                   variant="primary"
@@ -73,7 +72,6 @@ export function BookingTransitionForm({
               ) : null}
               {status === "CONFIRMED" ? (
                 <ActionButton
-                  name="action"
                   value="fulfill"
                   pending={transitionPending}
                   variant="primary"
@@ -82,7 +80,6 @@ export function BookingTransitionForm({
                 </ActionButton>
               ) : null}
               <ActionButton
-                name="action"
                 value="cancel"
                 pending={transitionPending}
                 variant="ghost"
@@ -96,76 +93,90 @@ export function BookingTransitionForm({
         )}
       </section>
 
-      {/* в”Ђв”Ђ Notes в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ */}
+      {/* ── Admin notes ───────────────────────────────────────────── */}
       <section>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-          {t.notesHeading}
-        </h3>
-        <form action={notesAction} className="flex flex-col gap-3">
+        <h3 className={SECTION_LABEL}>{t.notesHeading}</h3>
+        <form action={notesAction} className="mt-4 flex flex-col gap-3">
           <input type="hidden" name="id" value={bookingId} />
           <textarea
             name="notes"
             defaultValue={initialNotes ?? ""}
             placeholder={t.notesPlaceholder}
-            rows={4}
+            rows={5}
             autoComplete="off"
-            className="w-full rounded-xl border border-line bg-page px-4 py-3 text-sm text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            className={FIELD_AREA}
           />
-          <div>
+          <div className="flex flex-wrap items-center gap-4">
             <button
               type="submit"
               disabled={notesPending}
-              className="inline-flex h-10 items-center rounded-full border border-line px-4 text-sm font-medium text-ink transition-colors hover:border-primary disabled:opacity-60"
+              className={GHOST_NEUTRAL}
             >
-              {notesPending ? "вЂ¦" : t.notesSave}
+              {notesPending ? "…" : t.notesSave}
             </button>
+            <FeedbackLine state={notesState} />
           </div>
-          <FeedbackLine state={notesState} />
         </form>
       </section>
     </div>
   );
 }
 
+/** Accent pill switch — the same toggle the Steel Atelier form kit uses. */
+function NotifyToggle() {
+  return (
+    <label className="flex items-center gap-3">
+      <span className="relative inline-flex shrink-0">
+        <input
+          type="checkbox"
+          name="notify"
+          defaultChecked
+          className="peer sr-only"
+        />
+        <span className="h-6 w-11 rounded-full bg-ink/15 transition-colors duration-150 peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-card" />
+        <span className="pointer-events-none absolute left-0.5 top-0.5 size-5 rounded-full bg-ink shadow-sm transition-transform duration-150 peer-checked:translate-x-5 peer-checked:bg-bg" />
+      </span>
+      <span className="text-sm text-ink">{ru.admin.bookings.detail.notify}</span>
+    </label>
+  );
+}
+
 function ActionButton({
-  name,
   value,
   pending,
   variant,
   children,
 }: {
-  name: string;
   value: string;
   pending: boolean;
   variant: "primary" | "ghost";
   children: React.ReactNode;
 }) {
-  const base =
-    "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-medium transition-colors disabled:opacity-50";
-  const tone =
-    variant === "primary"
-      ? "bg-primary text-on-primary hover:bg-primary-soft"
-      : "border border-line text-mute hover:border-primary hover:text-primary";
   return (
     <button
       type="submit"
-      name={name}
+      name="action"
       value={value}
       disabled={pending}
-      className={`${base} ${tone}`}
+      className={variant === "primary" ? SUBMIT : GHOST_DELETE}
     >
-      {pending ? "вЂ¦" : children}
+      {pending ? "…" : children}
     </button>
   );
 }
 
 function FeedbackLine({ state }: { state: BookingActionState }) {
   if (!state) return null;
+  if (state.ok) {
+    return (
+      <p role="status" aria-live="polite" className="text-sm text-success">
+        {state.message}
+      </p>
+    );
+  }
   return (
-    <p
-      className={`text-xs ${state.ok ? "text-mute" : "text-error"}`}
-    >
-      {state.ok ? state.message : state.error}
+    <p role="alert" aria-live="assertive" className="text-sm text-error">
+      {state.error}
     </p>
   );
 }

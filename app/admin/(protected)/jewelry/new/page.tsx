@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: `${ru.admin.jewelry.newTitle} — ${ru.admin.panel}`,
 };
 
+// Admin page — auth-walled and reads JewelryCategory + AnchorPoint rows.
+export const dynamic = "force-dynamic";
+
 export default async function AdminJewelryNewPage() {
   const [categories, anchors] = await Promise.all([
     prisma.jewelryCategory.findMany({
@@ -27,7 +30,12 @@ export default async function AdminJewelryNewPage() {
         eyebrow={ru.admin.jewelry.title}
         title={ru.admin.jewelry.newTitle}
       >
-        <Button href="/admin/jewelry" variant="ghost" size="sm">
+        <Button
+          href="/admin/jewelry"
+          variant="secondary"
+          size="sm"
+          radius="rounded-xl"
+        >
           ← {ru.admin.jewelry.backToList}
         </Button>
       </PageHeader>

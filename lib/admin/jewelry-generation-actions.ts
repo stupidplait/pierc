@@ -80,9 +80,21 @@ export async function startJewelryGeneration(
 
   const jewelry = await prisma.jewelry.findUnique({
     where: { id },
-    select: { id: true, photos: true },
+    select: { id: true, photos: true, type: true },
   });
   if (!jewelry) return { ok: false, error: "Украшение не найдено" };
+
+  // AI is restricted to single-anchor types — see docs/20-multi-anchor-jewelry.md
+  // and docs/18-replicate-3d.md. Multi-anchor pieces (industrial bars,
+  // horseshoes through 2 holes, …) need precise endpoint placement that AI
+  // can't reliably produce; admin must use the parametric pipeline instead.
+  if (jewelry.type !== "STUD" && jewelry.type !== "RING") {
+    return {
+      ok: false,
+      error:
+        "Авто-генерация доступна только для одноточечных украшений (STUD, RING). Для штанг и подков используйте параметрический пайплайн или загрузите .glb вручную.",
+    };
+  }
 
   // Refuse if a job is already in flight for this jewelry.
   const existing = await prisma.generationJob.findFirst({

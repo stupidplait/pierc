@@ -16,7 +16,7 @@ export function ContentTabs() {
   return (
     <nav
       aria-label={ru.admin.content.title}
-      className="-mx-1 flex flex-wrap gap-1 border-b border-line"
+      className="inline-flex w-fit flex-wrap gap-1 rounded-xl border border-line bg-card p-1"
     >
       {tabs.map((t) => {
         const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
@@ -25,10 +25,8 @@ export function ContentTabs() {
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              active
-                ? "border-primary text-primary"
-                : "border-transparent text-mute hover:text-ink"
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              active ? "bg-ink text-bg" : "text-mute hover:text-ink"
             }`}
           >
             {t.label}

@@ -2,13 +2,16 @@
 
 import { useActionState } from "react";
 import {
-  TextField,
-  TextAreaField,
+  CardHeader,
+  Field,
+  InlineStatus,
   NumberField,
-  CheckboxField,
-  FormStatus,
-  PrimarySubmit,
-} from "@/components/admin/FormFields";
+  Reveal,
+  SubmitPill,
+  TextArea,
+  Toggle,
+} from "@/components/admin/form/atelier";
+import { CARD, GHOST_DELETE } from "@/components/admin/form/styles";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 import {
   upsertService,
@@ -31,9 +34,11 @@ interface ServiceFormProps {
   initial?: ServiceLike;
   // When true, this is the "Add new" form rather than an existing-row edit.
   isNew?: boolean;
+  /** Stagger offset for the entrance, derived from the row index. */
+  delay?: number;
 }
 
-export function ServiceForm({ initial, isNew = false }: ServiceFormProps) {
+export function ServiceForm({ initial, isNew = false, delay = 0 }: ServiceFormProps) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     upsertService,
     undefined,
@@ -41,75 +46,80 @@ export function ServiceForm({ initial, isNew = false }: ServiceFormProps) {
   const t = ru.admin.content.services;
 
   return (
-    <form
-      action={action}
-      className={`grid gap-4 rounded-2xl border border-line p-5 sm:grid-cols-2 ${
-        isNew ? "bg-card/40" : "bg-page"
-      }`}
-    >
-      {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
+    <Reveal delay={delay}>
+      <form
+        action={action}
+        className={`${CARD} grid gap-5 p-6 sm:grid-cols-2 sm:p-7 ${
+          isNew ? "border-accent/25" : ""
+        }`}
+      >
+        {initial?.id ? (
+          <input type="hidden" name="id" value={initial.id} />
+        ) : null}
 
-      <div className="sm:col-span-2">
-        <TextField
+        {isNew ? <CardHeader title={t.addHeading} /> : null}
+
+        <Field
           name="name"
           label={t.nameLabel}
           required
           defaultValue={initial?.name ?? ""}
+          placeholder={t.namePlaceholder}
+          full
         />
-      </div>
 
-      <div className="sm:col-span-2">
-        <TextAreaField
+        <TextArea
           name="description"
           label={t.descriptionLabel}
           defaultValue={initial?.description ?? ""}
           rows={3}
+          placeholder={t.descriptionPlaceholder}
+          full
         />
-      </div>
 
-      <NumberField
-        name="price"
-        label={t.priceLabel}
-        defaultValue={initial?.price?.toString() ?? ""}
-        step="0.01"
-        min={0}
-      />
+        <NumberField
+          name="price"
+          label={t.priceLabel}
+          defaultValue={initial?.price?.toString() ?? ""}
+          step="0.01"
+          min={0}
+        />
 
-      <NumberField
-        name="durationMin"
-        label={t.durationLabel}
-        defaultValue={initial?.durationMin ?? ""}
-        min={1}
-      />
+        <NumberField
+          name="durationMin"
+          label={t.durationLabel}
+          defaultValue={initial?.durationMin ?? ""}
+          min={1}
+        />
 
-      <NumberField
-        name="order"
-        label={t.orderLabel}
-        defaultValue={initial?.order ?? 0}
-      />
+        <NumberField
+          name="order"
+          label={t.orderLabel}
+          defaultValue={initial?.order ?? 0}
+        />
 
-      <CheckboxField
-        name="published"
-        label={t.publishedLabel}
-        defaultChecked={initial?.published ?? true}
-      />
+        <Toggle
+          name="published"
+          label={t.publishedLabel}
+          defaultChecked={initial?.published ?? true}
+        />
 
-      <div className="sm:col-span-2 space-y-3">
-        <FormStatus state={state} />
-        <div className="flex items-center gap-3">
-          <PrimarySubmit pending={pending}>
+        <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+          <SubmitPill pending={pending}>
             {pending ? "…" : isNew ? t.add : t.save}
-          </PrimarySubmit>
+          </SubmitPill>
           {initial?.id ? (
             <ConfirmDeleteButton
               formAction={deleteService}
               confirmText={t.confirmDelete}
+              className={GHOST_DELETE}
             >
               {t.delete}
             </ConfirmDeleteButton>
           ) : null}
+          <InlineStatus state={state} />
         </div>
-      </div>
-    </form>
+      </form>
+    </Reveal>
   );
 }

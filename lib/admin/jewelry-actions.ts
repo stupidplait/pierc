@@ -40,6 +40,29 @@ const STATUSES = [
   "REJECTED",
 ] as const;
 
+const JEWELRY_TYPES = [
+  "STUD",
+  "RING",
+  "BARBELL",
+  "CIRCULAR_BARBELL",
+  "ORBITAL",
+  "CHAIN_LADDER",
+] as const;
+
+// Same rule as the seed — keep the form-side and seed-side validation in sync.
+// See prisma/seed.ts → EXPECTED_ATTACH and docs/20-multi-anchor-jewelry.md.
+const ATTACH_RULES: Record<
+  (typeof JEWELRY_TYPES)[number],
+  { min: number; max: number; semantics: "compat-list" | "fixed" }
+> = {
+  STUD: { min: 1, max: 99, semantics: "compat-list" },
+  RING: { min: 1, max: 99, semantics: "compat-list" },
+  BARBELL: { min: 2, max: 2, semantics: "fixed" },
+  CIRCULAR_BARBELL: { min: 2, max: 2, semantics: "fixed" },
+  ORBITAL: { min: 2, max: 2, semantics: "fixed" },
+  CHAIN_LADDER: { min: 2, max: 8, semantics: "fixed" },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Upsert / delete
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,6 +72,7 @@ const jewelrySchema = z.object({
   name: z.string().trim().min(1, "Название обязательно"),
   description: z.string().trim().optional(),
   categoryId: z.string().min(1, "Выберите категорию"),
+  type: z.enum(JEWELRY_TYPES).default("STUD"),
   material: z.string().trim().min(1, "Материал обязателен"),
   gauge: z
     .preprocess((v) => (v === "" || v == null ? undefined : Number(v)), z.number().positive().optional()),
@@ -76,6 +100,7 @@ export async function upsertJewelry(
     name: formData.get("name"),
     description: emptyToUndef(formData.get("description")),
     categoryId: formData.get("categoryId"),
+    type: formData.get("type") ?? "STUD",
     material: formData.get("material"),
     gauge: formData.get("gauge"),
     size: formData.get("size"),
@@ -101,10 +126,32 @@ export async function upsertJewelry(
   }
 
   const { id, anchorIds, ...rest } = parsed.data;
+
+  // Validate binding count against the type. (For STUD/RING the lower bound is
+  // 1 — at least one compatible anchor must be picked. For BARBELL etc. exact
+  // count required.)
+  const rule = ATTACH_RULES[rest.type];
+  if (anchorIds.length < rule.min || anchorIds.length > rule.max) {
+    const expected =
+      rule.min === rule.max ? `${rule.min}` : `${rule.min}–${rule.max}`;
+    return {
+      ok: false,
+      error: `Тип ${rest.type} требует ${expected} анкер(ов), выбрано ${anchorIds.length}.`,
+    };
+  }
+
+  // For "compat-list" types: every row gets order=0 (interchangeable).
+  // For "fixed" types: the array is treated as ordered (0=primary, 1=secondary).
+  const bindingsCreate =
+    rule.semantics === "compat-list"
+      ? anchorIds.map((aid) => ({ anchorId: aid, order: 0 }))
+      : anchorIds.map((aid, i) => ({ anchorId: aid, order: i }));
+
   const data = {
     name: rest.name,
     description: rest.description ?? null,
     categoryId: rest.categoryId,
+    type: rest.type,
     material: rest.material,
     gauge: rest.gauge ?? null,
     size: rest.size ?? null,
@@ -124,7 +171,10 @@ export async function upsertJewelry(
       where: { id },
       data: {
         ...data,
-        anchors: { set: anchorIds.map((aid) => ({ id: aid })) },
+        anchorBindings: {
+          deleteMany: {},
+          create: bindingsCreate,
+        },
       },
     });
     newId = id;
@@ -133,7 +183,7 @@ export async function upsertJewelry(
       data: {
         ...data,
         photos: [],
-        anchors: { connect: anchorIds.map((aid) => ({ id: aid })) },
+        anchorBindings: { create: bindingsCreate },
       },
     });
     newId = created.id;
@@ -353,6 +403,109 @@ export async function removeJewelryGlb(formData: FormData): Promise<void> {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
       await del(jewelry.glbUrl);
+    } catch {
+      // ignore
+    }
+  }
+
+  revalidateForJewelry(id);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprite upload + remove (per-jewelry, transparent PNG for lite-mode try-on)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SPRITE_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
+
+export async function uploadJewelrySprite(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await assertAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "Не указан id украшения" };
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return {
+      ok: false,
+      error:
+        "Хранилище Vercel Blob не настроено. Установите BLOB_READ_WRITE_TOKEN в .env.",
+    };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Выберите PNG-файл" };
+  }
+  if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
+    return {
+      ok: false,
+      error: "Поддерживается только формат PNG (для прозрачного фона)",
+    };
+  }
+  if (file.size > SPRITE_MAX_BYTES) {
+    return {
+      ok: false,
+      error: `Размер файла превышает 4 МБ (получено ${(
+        file.size /
+        1024 /
+        1024
+      ).toFixed(1)} МБ)`,
+    };
+  }
+
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id },
+    select: { spriteUrl: true },
+  });
+  if (!jewelry) return { ok: false, error: "Украшение не найдено" };
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = `jewelry/${id}/sprite/${Date.now()}-${safeName}`;
+  const blob = await put(key, file, {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: "image/png",
+  });
+
+  // Best-effort cleanup of the previous sprite so we don't accumulate orphans.
+  if (jewelry.spriteUrl) {
+    try {
+      await del(jewelry.spriteUrl);
+    } catch {
+      // ignore — orphan blob is acceptable
+    }
+  }
+
+  await prisma.jewelry.update({
+    where: { id },
+    data: { spriteUrl: blob.url },
+  });
+
+  revalidateForJewelry(id);
+  return { ok: true, message: "Спрайт загружен" };
+}
+
+export async function removeJewelrySprite(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id },
+    select: { spriteUrl: true },
+  });
+  if (!jewelry?.spriteUrl) return;
+
+  await prisma.jewelry.update({
+    where: { id },
+    data: { spriteUrl: null },
+  });
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      await del(jewelry.spriteUrl);
     } catch {
       // ignore
     }

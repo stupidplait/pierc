@@ -119,7 +119,6 @@ export async function transitionBooking(
           newStatus,
         });
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error("[admin] booking notify failed:", e);
       }
     });

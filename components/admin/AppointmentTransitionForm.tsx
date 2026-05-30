@@ -7,6 +7,7 @@ import {
   type AppointmentActionState,
 } from "@/lib/admin/appointment-actions";
 import { ru } from "@/lib/i18n/ru";
+import { FIELD_AREA } from "@/components/admin/form/styles";
 
 type AppointmentStatus =
   | "PENDING"
@@ -20,6 +21,19 @@ interface Props {
   status: AppointmentStatus;
   initialNotes: string | null;
 }
+
+// Steel Atelier action pills — ink fill for the forward step, hairline ghost for
+// the quieter ones, hairline-warming-to-error for the destructive cancel.
+const PILL =
+  "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors duration-150 active:scale-[0.98] disabled:opacity-50";
+const PRIMARY = "bg-ink text-bg hover:bg-ink/90";
+const GHOST =
+  "border border-ink/15 text-mute hover:border-ink/30 hover:text-ink";
+const DANGER =
+  "border border-ink/15 text-mute hover:border-error/50 hover:text-error";
+
+const SECTION_HEADING =
+  "mb-3 text-xs font-medium uppercase tracking-[0.2em] text-mute";
 
 export function AppointmentTransitionForm({
   appointmentId,
@@ -42,26 +56,24 @@ export function AppointmentTransitionForm({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* в”Ђв”Ђ Status & transition buttons в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ */}
+      {/* ── Status & transition buttons ───────────────────────────── */}
       <section>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-          {t.statusHeading}
-        </h3>
+        <h3 className={SECTION_HEADING}>{t.statusHeading}</h3>
 
         {closed ? (
           <p className="text-sm text-mute">
             {ru.admin.statusLabels.appointment[status]}.
           </p>
         ) : (
-          <form action={transitionAction} className="flex flex-col gap-3">
+          <form action={transitionAction} className="flex flex-col gap-4">
             <input type="hidden" name="id" value={appointmentId} />
 
-            <label className="flex items-center gap-2 text-sm text-ink">
+            <label className="flex items-center gap-2.5 text-sm text-ink">
               <input
                 type="checkbox"
                 name="notify"
                 defaultChecked
-                className="size-4 rounded border-line text-primary focus:ring-primary"
+                className="size-4 rounded border-ink/25 bg-ink/3 text-accent focus:ring-accent/40"
               />
               <span>{t.notify}</span>
             </label>
@@ -97,14 +109,16 @@ export function AppointmentTransitionForm({
               <ActionButton
                 value="cancel"
                 pending={transitionPending}
-                variant="ghost"
+                variant="danger"
               >
                 {t.cancel}
               </ActionButton>
             </div>
 
             {status === "CONFIRMED" ? (
-              <p className="text-xs text-mute">{t.cascadeNotice}</p>
+              <p className="text-xs leading-relaxed text-mute">
+                {t.cascadeNotice}
+              </p>
             ) : null}
 
             <FeedbackLine state={transitionState} />
@@ -112,11 +126,11 @@ export function AppointmentTransitionForm({
         )}
       </section>
 
-      {/* в”Ђв”Ђ Notes в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ */}
+      <div className="h-px bg-line/60" />
+
+      {/* ── Admin notes ───────────────────────────────────────────── */}
       <section>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-          {t.notesHeading}
-        </h3>
+        <h3 className={SECTION_HEADING}>{t.notesHeading}</h3>
         <form action={notesAction} className="flex flex-col gap-3">
           <input type="hidden" name="id" value={appointmentId} />
           <textarea
@@ -125,15 +139,15 @@ export function AppointmentTransitionForm({
             placeholder={t.notesPlaceholder}
             rows={4}
             autoComplete="off"
-            className="w-full rounded-xl border border-line bg-page px-4 py-3 text-sm text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            className={FIELD_AREA}
           />
           <div>
             <button
               type="submit"
               disabled={notesPending}
-              className="inline-flex h-10 items-center rounded-full border border-line px-4 text-sm font-medium text-ink transition-colors hover:border-primary disabled:opacity-60"
+              className={`${PILL} ${GHOST}`}
             >
-              {notesPending ? "вЂ¦" : t.notesSave}
+              {notesPending ? "…" : t.notesSave}
             </button>
           </div>
           <FeedbackLine state={notesState} />
@@ -151,24 +165,20 @@ function ActionButton({
 }: {
   value: string;
   pending: boolean;
-  variant: "primary" | "ghost";
+  variant: "primary" | "ghost" | "danger";
   children: React.ReactNode;
 }) {
-  const base =
-    "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-medium transition-colors disabled:opacity-50";
   const tone =
-    variant === "primary"
-      ? "bg-primary text-on-primary hover:bg-primary-soft"
-      : "border border-line text-mute hover:border-primary hover:text-primary";
+    variant === "primary" ? PRIMARY : variant === "danger" ? DANGER : GHOST;
   return (
     <button
       type="submit"
       name="action"
       value={value}
       disabled={pending}
-      className={`${base} ${tone}`}
+      className={`${PILL} ${tone}`}
     >
-      {pending ? "вЂ¦" : children}
+      {pending ? "…" : children}
     </button>
   );
 }
@@ -176,9 +186,7 @@ function ActionButton({
 function FeedbackLine({ state }: { state: AppointmentActionState }) {
   if (!state) return null;
   return (
-    <p
-      className={`text-xs ${state.ok ? "text-mute" : "text-error"}`}
-    >
+    <p className={`text-xs ${state.ok ? "text-success" : "text-error"}`}>
       {state.ok ? state.message : state.error}
     </p>
   );

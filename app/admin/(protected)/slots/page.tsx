@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
+import { pluralRu } from "@/lib/i18n/plural";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
+import { Reveal } from "@/components/admin/form/atelier";
+import { CARD } from "@/components/admin/form/styles";
 import { SlotForm } from "@/components/admin/SlotForm";
 import { BulkSlotForm } from "@/components/admin/BulkSlotForm";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
@@ -21,6 +26,23 @@ const RU_TIME = new Intl.DateTimeFormat("ru-RU", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+const t = ru.admin.slots;
+
+// Compact ghost buttons sized for the list rows — same hairline-border / ink
+// hover vocabulary as the Steel Atelier form kit, just shorter than the h-11
+// pills used inside the cards.
+const ROW_TOGGLE =
+  "inline-flex h-9 items-center justify-center rounded-lg border border-ink/15 px-3.5 text-xs font-medium text-mute transition-colors hover:border-ink/40 hover:text-ink active:scale-[0.98]";
+const ROW_DELETE =
+  "inline-flex h-9 items-center justify-center rounded-lg border border-ink/15 px-3.5 text-xs font-medium text-mute transition-colors hover:border-error/50 hover:text-error active:scale-[0.98]";
+
+const PILL =
+  "inline-flex w-fit items-center rounded-full border px-2.5 py-0.5 text-xs font-medium";
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export default async function AdminSlotsPage() {
   const slots = await prisma.availabilitySlot.findMany({
@@ -42,111 +64,119 @@ export default async function AdminSlotsPage() {
     grouped.set(key, arr);
   }
 
-  const t = ru.admin.slots;
-
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      <PageHeader
-        eyebrow={ru.admin.panel}
-        title={t.title}
-        lead={t.lead}
-      />
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader title={t.title} lead={t.lead} />
 
-      {/* ── Bulk create — primary path for monthly planning ───── */}
-      <section className="mb-6">
-        <Card>
-          <h2 className="mb-1 text-sm font-medium uppercase tracking-[0.2em] text-mute">
-            {t.bulkHeading}
-          </h2>
-          <p className="mb-5 max-w-prose text-sm text-mute">{t.bulkLead}</p>
-          <BulkSlotForm />
-        </Card>
-      </section>
+      <div className="flex flex-col gap-6">
+        {/* Bulk create — primary path for monthly planning. */}
+        <BulkSlotForm delay={0} />
 
-      {/* ── Single create — collapsed; for one-off tweaks ───────── */}
-      <section className="mb-10">
-        <details className="group rounded-2xl border border-line bg-card/40 p-4">
-          <summary className="cursor-pointer list-none text-sm font-medium uppercase tracking-[0.2em] text-mute group-open:mb-4">
-            {t.singleHeading} ▾
-          </summary>
-          <SlotForm />
-        </details>
-      </section>
+        {/* Single create — collapsed; for one-off tweaks. */}
+        <SlotForm delay={0.05} />
 
-      {/* ── List ──────────────────────────────────────────────── */}
-      {grouped.size === 0 ? (
-        <p className="text-mute">{t.empty}</p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {[...grouped.entries()].map(([date, list]) => (
-            <section key={date}>
-              <h2 className="mb-3 text-sm font-medium uppercase tracking-[0.15em] text-mute">
-                {RU_DATE.format(new Date(date))}
-              </h2>
-              <ul className="flex flex-col gap-2">
-                {list.map((s) => {
-                  const taken =
-                    s.appointment && s.appointment.status !== "CANCELLED";
-                  return (
-                    <li
-                      key={s.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-page p-4"
-                    >
-                      <div>
-                        <p className="text-base font-medium text-ink">
-                          {RU_TIME.format(s.startsAt)} –{" "}
-                          {RU_TIME.format(s.endsAt)}
-                        </p>
-                        <p
-                          className={`text-xs ${taken ? "text-primary" : !s.isOpen ? "text-mute" : "text-mute"}`}
+        {/* Schedule list */}
+        <section className="mt-4 flex flex-col gap-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-medium tracking-tight text-ink">
+              {t.scheduleHeading}
+            </h2>
+            {slots.length > 0 ? (
+              <span className="text-sm text-mute tabular-nums">
+                {slots.length} {pluralRu(slots.length, t.windows)}
+              </span>
+            ) : null}
+          </div>
+
+          {grouped.size === 0 ? (
+            <Reveal delay={0.1}>
+              <div className={`${CARD} px-6 py-12 text-center text-sm text-mute`}>
+                {t.empty}
+              </div>
+            </Reveal>
+          ) : (
+            [...grouped.entries()].map(([date, list], i) => (
+              <Reveal key={date} delay={Math.min(i, 6) * 0.05 + 0.1}>
+                <section className={`${CARD} p-6 sm:p-7`}>
+                  <div className="flex items-baseline justify-between gap-3 border-b border-line/70 pb-4">
+                    <h3 className="font-display text-lg font-medium tracking-tight text-ink">
+                      {capitalize(RU_DATE.format(new Date(date)))}
+                    </h3>
+                    <span className="shrink-0 text-xs text-mute tabular-nums">
+                      {list.length} {pluralRu(list.length, t.windows)}
+                    </span>
+                  </div>
+
+                  <ul className="flex flex-col">
+                    {list.map((s) => {
+                      const taken =
+                        s.appointment && s.appointment.status !== "CANCELLED";
+                      return (
+                        <li
+                          key={s.id}
+                          className="flex flex-wrap items-center justify-between gap-3 border-b border-line/50 py-3.5 last:border-0 last:pb-0"
                         >
-                          {taken
-                            ? t.list.booked
-                            : !s.isOpen
-                              ? t.list.closed
-                              : t.list.free}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!taken ? (
-                          <form>
-                            <input type="hidden" name="id" value={s.id} />
-                            <button
-                              type="submit"
-                              formAction={toggleSlotOpen}
-                              className="inline-flex h-9 items-center rounded-full border border-line px-3 text-xs font-medium text-ink transition-colors hover:border-primary hover:text-primary"
-                            >
-                              {s.isOpen ? t.toggleClose : t.toggleOpen}
-                            </button>
-                          </form>
-                        ) : null}
-                        {!taken ? (
-                          <form>
-                            <input type="hidden" name="id" value={s.id} />
-                            <ConfirmDeleteButton
-                              formAction={deleteSlot}
-                              confirmText={t.confirmDelete}
-                            >
-                              {t.delete}
-                            </ConfirmDeleteButton>
-                          </form>
-                        ) : (
-                          <span
-                            title={t.cantDelete}
-                            className="text-xs text-mute"
-                          >
-                            {t.cantDelete}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+                          <div className="flex items-center gap-3">
+                            <span className="text-base font-medium tabular-nums text-ink">
+                              {RU_TIME.format(s.startsAt)} –{" "}
+                              {RU_TIME.format(s.endsAt)}
+                            </span>
+                            {taken ? (
+                              <span
+                                title={t.cantDelete}
+                                className={`${PILL} border-primary/40 bg-primary/10 text-primary`}
+                              >
+                                {t.list.booked}
+                              </span>
+                            ) : !s.isOpen ? (
+                              <span
+                                className={`${PILL} border-mute/40 bg-card text-mute`}
+                              >
+                                {t.list.closed}
+                              </span>
+                            ) : (
+                              <span
+                                className={`${PILL} border-success/30 bg-success-soft text-success`}
+                              >
+                                {t.list.free}
+                              </span>
+                            )}
+                          </div>
+
+                          {!taken ? (
+                            <div className="flex items-center gap-2">
+                              <form>
+                                <input type="hidden" name="id" value={s.id} />
+                                <button
+                                  type="submit"
+                                  formAction={toggleSlotOpen}
+                                  className={ROW_TOGGLE}
+                                >
+                                  {s.isOpen ? t.toggleClose : t.toggleOpen}
+                                </button>
+                              </form>
+                              <form>
+                                <input type="hidden" name="id" value={s.id} />
+                                <ConfirmDeleteButton
+                                  formAction={deleteSlot}
+                                  confirmText={t.confirmDelete}
+                                  className={ROW_DELETE}
+                                >
+                                  {t.delete}
+                                </ConfirmDeleteButton>
+                              </form>
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              </Reveal>
+            ))
+          )}
+        </section>
+      </div>
     </div>
   );
 }

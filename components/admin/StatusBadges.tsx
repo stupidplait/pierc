@@ -24,6 +24,12 @@ const APPT: Record<
   NO_SHOW: "border-warn/40 bg-warn-soft text-warn",
 };
 
+const REVIEW: Record<"PENDING" | "PUBLISHED" | "REJECTED", string> = {
+  PENDING: "border-line bg-card text-ink",
+  PUBLISHED: "border-success/40 bg-success-soft text-success",
+  REJECTED: "border-mute/40 bg-card text-mute",
+};
+
 export function BookingStatusBadge({
   status,
 }: {
@@ -48,6 +54,22 @@ export function AppointmentStatusBadge({
       className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${APPT[status]}`}
     >
       {ru.admin.statusLabels.appointment[status]}
+    </span>
+  );
+}
+
+
+
+export function ReviewStatusBadge({
+  status,
+}: {
+  status: keyof typeof REVIEW;
+}) {
+  return (
+    <span
+      className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${REVIEW[status]}`}
+    >
+      {ru.admin.statusLabels.review[status]}
     </span>
   );
 }

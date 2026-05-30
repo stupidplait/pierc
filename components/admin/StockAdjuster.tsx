@@ -28,7 +28,7 @@ export function StockAdjuster({ jewelryId, stock }: Props) {
         value="-1"
         disabled={pending || stock <= 0}
         title={t.stockMinus}
-        className="inline-flex size-7 items-center justify-center rounded-full border border-line text-xs font-semibold text-mute transition-colors hover:border-primary hover:text-primary disabled:opacity-40"
+        className="inline-flex size-7 items-center justify-center rounded-full border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
         onClick={(e) => e.stopPropagation()}
       >
         −
@@ -42,7 +42,7 @@ export function StockAdjuster({ jewelryId, stock }: Props) {
         value="1"
         disabled={pending}
         title={t.stockPlus}
-        className="inline-flex size-7 items-center justify-center rounded-full border border-line text-xs font-semibold text-mute transition-colors hover:border-primary hover:text-primary disabled:opacity-40"
+        className="inline-flex size-7 items-center justify-center rounded-full border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
         onClick={(e) => e.stopPropagation()}
       >
         +
