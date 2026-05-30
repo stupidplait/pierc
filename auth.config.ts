@@ -7,8 +7,8 @@ import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
   pages: {
-    signIn: "/admin/login",
-    error: "/admin/login",
+    signIn: "/auth/sign-in",
+    error: "/auth/sign-in",
   },
   session: {
     strategy: "jwt",
@@ -45,21 +45,18 @@ export const authConfig = {
       const role = (auth?.user as { role?: string } | undefined)?.role;
 
       // ── Admin ─────────────────────────────────────────────────────
-      // /admin/login is public-but-special: signed-in admins go to dashboard.
-      if (path === "/admin/login") {
-        if (isLoggedIn && role === "admin") {
-          return Response.redirect(new URL("/admin", nextUrl));
-        }
-        return true;
-      }
       if (path === "/admin" || path.startsWith("/admin/")) {
-        if (!isLoggedIn) return false; // -> redirect to pages.signIn (admin/login)
+        if (!isLoggedIn) return false; // -> redirect to pages.signIn (/auth/sign-in)
         return role === "admin";
       }
 
       // ── Public auth ───────────────────────────────────────────────
-      // Already-signed-in users land on their account when visiting these.
+      // Already-signed-in visitors are bounced to their own home: admins to
+      // the dashboard, customers to their account.
       if (path === "/auth/sign-in" || path === "/auth/sign-up") {
+        if (isLoggedIn && role === "admin") {
+          return Response.redirect(new URL("/admin", nextUrl));
+        }
         if (isLoggedIn && role === "user") {
           return Response.redirect(new URL("/account", nextUrl));
         }

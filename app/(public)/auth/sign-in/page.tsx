@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { AuthError } from "next-auth";
-import { signIn } from "@/lib/auth";
 import { ru } from "@/lib/i18n/ru";
 import {
   PublicAuthForm,
   type PublicAuthState,
 } from "@/components/public/PublicAuthForm";
+import { AuthThemeFrame } from "@/components/landing/auth/AuthThemeFrame";
+import { runLogin } from "@/lib/auth-actions";
+
+// Skip build-time prerender — transitively reads Settings via auth scaffolding.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: `${ru.pages.signIn.title} — ${ru.studio.name}`,
@@ -18,6 +20,8 @@ interface SignInPageProps {
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const sp = await searchParams;
+  // Customer destination after login. Admins always go to /admin (handled in
+  // runLogin), regardless of callbackUrl.
   const callbackUrl = sp.callbackUrl?.startsWith("/")
     ? sp.callbackUrl
     : "/account";
@@ -27,53 +31,35 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     formData: FormData,
   ): Promise<PublicAuthState> {
     "use server";
-    try {
-      await signIn("user-credentials", {
-        email: formData.get("email"),
-        password: formData.get("password"),
-        redirectTo: callbackUrl,
-      });
-      return undefined;
-    } catch (err) {
-      if (
-        err &&
-        typeof err === "object" &&
-        "digest" in err &&
-        typeof (err as { digest?: unknown }).digest === "string" &&
-        ((err as { digest: string }).digest as string).startsWith(
-          "NEXT_REDIRECT",
-        )
-      ) {
-        throw err;
-      }
-      if (err instanceof AuthError) {
-        if (err.type === "CredentialsSignin") {
-          return { error: ru.pages.signIn.invalid };
-        }
-        return { error: ru.pages.signIn.generic };
-      }
-      throw err;
-    }
+    return runLogin(callbackUrl, formData);
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-4.5rem)] items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm">
-        <Link
-          href="/"
-          className="font-display text-xl font-medium tracking-tight text-ink"
-        >
-          {ru.studio.name}
-        </Link>
-
-        <h1 className="mt-8 font-display text-3xl font-medium text-ink sm:text-4xl">
+    <main
+      className="
+        relative z-10 min-h-[100svh]
+        flex items-center justify-center
+        px-4 py-24 sm:px-8
+      "
+    >
+      <div
+        className="
+          w-full max-w-md
+          rounded-2xl border border-line
+          bg-card p-7
+          shadow-[0_30px_80px_-30px_rgba(0,0,0,0.55),inset_0_1px_0_0_rgba(240,240,240,0.12)]
+          sm:p-9
+        "
+      >
+        <h1 className="font-display text-3xl font-medium leading-tight tracking-tight text-ink sm:text-4xl">
           {ru.pages.signIn.title}
         </h1>
+
         <p className="mt-3 text-sm text-mute">{ru.pages.signIn.lead}</p>
 
-        <div className="mt-8">
+        <AuthThemeFrame className="mt-7">
           <PublicAuthForm mode="signIn" action={action} />
-        </div>
+        </AuthThemeFrame>
       </div>
     </main>
   );

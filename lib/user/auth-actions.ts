@@ -19,6 +19,7 @@ const signUpSchema = z.object({
     .toLowerCase()
     .email(ru.pages.signUp.errors.emailInvalid),
   password: z.string().min(8, ru.pages.signUp.errors.passwordTooShort),
+  phone: z.string().trim().optional(),
 });
 
 export type SignUpState = { error?: string } | undefined;
@@ -31,11 +32,13 @@ export async function signUpAction(
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    phone: formData.get("phone") ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? ru.pages.signUp.errors.generic };
   }
-  const { name, email, password } = parsed.data;
+  const { name, email, password, phone } = parsed.data;
+  const phoneValue = phone && phone.length > 0 ? phone : null;
 
   // Reject if a real (non-guest) account with this email already exists.
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -47,14 +50,20 @@ export async function signUpAction(
 
   if (existing && existing.isGuest) {
     // ── Guest upgrade ─── preserves all bookings/appointments owned by this
-    // User (same row id), just flips the auth shape.
+    // User (same row id), just flips the auth shape. Only fill phone if the
+    // user supplied one (don't wipe an existing guest phone).
     await prisma.user.update({
       where: { email },
-      data: { name, passwordHash, isGuest: false },
+      data: {
+        name,
+        passwordHash,
+        isGuest: false,
+        ...(phoneValue ? { phone: phoneValue } : {}),
+      },
     });
   } else {
     await prisma.user.create({
-      data: { name, email, passwordHash, isGuest: false },
+      data: { name, email, passwordHash, isGuest: false, phone: phoneValue },
     });
   }
 

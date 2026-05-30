@@ -28,3 +28,25 @@ export async function getCurrentPublicUser(): Promise<PublicSessionUser | null> 
     role: "user",
   };
 }
+
+export interface PublicAdmin {
+  name: string;
+  email: string;
+}
+
+/**
+ * Returns the signed-in **admin** for the public chrome, or null. The public
+ * header uses this (alongside getCurrentPublicUser) so an admin browsing the
+ * marketing site sees an account chip linking back to /admin instead of the
+ * "Войти" button. Customers and guests return null here.
+ */
+export async function getCurrentPublicAdmin(): Promise<PublicAdmin | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+  const role = (session.user as { role?: string }).role;
+  if (role !== "admin") return null;
+  return {
+    name: session.user.name ?? "",
+    email: session.user.email ?? "",
+  };
+}
