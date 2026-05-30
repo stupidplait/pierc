@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ru } from "@/lib/i18n/ru";
+import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 import { getSettings } from "@/lib/public/queries";
 
 export async function Footer() {
@@ -14,7 +15,7 @@ export async function Footer() {
   const telegram = settings?.telegramUrl;
 
   return (
-    <footer className="mt-24 border-t border-line bg-card/50">
+    <footer className="border-t border-line bg-card">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-14 sm:grid-cols-3 sm:px-8">
         <div>
           <Link
@@ -46,10 +47,10 @@ export async function Footer() {
             <li>
               {phone ? (
                 <a
-                  href={`tel:${phone.replace(/\s|\(|\)|-/g, "")}`}
+                  href={`tel:${ruPhoneHref(phone)}`}
                   className="hover:text-primary"
                 >
-                  {phone}
+                  {formatRuPhone(phone)}
                 </a>
               ) : (
                 <span className="text-mute">–</span>

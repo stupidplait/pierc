@@ -3,10 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru, catalogStrings } from "@/lib/i18n/ru";
 import { Section } from "@/components/ui/Section";
 import { Card } from "@/components/ui/Card";
 import { asPhotos, formatPrice } from "@/lib/jewelry/format";
+import { getBookingPrefillUser } from "@/lib/public/queries";
+import { JewelryDetailBookButton } from "@/components/booking/JewelryDetailBookButton";
 
 interface CatalogItemPageProps {
   params: Promise<{ id: string }>;
@@ -31,7 +36,13 @@ export default async function CatalogItemPage({
 
   const j = await prisma.jewelry.findUnique({
     where: { id },
-    include: { category: true, anchors: true },
+    include: {
+      category: true,
+      anchorBindings: {
+        include: { anchor: true },
+        orderBy: { order: "asc" },
+      },
+    },
   });
 
   if (!j || j.status !== "PUBLISHED") notFound();
@@ -40,12 +51,27 @@ export default async function CatalogItemPage({
   const attrs = catalogStrings.attributes;
   const out = j.inStock <= 0;
 
+  const user = await getBookingPrefillUser();
+
   // Deep-link into the showroom: pick the first compatible anchor as the
   // primary "where to try this on" for the URL.
-  const primaryAnchor = j.anchors[0];
+  const primaryAnchor = j.anchorBindings[0]?.anchor ?? null;
   const tryOnHref = primaryAnchor
     ? `/catalog?anchor=${encodeURIComponent(primaryAnchor.slug)}&eq=${encodeURIComponent(`${primaryAnchor.slug}:${j.id}`)}`
     : "/catalog";
+
+  // Deduplicate anchor list for the "Где носить" chips. For STUD/RING this
+  // reads as a compatibility list; for multi-anchor pieces (BARBELL etc.)
+  // it lists the FIXED endpoints.
+  const anchorChips = (() => {
+    const seen = new Map<string, { id: string; name: string }>();
+    for (const b of j.anchorBindings) {
+      if (!seen.has(b.anchor.id)) {
+        seen.set(b.anchor.id, { id: b.anchor.id, name: b.anchor.name });
+      }
+    }
+    return Array.from(seen.values());
+  })();
 
   return (
     <Section>
@@ -133,12 +159,17 @@ export default async function CatalogItemPage({
                 {catalogStrings.outOfStock}
               </button>
             ) : (
-              <Link
-                href={`/book?items=${encodeURIComponent(j.id)}`}
-                className="inline-flex h-12 items-center rounded-full border border-primary px-6 font-medium text-primary transition-colors hover:bg-primary hover:text-on-primary"
-              >
-                {catalogStrings.bookCta}
-              </Link>
+              <JewelryDetailBookButton
+                item={{
+                  id: j.id,
+                  name: j.name,
+                  price: j.price.toString(),
+                  photo: photos[0]?.url ?? null,
+                  inStock: j.inStock,
+                }}
+                user={user}
+                label={catalogStrings.bookCta}
+              />
             )}
           </div>
 
@@ -165,13 +196,13 @@ export default async function CatalogItemPage({
               </Row>
             </dl>
 
-            {j.anchors.length > 0 ? (
+            {anchorChips.length > 0 ? (
               <div className="mt-5 border-t border-line pt-5">
                 <p className="mb-2 text-xs uppercase tracking-[0.2em] text-mute">
                   {attrs.anchors}
                 </p>
                 <ul className="flex flex-wrap gap-2">
-                  {j.anchors.map((a) => (
+                  {anchorChips.map((a) => (
                     <li
                       key={a.id}
                       className="rounded-full border border-line px-3 py-1 text-sm text-ink"

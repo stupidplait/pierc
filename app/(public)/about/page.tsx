@@ -1,111 +1,98 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { ru } from "@/lib/i18n/ru";
-import { Section } from "@/components/ui/Section";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
+import { reviewsStrings, ru, seoStrings } from "@/lib/i18n/ru";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import {
+  buildLocalBusinessJsonLd,
+  jsonLdScript,
+} from "@/lib/seo/local-business";
+import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
+import type { TestimonialCardData } from "@/components/public/TestimonialCard";
+import type { AboutData } from "@/components/about/types";
+import { AboutContent } from "@/components/about/AboutContent";
 
-export const metadata: Metadata = {
-  title: `${ru.pages.about.title} — ${ru.studio.name}`,
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: seoStrings.about.title,
+  description: seoStrings.about.description,
+  path: "/about",
+});
 
-interface AboutContent {
+// Skip build-time prerender — reads SiteContent + Reviews on every request.
+export const dynamic = "force-dynamic";
+
+const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+
+interface AboutBody {
   body?: string;
 }
 
 export default async function AboutPage() {
-  const [row, settings] = await Promise.all([
+  const [row, settings, testimonialsRaw] = await Promise.all([
     prisma.siteContent.findUnique({ where: { key: "about" } }),
     prisma.settings.findUnique({ where: { id: "default" } }),
+    prisma.review.findMany({
+      where: { status: "PUBLISHED", featured: true },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: 6,
+      select: {
+        id: true,
+        rating: true,
+        text: true,
+        authorName: true,
+        photoUrl: true,
+        appointmentId: true,
+        publishedAt: true,
+      },
+    }),
   ]);
 
-  const body = (row?.content as AboutContent | null)?.body ?? "";
+  const body = (row?.content as AboutBody | null)?.body ?? "";
   const paragraphs: string[] = [];
   for (const raw of body.split(/\n{2,}/)) {
-    const t = raw.trim();
-    if (t) paragraphs.push(t);
+    const trimmed = raw.trim();
+    if (trimmed) paragraphs.push(trimmed);
   }
 
-  const email = settings?.contactEmail ?? null;
-  const phone = settings?.contactPhone ?? null;
-  const address = settings?.contactAddress ?? null;
-  const hours = settings?.workingHoursHint ?? null;
-  const t = ru.pages.about;
+  const testimonials: TestimonialCardData[] = testimonialsRaw.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    text: r.text,
+    authorName: r.authorName,
+    photoUrl: r.photoUrl,
+    verified: r.appointmentId != null,
+    publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+  }));
+
+  const data: AboutData = {
+    paragraphs,
+    email: settings?.contactEmail ?? null,
+    phone: settings?.contactPhone ?? null,
+    address: settings?.contactAddress ?? null,
+    hours: settings?.workingHoursHint ?? null,
+    testimonials,
+    t: ru.pages.about,
+    reviewsHeading: reviewsStrings.about.heading,
+    reviewsLead: reviewsStrings.about.lead,
+  };
+
+  // LocalBusiness JSON-LD from the same Settings row; null suppresses the tag.
+  const localBusiness = buildLocalBusinessJsonLd({ baseUrl: APP_URL, settings });
 
   return (
-    <Section>
-      <PageHeader title={t.title} lead={t.lead} />
+    <>
+      {/* Ambient backdrop shared with the auth + account pages: a masked grid
+          and a field of floating dots (CSS only, no WebGL). */}
+      <AuthBackdrop />
 
-      {paragraphs.length === 0 ? (
-        <p className="text-mute">{t.stub}</p>
-      ) : (
-        <div className="prose prose-lg max-w-2xl text-ink">
-          {paragraphs.map((p) => (
-            <p key={p.slice(0, 32)} className="mb-4 text-ink last:mb-0">
-              {p}
-            </p>
-          ))}
-        </div>
-      )}
+      {localBusiness ? (
+        <script
+          type="application/ld+json"
+          // Server-rendered, trusted JSON we built ourselves.
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(localBusiness) }}
+        />
+      ) : null}
 
-      <section id="contact" className="mt-20 scroll-mt-24">
-        <header className="mb-6">
-          <h2 className="font-display text-3xl font-medium text-ink sm:text-4xl">
-            {t.contactsHeading}
-          </h2>
-          <p className="mt-2 text-mute">{t.contactsLead}</p>
-        </header>
-
-        <Card className="grid gap-6 sm:grid-cols-2">
-          <ContactItem label={t.email}>
-            {email ? (
-              <a
-                href={`mailto:${email}`}
-                className="text-ink transition-colors hover:text-primary"
-              >
-                {email}
-              </a>
-            ) : (
-              <span className="text-mute">–</span>
-            )}
-          </ContactItem>
-          <ContactItem label={t.phone}>
-            {phone ? (
-              <a
-                href={`tel:${phone.replace(/\s|\(|\)|-/g, "")}`}
-                className="text-ink transition-colors hover:text-primary"
-              >
-                {phone}
-              </a>
-            ) : (
-              <span className="text-mute">–</span>
-            )}
-          </ContactItem>
-          <ContactItem label={t.address}>
-            <span className="text-ink">{address ?? "–"}</span>
-          </ContactItem>
-          <ContactItem label={t.hours}>
-            <span className="text-ink">{hours ?? "–"}</span>
-          </ContactItem>
-        </Card>
-      </section>
-    </Section>
-  );
-}
-
-function ContactItem({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <h3 className="text-sm font-medium uppercase tracking-[0.2em] text-mute">
-        {label}
-      </h3>
-      <div className="mt-2">{children}</div>
-    </div>
+      <AboutContent data={data} />
+    </>
   );
 }

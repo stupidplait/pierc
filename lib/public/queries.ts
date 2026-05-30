@@ -7,7 +7,12 @@
 import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getCurrentPublicUser, type PublicSessionUser } from "@/lib/auth-helpers";
+import {
+  getCurrentPublicUser,
+  getCurrentPublicAdmin,
+  type PublicSessionUser,
+  type PublicAdmin,
+} from "@/lib/auth-helpers";
 
 export const getSettings = cache(async () => {
   return await prisma.settings.findUnique({ where: { id: "default" } });
@@ -20,5 +25,31 @@ export const getCachedSession = cache(async () => {
 export const getCachedPublicUser = cache(
   async (): Promise<PublicSessionUser | null> => {
     return await getCurrentPublicUser();
+  },
+);
+
+export const getCachedPublicAdmin = cache(
+  async (): Promise<PublicAdmin | null> => {
+    return await getCurrentPublicAdmin();
+  },
+);
+
+// Booking-form prefill: the session token only carries name/email, so reach
+// into the User row for the saved phone. Returns null for guests. Wrapped in
+// cache() so multiple booking surfaces in one render (e.g. catalog showroom)
+// share a single read.
+export const getBookingPrefillUser = cache(
+  async (): Promise<{ name: string; email: string; phone: string | null } | null> => {
+    const sessionUser = await getCurrentPublicUser();
+    if (!sessionUser) return null;
+    const profile = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { name: true, email: true, phone: true },
+    });
+    return {
+      name: profile?.name || sessionUser.name,
+      email: profile?.email || sessionUser.email,
+      phone: profile?.phone ?? null,
+    };
   },
 );

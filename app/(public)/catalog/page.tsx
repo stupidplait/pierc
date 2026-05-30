@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+
+// Skip build-time prerender — reads live data via Prisma.
+export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import type {
   AnchorWire,
@@ -7,13 +10,16 @@ import type {
   BodyPlace,
   EquippedMap,
   JewelryWire,
+  JewelryType,
   Vec3,
   CameraPreset,
 } from "@/lib/catalog/types";
+import { piercingCountForType } from "@/lib/catalog/types";
 import { Showroom } from "@/components/catalog/Showroom";
 import { CatalogGridFallback } from "@/components/catalog/CatalogGridFallback";
 import { firstPhotoUrl } from "@/lib/jewelry/format";
 import { parseEquippedFromUrl } from "@/lib/catalog/url-state";
+import { getBookingPrefillUser } from "@/lib/public/queries";
 
 export const metadata: Metadata = {
   title: `${ru.pages.catalog.title} — ${ru.studio.name}`,
@@ -56,7 +62,7 @@ function asCameraPresets(v: unknown): CameraPreset[] {
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const [sp, anchorsDb, jewelryDb] = await Promise.all([
+  const [sp, anchorsDb, jewelryDb, user] = await Promise.all([
     searchParams,
     prisma.anchorPoint.findMany({
       orderBy: [{ place: "asc" }, { name: "asc" }],
@@ -65,10 +71,14 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       where: { status: "PUBLISHED" },
       include: {
         category: { select: { name: true } },
-        anchors: { select: { id: true } },
+        anchorBindings: {
+          select: { anchorId: true, order: true },
+          orderBy: { order: "asc" },
+        },
       },
       orderBy: [{ updatedAt: "desc" }],
     }),
+    getBookingPrefillUser(),
   ]);
 
   const anchors: AnchorWire[] = anchorsDb.map((a) => ({
@@ -82,17 +92,30 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     cameraPresets: asCameraPresets(a.cameraPresets),
   }));
 
-  const jewelry: JewelryWire[] = jewelryDb.map((j) => ({
-    id: j.id,
-    name: j.name,
-    price: j.price.toString(),
-    inStock: j.inStock,
-    photo: firstPhotoUrl(j.photos),
-    glbUrl: j.glbUrl,
-    glbScale: j.glbScale ?? 1,
-    categoryName: j.category.name,
-    anchorIds: j.anchors.map((a) => a.id),
-  }));
+  const jewelry: JewelryWire[] = jewelryDb.map((j) => {
+    const bindings = j.anchorBindings.map((b) => ({
+      anchorId: b.anchorId,
+      order: b.order,
+    }));
+    const anchorIdSet = new Set<string>();
+    for (const b of bindings) anchorIdSet.add(b.anchorId);
+    const type = j.type as JewelryType;
+    return {
+      id: j.id,
+      name: j.name,
+      price: j.price.toString(),
+      inStock: j.inStock,
+      photo: firstPhotoUrl(j.photos),
+      glbUrl: j.glbUrl,
+      glbScale: j.glbScale ?? 1,
+      spriteUrl: j.spriteUrl ?? null,
+      categoryName: j.category.name,
+      type,
+      anchorBindings: bindings,
+      anchorIds: Array.from(anchorIdSet),
+      piercingCount: piercingCountForType(type, bindings.length),
+    };
+  });
 
   // Fallback path: explicit ?view=grid
   if (sp.view === "grid") {
@@ -117,6 +140,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         jewelry={jewelry}
         initialSelectedId={initialSelectedId}
         initialEquipped={initialEquipped}
+        user={user}
       />
     </div>
   );
