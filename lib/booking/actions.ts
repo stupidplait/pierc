@@ -16,6 +16,7 @@ const bookingSchema = z
   .object({
     purpose: z.enum(["appointment", "jewelry", "both"]),
     items: z.string().optional(), // "id1,id2,id3"
+    serviceId: z.string().optional(),
     slotId: z.string().optional(),
     name: z.string().trim().min(1, "Укажите имя"),
     email: z.string().trim().email("Укажите корректный email"),
@@ -64,10 +65,13 @@ export async function createBooking(
   const parsed = bookingSchema.safeParse({
     purpose: formData.get("purpose"),
     items: formData.get("items") ?? "",
+    serviceId: formData.get("serviceId") || undefined,
     slotId: formData.get("slotId") || undefined,
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone"),
+    // Coalesce required text fields so an absent field yields the friendly RU
+    // validation message ("Укажите имя") instead of a raw Zod null error.
+    name: (formData.get("name") ?? "").toString(),
+    email: (formData.get("email") ?? "").toString(),
+    phone: (formData.get("phone") ?? "").toString(),
     notes: formData.get("notes") ?? undefined,
   });
   if (!parsed.success) {
@@ -76,7 +80,7 @@ export async function createBooking(
       error: parsed.error.issues[0]?.message ?? "Проверьте данные формы",
     };
   }
-  const { purpose, name, email, phone, notes, slotId } = parsed.data;
+  const { purpose, name, email, phone, notes, slotId, serviceId } = parsed.data;
   const itemIds: string[] = [];
   for (const s of (parsed.data.items ?? "").split(",")) {
     const t = s.trim();
@@ -126,6 +130,7 @@ export async function createBooking(
           data: {
             userId: user.id,
             slotId,
+            serviceId: serviceId ?? null,
             status: "PENDING",
             notes: notes ?? null,
           },
@@ -219,10 +224,8 @@ export async function createBooking(
     after(async () => {
       try {
         const result = await sendBookingNotifications(notifyInput);
-        // eslint-disable-next-line no-console
         console.log("[booking] notifications:", result);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error("[booking] notification dispatch failed:", err);
       }
     });
