@@ -6,8 +6,11 @@ import {
   adminAlertEmail,
   adminTelegramMessage,
   userStatusChangeEmail,
+  reviewRequestEmail,
   type BookingNotificationData,
 } from "./templates";
+import { signReviewToken } from "@/lib/reviews/token";
+import { ru } from "@/lib/i18n/ru";
 
 export interface BookingNotificationInput {
   /** Booking row ids created in this transaction. */
@@ -30,6 +33,7 @@ export async function sendBookingNotifications(
   input: BookingNotificationInput,
 ): Promise<{
   userEmail: "sent" | "skipped" | "failed";
+  userTelegram: "sent" | "skipped" | "failed";
   adminEmail: "sent" | "skipped" | "failed";
   adminTelegram: "sent" | "skipped" | "failed";
 }> {
@@ -37,6 +41,7 @@ export async function sendBookingNotifications(
   if (!data) {
     return {
       userEmail: "skipped",
+      userTelegram: "skipped",
       adminEmail: "skipped",
       adminTelegram: "skipped",
     };
@@ -50,13 +55,40 @@ export async function sendBookingNotifications(
 
   const adminPanelUrl = adminUrlFor(input);
 
-  const [userEmail, adminEmail, adminTelegram] = await Promise.all([
-    sendUserEmail(data),
-    sendAdminEmail(data, settings?.contactEmail ?? null, adminPanelUrl),
-    sendAdminTelegram(data, settings?.telegramChatId ?? null, adminPanelUrl),
-  ]);
+  const [userEmail, userTelegram, adminEmail, adminTelegram] =
+    await Promise.all([
+      sendUserEmail(data),
+      sendUserTelegram(input.userId, data),
+      sendAdminEmail(data, settings?.contactEmail ?? null, adminPanelUrl),
+      sendAdminTelegram(data, settings?.telegramChatId ?? null, adminPanelUrl),
+    ]);
 
-  return { userEmail, adminEmail, adminTelegram };
+  return { userEmail, userTelegram, adminEmail, adminTelegram };
+}
+
+// Confirmation to the customer's own Telegram, if they've linked it.
+async function sendUserTelegram(
+  userId: string,
+  data: BookingNotificationData,
+): Promise<"sent" | "skipped" | "failed"> {
+  if (!isTelegramConfigured()) return "skipped";
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { telegramChatId: true },
+  });
+  if (!u?.telegramChatId) return "skipped";
+
+  const lines: string[] = ["✅ Заявка принята."];
+  if (data.appointment?.slotStart) {
+    lines.push(`Время: ${RU_DT.format(data.appointment.slotStart)}`);
+  }
+  if (data.bookings.length > 0) {
+    lines.push(`Украшения: ${data.bookings.map((b) => b.jewelryName).join(", ")}`);
+  }
+  lines.push("Мастер свяжется для подтверждения.");
+
+  const r = await sendTelegram({ chatId: u.telegramChatId, text: lines.join("\n") });
+  return r.ok ? "sent" : "failed";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,17 +219,28 @@ export async function sendStatusChangeNotification(args: {
   id: string;
   newStatus: string;
 }): Promise<"sent" | "skipped" | "failed"> {
-  if (!isEmailConfigured()) return "skipped";
-
   if (args.kind === "booking") {
     const b = await prisma.jewelryBooking.findUnique({
       where: { id: args.id },
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { name: true, email: true, telegramChatId: true } },
         jewelry: { select: { name: true } },
       },
     });
     if (!b) return "skipped";
+
+    if (isTelegramConfigured() && b.user.telegramChatId) {
+      const label =
+        ru.admin.statusLabels.booking[
+          args.newStatus as keyof typeof ru.admin.statusLabels.booking
+        ] ?? args.newStatus;
+      await sendTelegram({
+        chatId: b.user.telegramChatId,
+        text: `Статус брони «${b.jewelry.name}»: ${label}`,
+      });
+    }
+
+    if (!isEmailConfigured()) return "skipped";
     const tpl = userStatusChangeEmail({
       kind: "booking",
       user: { name: b.user.name, email: b.user.email },
@@ -221,11 +264,24 @@ export async function sendStatusChangeNotification(args: {
   const a = await prisma.appointment.findUnique({
     where: { id: args.id },
     include: {
-      user: { select: { name: true, email: true } },
+      user: { select: { name: true, email: true, telegramChatId: true } },
       slot: true,
     },
   });
   if (!a) return "skipped";
+
+  if (isTelegramConfigured() && a.user.telegramChatId) {
+    const label =
+      ru.admin.statusLabels.appointment[
+        args.newStatus as keyof typeof ru.admin.statusLabels.appointment
+      ] ?? args.newStatus;
+    await sendTelegram({
+      chatId: a.user.telegramChatId,
+      text: `Статус записи: ${label}`,
+    });
+  }
+
+  if (!isEmailConfigured()) return "skipped";
   const slotLine = a.slot
     ? `Время: ${RU_DT.format(a.slot.startsAt)}`
     : null;
@@ -242,6 +298,118 @@ export async function sendStatusChangeNotification(args: {
   });
   const r = await sendEmail({
     to: a.user.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+  });
+  return r.ok ? "sent" : "failed";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin alert when a customer cancels their own reservation from /account.
+// Fired after the cancellation commits (the entity is already CANCELLED).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function notifyAdminOfCancellation(args: {
+  kind: "appointment" | "booking";
+  id: string;
+}): Promise<"sent" | "skipped" | "failed"> {
+  const settings = await prisma.settings.findUnique({
+    where: { id: "default" },
+    select: { contactEmail: true, telegramChatId: true },
+  });
+
+  let who = "";
+  let what = "";
+  if (args.kind === "appointment") {
+    const a = await prisma.appointment.findUnique({
+      where: { id: args.id },
+      include: { user: { select: { name: true, email: true } } },
+    });
+    if (!a) return "skipped";
+    who = `${a.user.name} (${a.user.email})`;
+    what = "запись на услугу";
+  } else {
+    const b = await prisma.jewelryBooking.findUnique({
+      where: { id: args.id },
+      include: {
+        user: { select: { name: true, email: true } },
+        jewelry: { select: { name: true } },
+      },
+    });
+    if (!b) return "skipped";
+    who = `${b.user.name} (${b.user.email})`;
+    what = `бронь украшения «${b.jewelry.name}»`;
+  }
+
+  const base = (process.env.APP_URL ?? "").replace(/\/$/, "");
+  const url =
+    args.kind === "appointment"
+      ? `${base}/admin/appointments/${args.id}`
+      : `${base}/admin/bookings/${args.id}`;
+  const text = `❌ Клиент отменил ${what}. ${who}`;
+
+  const results: Array<"sent" | "failed"> = [];
+
+  if (isTelegramConfigured() && settings?.telegramChatId) {
+    const r = await sendTelegram({
+      chatId: settings.telegramChatId,
+      text: `${text}\n${url}`,
+    });
+    results.push(r.ok ? "sent" : "failed");
+  }
+  if (isEmailConfigured() && settings?.contactEmail) {
+    const r = await sendEmail({
+      to: settings.contactEmail,
+      subject: `Отмена — ${what}`,
+      html: `<p>${text}</p><p><a href="${url}">${url}</a></p>`,
+      text: `${text} ${url}`,
+    });
+    results.push(r.ok ? "sent" : "failed");
+  }
+
+  if (results.length === 0) return "skipped";
+  return results.includes("sent") ? "sent" : "failed";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review-request email (magic-link flow)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Send the "оставьте отзыв" email after an Appointment is COMPLETED.
+ * Generates a fresh review token (60-day expiry by default) and embeds
+ * the absolute URL in the email body.
+ *
+ * Returns "skipped" if email isn't configured or the appointment can't
+ * be found / has already been reviewed. See docs/16-reviews.md.
+ */
+export async function sendReviewRequestEmail(args: {
+  appointmentId: string;
+}): Promise<"sent" | "skipped" | "failed"> {
+  if (!isEmailConfigured()) return "skipped";
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: args.appointmentId },
+    include: { user: { select: { name: true, email: true } } },
+  });
+  if (!appointment) return "skipped";
+  if (appointment.reviewedAt) return "skipped";
+  if (!appointment.user.email) return "skipped";
+
+  const token = await signReviewToken(appointment.id);
+  const baseUrl = process.env.APP_URL ?? "";
+  const reviewUrl = baseUrl
+    ? `${baseUrl.replace(/\/$/, "")}/review/${token}`
+    : `/review/${token}`;
+
+  const tpl = reviewRequestEmail({
+    user: { name: appointment.user.name, email: appointment.user.email },
+    reviewUrl,
+  });
+
+  const r = await sendEmail({
+    to: appointment.user.email,
     subject: tpl.subject,
     html: tpl.html,
     text: tpl.text,

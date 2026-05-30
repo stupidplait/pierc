@@ -1,4 +1,5 @@
 import { formatPrice } from "@/lib/jewelry/format";
+import { formatRuPhone } from "@/lib/phone";
 
 export interface BookingNotificationData {
   user: {
@@ -146,7 +147,7 @@ export function adminAlertEmail(
   <table role="presentation" style="max-width:560px;margin:0 auto;background:#ffffff;padding:32px 28px;border-radius:16px">
     <tr><td>
       <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a">Новая бронь</h1>
-      <p style="margin:0 0 16px"><strong>${escape(data.user.name)}</strong> · ${escape(data.user.email)} · ${escape(data.user.phone)}</p>
+      <p style="margin:0 0 16px"><strong>${escape(data.user.name)}</strong> · ${escape(data.user.email)} · ${escape(formatRuPhone(data.user.phone))}</p>
       ${slot}
       ${items}
       ${notes}
@@ -160,7 +161,7 @@ export function adminAlertEmail(
 
   const text = [
     `Новая бронь`,
-    `${data.user.name} · ${data.user.email} · ${data.user.phone}`,
+    `${data.user.name} · ${data.user.email} · ${formatRuPhone(data.user.phone)}`,
     data.appointment?.slotStart
       ? `Время: ${slotLine(data)}`
       : "Без записи на услугу.",
@@ -191,7 +192,7 @@ export function adminTelegramMessage(
     "",
     `👤 ${data.user.name}`,
     `📧 ${data.user.email}`,
-    `📱 ${data.user.phone}`,
+    `📱 ${formatRuPhone(data.user.phone)}`,
   ];
 
   if (data.appointment?.slotStart) {
@@ -328,4 +329,51 @@ function escape(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+export interface ReviewRequestData {
+  user: { name: string; email: string };
+  /** Absolute URL to /review/[token]. */
+  reviewUrl: string;
+}
+
+/**
+ * Magic-link review request email — sent automatically when an
+ * Appointment transitions to COMPLETED. See docs/16-reviews.md.
+ */
+export function reviewRequestEmail(data: ReviewRequestData) {
+  const subject = "Поделитесь впечатлением о визите — Pierc Studio";
+
+  const html = `<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:32px 16px;background:#f6f6f8;font-family:sans-serif">
+  <table role="presentation" style="max-width:560px;margin:0 auto;background:#ffffff;padding:32px 28px;border-radius:16px">
+    <tr><td>
+      <h1 style="margin:0 0 12px;font-size:22px;color:#1a1a1a">Здравствуйте, ${escape(data.user.name)}!</h1>
+      <p style="margin:0 0 16px;color:#1a1a1a">Спасибо, что были у нас. Если есть пара минут — расскажите, как всё прошло. Ваш отзыв увидят будущие гости студии.</p>
+      <p style="margin:24px 0">
+        <a href="${escape(data.reviewUrl)}" style="display:inline-block;padding:12px 24px;background:#fe017e;color:#ffffff;border-radius:9999px;font-weight:500;text-decoration:none">Оставить отзыв</a>
+      </p>
+      <p style="margin:24px 0 0;color:#5a5a5a;font-size:13px">Ссылка действительна 60 дней. Отзыв публикуется только после нашей проверки.</p>
+      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— Pierc Studio</p>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const text = [
+    `Здравствуйте, ${data.user.name}!`,
+    "",
+    "Спасибо, что были у нас. Если есть пара минут — расскажите, как всё прошло.",
+    "Ваш отзыв увидят будущие гости студии.",
+    "",
+    "Оставить отзыв:",
+    data.reviewUrl,
+    "",
+    "Ссылка действительна 60 дней. Отзыв публикуется только после проверки.",
+    "",
+    "— Pierc Studio",
+  ].join("\n");
+
+  return { subject, html, text };
 }

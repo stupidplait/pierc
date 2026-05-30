@@ -33,19 +33,44 @@ export function isTelegramConfigured(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN);
 }
 
+// Resolve the bot's @username (needed to build t.me deep-links). Prefers an
+// explicit TELEGRAM_BOT_USERNAME env; otherwise asks the Bot API once and
+// caches the result for the process lifetime.
+let cachedBotUsername: string | null | undefined;
+
+export async function getBotUsername(): Promise<string | null> {
+  if (cachedBotUsername !== undefined) return cachedBotUsername;
+  const explicit = process.env.TELEGRAM_BOT_USERNAME;
+  if (explicit) {
+    cachedBotUsername = explicit.replace(/^@/, "");
+    return cachedBotUsername;
+  }
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    cachedBotUsername = null;
+    return null;
+  }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const data = (await res.json()) as { result?: { username?: string } };
+    cachedBotUsername = data.result?.username ?? null;
+  } catch {
+    cachedBotUsername = null;
+  }
+  return cachedBotUsername;
+}
+
 export async function sendTelegram(
   input: TelegramSendInput,
 ): Promise<TelegramSendResult> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
-    // eslint-disable-next-line no-console
     console.warn(
       "[notifications] Telegram not configured (TELEGRAM_BOT_TOKEN); skipping",
     );
     return { ok: false, reason: "not_configured" };
   }
   if (!input.chatId) {
-    // eslint-disable-next-line no-console
     console.warn(
       "[notifications] No Telegram chat_id (Settings.telegramChatId); skipping",
     );
@@ -71,7 +96,6 @@ export async function sendTelegram(
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      // eslint-disable-next-line no-console
       console.error(
         "[notifications] Telegram HTTP",
         res.status,
@@ -85,7 +109,6 @@ export async function sendTelegram(
     }
     return { ok: true };
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[notifications] Telegram exception:", err);
     return {
       ok: false,

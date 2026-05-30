@@ -36,7 +36,6 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const from = process.env.RESEND_FROM_EMAIL;
 
   if (!client || !from) {
-    // eslint-disable-next-line no-console
     console.warn(
       "[notifications] Resend not configured (RESEND_API_KEY / RESEND_FROM_EMAIL); skipping email to",
       input.to,
@@ -55,7 +54,6 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     });
 
     if (res.error) {
-      // eslint-disable-next-line no-console
       console.error("[notifications] Resend send error:", res.error);
       return {
         ok: false,
@@ -65,7 +63,6 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     }
     return { ok: true, id: res.data?.id ?? "" };
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[notifications] Resend exception:", err);
     return {
       ok: false,
