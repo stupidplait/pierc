@@ -17,6 +17,13 @@ This folder contains the full specification for the project. Read it in order; e
 11. [`11-folder-layout.md`](./11-folder-layout.md) — Proposed Next.js project structure
 12. [`12-tasks.md`](./12-tasks.md) — Implementation roadmap (15 demoable tasks)
 13. [`13-phase-2.md`](./13-phase-2.md) — React Native, photo-upload lite mode, future work
+14. [`14-jewelry-pipeline.md`](./14-jewelry-pipeline.md) — Parametric Blender pipeline (jewelry GLBs)
+15. [`15-lite-mode.md`](./15-lite-mode.md) — Photo-upload "lite mode" try-on
+16. [`16-reviews.md`](./16-reviews.md) — Customer reviews + magic-link flow
+17. [`17-seo.md`](./17-seo.md) — Per-page metadata, sitemap, JSON-LD
+18. [`18-replicate-3d.md`](./18-replicate-3d.md) — Replicate (Hunyuan3D-2) AI generation
+19. [`19-mobile-app.md`](./19-mobile-app.md) — React Native WebView wrapper
+20. [`20-multi-anchor-jewelry.md`](./20-multi-anchor-jewelry.md) — **Phase B (May 2026):** multi-anchor jewelry system (industrial bars, orbital rings, etc.); JewelryType enum, JewelryAnchorBinding junction table, attach:* empties, renderer math
 
 ## How to read
 

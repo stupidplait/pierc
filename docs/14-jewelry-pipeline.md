@@ -63,6 +63,7 @@ Each entry in `prisma/seed-data/jewelry.json`:
 | `name` | string | shown in admin + catalog (Russian) |
 | `categorySlug` | enum | `earrings` \| `helix` \| `septum` \| `labret` \| `nostril` \| `eyebrow` \| `navel` \| `nipple` |
 | `shape` | enum | `seamless_hoop` \| `curved_barbell` \| `straight_barbell` \| `horseshoe` \| `labret_stud` \| `nose_stud_l` |
+| `type` | enum | **Phase B**. `STUD` \| `RING` \| `BARBELL` \| `CIRCULAR_BARBELL` \| `ORBITAL` \| `CHAIN_LADDER`. Drives renderer math (1-anchor vs N-anchor) and admin form constraints. See [`docs/20-multi-anchor-jewelry.md`](./20-multi-anchor-jewelry.md). |
 | `params` | object | per-shape — only Blender reads it; see "Shape reference" below |
 | `material` | string | display label, e.g. `"Титан G23"`, `"Золото 585"`, `"Розовое золото 585"` |
 | `materialColor` | enum | PBR key consumed by Blender: `titanium` \| `gold-585` \| `rose-gold-585` \| `black-pvd` |
@@ -73,7 +74,7 @@ Each entry in `prisma/seed-data/jewelry.json`:
 | `price` | number | RUB, displayed as integer |
 | `inStock` | integer ≥ 0 | catalog availability |
 | `featured` | boolean | bumps the piece to the top of category lists + landing carousel |
-| `anchorSlugs` | string[] | which body anchors this piece can attach to (filtered to existing anchors at seed time) |
+| `anchorSlugs` | string[] | For STUD/RING (semantics="compat-list"): the list of anchors the piece can be equipped on — each becomes a `JewelryAnchorBinding` row with `order=0`. For multi-anchor types (BARBELL etc., semantics="fixed"): the **ordered** sequence of endpoints — `[0]` → mesh's `attach:primary`, `[1]` → `attach:secondary`, etc. Length must match the type's expected attach-point count (validated in `prisma/seed.ts`). |
 
 The seed loop in `prisma/seed.ts` upserts by `slug` and joins each piece
 with the upload map (`jewelry-uploads.json`); pieces that don't yet have
@@ -88,14 +89,23 @@ export at real-world meters scale (1.7 m body height ⇒ 1.2 mm gauge ≈
 `components/catalog/EquippedPieces.tsx` so existing anchor rotations work
 without retuning.
 
-| Shape | Origin | Outward axis | Required params | Optional params |
-|---|---|---|---|---|
-| `seamless_hoop` | Centre of ring (XY plane) | +Z | `diameterMm`, `gaugeMm` | — |
-| `curved_barbell` | Centre of "in" ball | +Z | `shaftLengthMm`, `gaugeMm` | `ballSizeMm`, `bowDepthMm` |
-| `straight_barbell` | Centre of "in" ball | +Z | `shaftLengthMm`, `gaugeMm` | `ballSizeMm` |
-| `horseshoe` | Centre of arc; gap faces +Y | +Z | `diameterMm`, `gaugeMm` | `ballSizeMm`, `gapDegrees` (default 90) |
-| `labret_stud` | Body surface (disc-shaft junction) | +Z | `shaftLengthMm`, `gaugeMm`, `topShape` | `discDiameterMm`, `topSizeMm`, `topGemColor` |
-| `nose_stud_l` | Inside of L elbow | +Z | `gaugeMm`, `topShape` | `visibleLengthMm`, `insideLengthMm`, `topSizeMm`, `topGemColor` |
+Phase B (May 2026) added a second convention: **every exported GLB carries
+named `attach:*` empty nodes** that mark the jewelry's attach points in
+mesh-local space. The renderer reads them via scene-graph traversal and
+uses them for both 1-anchor placement (offset the mesh so `attach:primary`
+lands exactly on the anchor) and N-anchor rigid-transform math (map
+`attach[i]` → `anchor[i].position`). See
+[`docs/20-multi-anchor-jewelry.md`](./20-multi-anchor-jewelry.md) for the
+full convention; the renderer side is in `components/catalog/EquippedPieces.tsx`.
+
+| Shape | Origin | Outward axis | Required params | Optional params | `attach:*` empties |
+|---|---|---|---|---|---|
+| `seamless_hoop` | Centre of ring (XY plane) | +Z | `diameterMm`, `gaugeMm` | — | `primary` at origin |
+| `curved_barbell` | Centre of "in" ball | +Z | `shaftLengthMm`, `gaugeMm` | `ballSizeMm`, `bowDepthMm` | `primary` at "in" ball, `secondary` at "out" ball |
+| `straight_barbell` | Centre of "in" ball | +Z | `shaftLengthMm`, `gaugeMm` | `ballSizeMm` | `primary` at "in" ball, `secondary` at "out" ball |
+| `horseshoe` | Centre of arc; gap faces +Y | +Z | `diameterMm`, `gaugeMm` | `ballSizeMm`, `gapDegrees` (default 90) | `primary` at ring centre (RING), `secondary`/`tertiary` at ball-tips (CIRCULAR_BARBELL) |
+| `labret_stud` | Body surface (disc-shaft junction) | +Z | `shaftLengthMm`, `gaugeMm`, `topShape` | `discDiameterMm`, `topSizeMm`, `topGemColor` | `primary` at origin |
+| `nose_stud_l` | Inside of L elbow | +Z | `gaugeMm`, `topShape` | `visibleLengthMm`, `insideLengthMm`, `topSizeMm`, `topGemColor` | `primary` at elbow |
 
 `topShape` for `labret_stud` is `"ball"` \| `"disc"` \| `"gem"`.
 `topShape` for `nose_stud_l` is `"ball"` \| `"gem"`.
@@ -132,28 +142,43 @@ changed, deletes the old blob, uploads the new one, updates
 ### Adding a new shape
 
 1. Create `scripts/blender/jewelry/shape_<name>.py` with a
-   `def build(params: dict, material_color: str) -> bpy.types.Object`
-   function. The returned object must:
+   `def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]`
+   function. The first returned object is the joined mesh; subsequent
+   objects are `attach:*` empties (Phase B convention). The mesh must:
    - have its origin at the convention-correct point (see the table)
    - have local +Z pointing the convention-correct direction
    - be at real-world meters scale (use `mm()` helper)
    - have at least one material slot assigned
 
+   The empties must be created via `add_attach_empty(name, location=...)`,
+   named `attach:primary`, `attach:secondary`, `attach:tertiary`, … in
+   declaration order. The renderer ignores any empty whose name doesn't
+   start with `attach:`. See
+   [`docs/20-multi-anchor-jewelry.md`](./20-multi-anchor-jewelry.md).
+
 2. Add the shape's name to `KNOWN_SHAPES` in `build_all.py`.
 
-3. Document the shape's row in this file's "Shape reference" table.
+3. Document the shape's row in this file's "Shape reference" table —
+   include the `attach:*` empties column.
 
-4. Add at least one manifest entry that uses it.
+4. Add at least one manifest entry that uses it. Set `type` per
+   [`docs/20-multi-anchor-jewelry.md`](./20-multi-anchor-jewelry.md) §"How to
+   add a real multi-anchor piece".
 
-5. Build via Blender MCP and verify the bbox.
+5. Build via Blender MCP and verify the bbox + that all `attach:*` nodes
+   show up in the GLB (via `npx @gltf-transform/cli inspect` or the
+   Node-side node-name check in
+   `node -e "..."` — see the multi-anchor doc for an example).
 
 `_jewelry_helpers.py` exports the API surface — see its module docstring
 for the convention rationale and the function reference. Common
 primitives: `add_torus`, `add_uv_sphere`, `add_ico_sphere`, `add_cylinder`,
 all in mm input. Mesh utilities: `apply_transforms`, `set_origin_to_world`,
 `join_meshes`. Materials: `make_metal_material`, `make_gem_material`.
-Export: `export_glb_draco`. Scene safety: `enter_build_scene` /
-`exit_build_scene` (see "Scene safety" below).
+Attach empties: `add_attach_empty(name, location=..., rotation=...)`.
+Export: `export_glb_draco(path, mesh, *extras)` — pass attach empties as
+extras so they're selected and exported with the mesh. Scene safety:
+`enter_build_scene` / `exit_build_scene` (see "Scene safety" below).
 
 ## Scene safety
 

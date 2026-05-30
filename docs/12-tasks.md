@@ -344,3 +344,22 @@ Remaining polish from the original spec, tracked for later:
 - **`.env.example`** updated with `CRON_SECRET` documentation.
 - **Real body GLB** (`public/models/body/body.glb`) was wired by the parallel Blender-pipeline track that runs alongside this app session — see "Body model pipeline" in README. Anchor positions live in `prisma/seed-data/anchors.json`. Procedural Mannequin component was retired in favour of `BodyModel`.
 - **Deferred to live-deploy:** real-device testing on Android (code-side audit only), Resend DNS verification (user-side), Vercel project setup (user-side). The smoke checklist in README walks the user through these post-deploy steps.
+
+---
+
+## Phase 2 — what shipped after the v1 roadmap
+
+The 15 tasks above are the v1 (Phase 1) closure. After v1 went live, five
+additional work streams from [`docs/13-phase-2.md`](./13-phase-2.md)
+were implemented. Each one has its own deep-dive doc in this folder:
+
+- **Photo-upload lite mode** — [`15-lite-mode.md`](./15-lite-mode.md)
+- **Reviews & testimonials** — [`16-reviews.md`](./16-reviews.md)
+- **Lightweight SEO bundle** — [`17-seo.md`](./17-seo.md)
+- **Replicate 3D generation** (managed inference) — [`18-replicate-3d.md`](./18-replicate-3d.md)
+- **React Native mobile app** (Expo + WebView shell) — [`19-mobile-app.md`](./19-mobile-app.md)
+
+Two streams from `13-phase-2.md` remain deferred without a concrete
+business trigger: **payments** (deposit / full-payment flow) and
+**multi-piercer / multi-studio** (breaking schema change). These are
+intentionally out of scope until there's a real reason to implement them.

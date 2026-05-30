@@ -6,7 +6,7 @@ A Next.js web app for a solo piercer's studio with a 3D virtual jewelry try-on, 
 
 ## Tech stack
 
-Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4 + Prisma + Neon Postgres + Vercel Blob + Auth.js + three / @react-three/fiber / @react-three/drei + Resend + Telegram Bot + Tripo3D, deployed on Vercel.
+Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4 + Prisma + Neon Postgres + Vercel Blob + Auth.js + three / @react-three/fiber / @react-three/drei + Resend + Telegram Bot + Replicate (Hunyuan3D-2) + Tripo3D, deployed on Vercel.
 
 ## Specification
 
@@ -50,6 +50,7 @@ Open <http://localhost:3000> — you should see the public site shell. `/api/hea
 | `npm run db:studio`| Open Prisma Studio against the configured DB     |
 | `npm run jewelry:upload`  | Upload `art/jewelry-out/*.glb` to Vercel Blob (hash-based dedup) |
 | `npm run jewelry:rebuild` | `jewelry:upload` then `db:seed` — convenience wrapper after a Blender re-export |
+| `npm run lite:wasm`       | Mirror lite-mode WASM models (`@imgly/background-removal` + MediaPipe Face Landmarker) to Vercel Blob. Run once after first deploy and again only if pinned versions are bumped. See [`docs/15-lite-mode.md`](./docs/15-lite-mode.md). |
 
 ## Project layout
 
@@ -79,21 +80,35 @@ public/             Static assets
 
 ## Status
 
-All 15 tasks complete. Highlights:
+All 15 Phase 1 tasks complete + 5 of 7 Phase 2 work streams shipped on top.
+
+### Phase 1 highlights
 
 - ✅ Project scaffold + DB wiring + Tailwind v4 theme + RU theme tokens
 - ✅ Public site shell with cleaned-up nav (`Главная · О студии · Услуги · Каталог · Галерея · FAQ` + `Войти / Регистрация / Записаться`)
 - ✅ Admin auth (NextAuth v5 Credentials) + protected admin shell
 - ✅ Site-content CMS — About, Services, FAQ, Gallery, Settings, with Vercel Blob photo uploads
 - ✅ **3D showroom catalog** — interactive try-on at `/catalog` with the real body GLB, 20+ anchor dots, camera tweens, multi-piece equip with soft cap of 6, URL-encoded shareable looks (`?anchor=…&eq=…`), and an automatic 2D fallback when WebGL2 isn't available
-- ✅ **Auto-3D pipeline** — Tripo3D image-to-model wired end-to-end with fallback chain, blob re-hosting, admin review/approve/reject UI, dry-run mode for credit-free testing
+- ✅ **Auto-3D pipeline** — Replicate (Hunyuan3D-2) primary + Tripo3D fallback wired end-to-end with provider abstraction, blob re-hosting, admin review/approve/reject UI, dry-run mode for credit-free testing
 - ✅ **Public auth** — sign-in / sign-up / `/account` with guest-upgrade by email
 - ✅ **Slot management** — bulk-create monthly schedules in one click, plus single-create for one-offs
 - ✅ **Booking flow** — 4-step stepper at `/book`, atomic transaction, multi-piece + appointment combined; `/book/success` summary
 - ✅ **Email + Telegram notifications** — Resend templates + Bot API; admin status changes can re-trigger; opt-in checkbox
 - ✅ **Storytelling landing** — `/` walks through hero → choose → fit → book with shared `?eq=` URL state across chapters
 - ✅ **Admin dashboards** — `/admin` overview cards; `/admin/bookings` and `/admin/appointments` with status transitions + cascade COMPLETED→FULFILLED + inline stock +/-1 on jewelry list
-- ✅ **Deploy-ready** — `/api/cron/poll-jobs` for automated Tripo polling, automatic WebGL2 capability check, `frameloop="demand"` on the showroom (idle 0% GPU when settled)
+- ✅ **Deploy-ready** — `/api/cron/poll-jobs` for automated 3D-job polling, automatic WebGL2 capability check, `frameloop="demand"` on the showroom (idle 0% GPU when settled)
+
+### Phase 2 work streams shipped
+
+See [`docs/13-phase-2.md`](./docs/13-phase-2.md) for the original plan; each stream has its own deep-dive.
+
+- ✅ **Photo-upload lite mode** ([`docs/15-lite-mode.md`](./docs/15-lite-mode.md)) — selfie upload + MediaPipe Face Landmarker auto-fallback when WebGL2 is unavailable. Multi-piece try-on with sprite compositing, drag-to-nudge, save-to-image PNG. Admin sprite uploader with in-browser auto bg-removal via `@imgly/background-removal` + manual transparent-PNG override.
+- ✅ **Reviews & testimonials** ([`docs/16-reviews.md`](./docs/16-reviews.md)) — `/admin/reviews` moderation flow, magic-link email after appointment COMPLETED → public form at `/review/[token]`, "Проверенный клиент" badge, display on `/about` (top featured) + `/catalog/[id]` (per-piece).
+- ✅ **Lightweight SEO** ([`docs/17-seo.md`](./docs/17-seo.md)) — per-page OpenGraph + Twitter Cards on every public route, `app/sitemap.ts` + `app/robots.ts`, JSON-LD `LocalBusiness` on `/about`, Vercel Analytics.
+- ✅ **Replicate 3D generation** ([`docs/18-replicate-3d.md`](./docs/18-replicate-3d.md)) — managed-inference path running Hunyuan3D-2; ~10–50× cheaper per generation than Tripo3D; slotted into the existing `ThreeGenProvider` abstraction as the new primary, Tripo3D demoted to fallback.
+- ✅ **React Native mobile app** ([`docs/19-mobile-app.md`](./docs/19-mobile-app.md)) — Expo + expo-router project under [`mobile/`](./mobile) wrapping the live web app in a WebView. Native bottom-tab nav, deep linking (`pierc://...` + Universal Links / App Links), back-button + share + external-link interception. See [`mobile/README.md`](./mobile/README.md) for dev workflow + App Store / Play Store submission checklist.
+
+Two streams remain deferred (no concrete trigger): payments and multi-piercer / multi-studio.
 
 ## Deployment
 
@@ -107,7 +122,8 @@ The project is set up for Vercel + Neon + Vercel Blob + Resend + Telegram. Step-
 | **Vercel** | Hosting. Connect the GitHub repo. Add env vars (next section). Vercel Blob is auto-provisioned when first used. |
 | **Resend** | Transactional emails. Sign up, generate API key. For production: verify a domain (DKIM + SPF DNS records); for dev: use `onboarding@resend.dev`. |
 | **Telegram bot** | Admin alerts. Talk to @BotFather → `/newbot` → save the token. Talk to your bot once, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` and grab the numeric `chat.id`. |
-| **Tripo3D** | Auto-3D generation (paid, pay-per-task). Sign up at platform.tripo3d.ai, save API key. Optional: omit it and only use manual `.glb` uploads. |
+| **Replicate** | Auto-3D generation (managed inference, pay-per-second). Sign up at replicate.com, generate an API token. Pick a Hunyuan3D-2 version on https://replicate.com/tencent/hunyuan3d-2 and pin the version hash in `REPLICATE_MODEL`. Roughly 10–50× cheaper per generation than Tripo3D. |
+| **Tripo3D** *(fallback)* | Optional fallback for the auto-3D chain when Replicate fails or is unconfigured. Sign up at platform.tripo3d.ai, save API key. Omit both Replicate + Tripo3D to leave only manual `.glb` uploads working. |
 
 ### 2. Environment variables
 
@@ -123,7 +139,9 @@ Set these in **Vercel → Project Settings → Environment Variables** for the P
 | `RESEND_API_KEY` | optional | Without this, emails skip silently |
 | `RESEND_FROM_EMAIL` | optional | e.g. `Pierc Studio <studio@yourdomain.com>` |
 | `TELEGRAM_BOT_TOKEN` | optional | Without this, Telegram alerts skip silently |
-| `TRIPO3D_API_KEY` | optional | Without this, only manual `.glb` uploads work |
+| `REPLICATE_API_TOKEN` | optional | Auto-3D primary. Without this, the chain falls back to Tripo3D. |
+| `REPLICATE_MODEL` | optional | Replicate model spec — accepts `<hash>`, `<owner>/<name>:<hash>`, or `<owner>/<name>`. Default: pin a Hunyuan3D-2 version from https://replicate.com/tencent/hunyuan3d-2 |
+| `TRIPO3D_API_KEY` | optional | Auto-3D fallback (was the v1 primary). Without this **and** `REPLICATE_API_TOKEN`, only manual `.glb` uploads work |
 | `APP_URL` | optional | Production URL, e.g. `https://piercing.studio` — used in emails for admin deep-links |
 | `CRON_SECRET` | ✅ for cron | Long random string. Vercel Cron sends this as `Authorization: Bearer ${CRON_SECRET}`. Keep `/api/cron/poll-jobs` open in dev by leaving unset locally. |
 | `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | dev-only | Used by `prisma db seed` to create the initial admin row. Delete from production after the first deploy. |
@@ -171,13 +189,38 @@ You don't need to do anything beyond setting `CRON_SECRET`. Verify in the Vercel
 ### 5. Smoke checklist
 
 - [ ] `<deploy-url>/api/health` returns `{ ok: true, db: true }`
+- [ ] `<deploy-url>/sitemap.xml` returns valid XML with all public routes + every published jewelry detail page
+- [ ] `<deploy-url>/robots.txt` returns the allow-list with admin/account/auth/api/review disallowed and a `Sitemap:` line pointing to the live URL
+- [ ] Pasting `<deploy-url>/catalog/<piece-id>` into Telegram or WhatsApp shows preview image (the jewelry photo) + title + description, not a bare URL
+- [ ] LocalBusiness JSON-LD on `/about` validates at https://search.google.com/test/rich-results — 0 errors
+- [ ] Vercel dashboard → Analytics shows page-view events firing within ~5 minutes of a real visit
 - [ ] Public `/` snap-scrolls through three chapters
 - [ ] `/catalog` shows the 3D showroom; click an anchor, equip a piece, see camera tween
-- [ ] Browser without WebGL2 sees the auto-fallback grid (test with Firefox `webgl2.disabled`)
+- [ ] Browser without WebGL2 sees lite mode auto-fallback — selfie dropzone + face landmarks (test with Firefox `webgl2.disabled` or Chrome `chrome://flags/#disable-webgl2`)
 - [ ] `/admin/login` works with the seeded credentials
+- [ ] Admin sprite uploader (`/admin/jewelry/<id>/edit` → "Спрайт для примерки на фото") — Авто tab strips background, Вручную accepts a transparent PNG
 - [ ] **Тестовое уведомление** under `/admin/settings` reports per-leg success
 - [ ] Make a real booking — user gets a confirmation email, admin gets email + Telegram, `/admin/bookings` shows the new row
+- [ ] Mark a test appointment COMPLETED with notify checked → customer receives "Поделитесь впечатлением о визите" review-request email → opening the link renders the public form → submitting it lands a PENDING review on `/admin/reviews`
 - [ ] On a phone: bottom-sheet sidebar in showroom, sticky header survives scroll, all forms have ≥44px touch targets
+
+### 6. Lite mode (photo-upload try-on) — one-time setup
+
+Phase 2 work stream 1. See [`docs/15-lite-mode.md`](./docs/15-lite-mode.md) for the full spec.
+
+After the first deploy:
+
+1. **Push schema for the new `Jewelry.spriteUrl` column** — run from your local machine pointed at production:
+   ```bash
+   DATABASE_URL=<prod-pooled> DIRECT_URL=<prod-direct> npm run db:push
+   ```
+   Non-breaking, fully additive (nullable column).
+2. **Mirror lite-mode WASM models to Vercel Blob:**
+   ```bash
+   BLOB_READ_WRITE_TOKEN=<prod-token> npm run lite:wasm
+   ```
+   Mirrors `@imgly/background-removal` model chunks (~80 MB) and the MediaPipe `face_landmarker.task` (~3.8 MB). Idempotent — safe to re-run; subsequent runs skip everything that's already on Blob with the same hash. Re-run only when bumping the pinned imgly version.
+3. **Upload sprites for at least a few jewelry pieces** via `/admin/jewelry/<id>/edit` → "Спрайт для примерки на фото" → "Авто" tab. Until pieces have sprites, lite-mode users will see the catalog grid only.
 
 ## Body model pipeline
 

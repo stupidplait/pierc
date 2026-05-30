@@ -10,7 +10,7 @@ A small interface in `lib/three-gen/types.ts` hides the specific provider:
 
 ```ts
 export interface Provider {
-  id: ProviderId;                                  // "tripo3d" | "manual"
+  id: ProviderId;                                  // "replicate" | "tripo3d" | "manual"
   isAvailable(): boolean;
   start(input: ProviderInput): Promise<StartResult>;
   poll(providerJobId: string): Promise<PollResult>;
@@ -18,22 +18,32 @@ export interface Provider {
 ```
 
 Implementations live alongside it:
-- `tripo3d.ts` — primary auto-generation provider.
+- `replicate.ts` — primary auto-generation provider (Hunyuan3D-2 by
+  default, configurable). Managed inference; ~10–50× cheaper per
+  generation than Tripo3D. See [`18-replicate-3d.md`](./18-replicate-3d.md).
+- `tripo3d.ts` — fallback auto-generation provider. Was the v1
+  primary; demoted in Phase 2 work stream 4 once Replicate landed.
 - `manual.ts` — no-op symmetry adapter; the manual upload UI bypasses the GenerationJob table entirely (writes `Jewelry.glbUrl` directly).
 
-`pickAutoProvider()` returns the first configured auto provider; `pickNextAutoProvider(after)` returns the next available one in the priority chain (used for fallback, currently always returns null since Tripo3D is the only auto provider). Future providers (Replicate-hosted open-source, Stable Fast 3D, etc.) slot into `AUTO_PRIORITY` in `lib/three-gen/index.ts` without touching call sites.
+`pickAutoProvider()` returns the first configured auto provider; `pickNextAutoProvider(after)` returns the next available one in the priority chain (`AUTO_PRIORITY = ["replicate", "tripo3d"]`). When Replicate is configured but a generation fails, the chain falls through to Tripo3D automatically; with both unconfigured, the auto-3D button is disabled and only manual upload works.
 
 ## Provider comparison (research summary)
 
 | Approach | Cost model | Quality on jewelry | Ops cost |
 |---|---|---|---|
-| **Tripo3D API** (primary) | Pay-per-task; small free trial credits on signup | Strong, PBR + textures via H3 model | ~zero — managed |
-| Meshy AI API | Pay-per-task | Decent, fast | ~zero — managed; **removed in v1**: did not pass the cost/quality bar for adding a second managed vendor |
-| Replicate-hosted open-source (TripoSR, Stable Fast 3D, InstantMesh) | Pay-per-second compute (~$0.01–0.05 per generation) | Lower than Tripo H3 | ~zero — managed; viable later as a cheaper fallback |
-| Self-hosted TripoSR / Hunyuan3D | Software is free | Good | Requires a GPU server |
+| **Replicate (Hunyuan3D-2)** *(current primary)* | Pay-per-second compute (~$0.01–0.05 per generation) | On par with or better than Tripo3D H3 per published comparisons | ~zero — managed |
+| **Tripo3D API** *(current fallback)* | Pay-per-task ($0.20–2.00 depending on tier) | Strong, PBR + textures via H3 model | ~zero — managed |
+| Replicate-hosted alternatives (TripoSR, Stable Fast 3D, InstantMesh, MeshAnything) | Pay-per-second compute (~$0.005–0.02) | Lower than Hunyuan3D-2 / Tripo H3 | ~zero — managed; swap in via `REPLICATE_MODEL` env var |
+| Self-hosted TripoSR / Hunyuan3D on a GPU VPS | Software is free; ~$30–150/mo flat compute | Same as Replicate | Linux server, docker, monitoring |
 | Photogrammetry (Meshroom) | Free | Highest | Admin shoots 15–30 photos per item |
 
 **v1 decision:** Tripo3D as the only configured auto provider, manual `.glb` upload as the always-free quality override. The provider abstraction is kept so swapping in / adding fallback providers later is a config change, not a rewrite.
+
+**Phase 2 update (work stream 4):** Replicate added as the new auto
+primary running Hunyuan3D-2 (~10–50× cheaper per generation than
+Tripo3D); Tripo3D demoted to the fallback slot in `AUTO_PRIORITY`.
+Manual upload remains the always-free quality override.
+See [`18-replicate-3d.md`](./18-replicate-3d.md) for the full spec.
 
 ## Job lifecycle
 
@@ -112,10 +122,10 @@ The cron is intentionally idempotent: if it crashes mid-loop, the next run picks
 
 ## Dry-run mode
 
-For development without burning Tripo3D credits, set `DRY_RUN_3D_GEN=1` in `.env`:
+For development without burning Tripo3D or Replicate credits, set `DRY_RUN_3D_GEN=1` in `.env`:
 
-- `Tripo3D.isAvailable()` returns true even without `TRIPO3D_API_KEY`.
-- `start()` returns a dummy `providerJobId` (prefixed `dry-run-`) without calling the API.
+- Both `Replicate.isAvailable()` and `Tripo3D.isAvailable()` return true even without their respective API keys.
+- `start()` returns a dummy `providerJobId` (prefixed `dry-run-`) without calling any external API.
 - `poll()` returns `SUCCEEDED` with a public Khronos sample GLB (the Avocado).
 - The rest of the pipeline (re-host to Vercel Blob, admin review, approve → showroom) runs unchanged.
 - The admin UI surfaces a yellow "Режим теста" banner so it's clear the result isn't real.

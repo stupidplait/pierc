@@ -69,19 +69,30 @@ enum BodyPlace {
 enum AnchorSide { L R CENTER }
 
 model AnchorPoint {
-  id            String     @id @default(cuid())
-  slug          String     @unique           // "left-ear-lobe"
-  name          String                       // "Левая мочка"
-  place         BodyPlace
-  side          AnchorSide @default(CENTER)
-  position      Json                         // { x, y, z } in body.glb local space (Y-up)
-  rotation      Json                         // { x, y, z } default jewelry orientation (Euler XYZ rad)
-  cameraPresets Json                         // [{ name, position, target, fov }, ...]
-  jewelries     Jewelry[]  @relation("JewelryAnchors")
+  id              String                 @id @default(cuid())
+  slug            String                 @unique           // "left-ear-lobe"
+  name            String                                   // "Левая мочка"
+  place           BodyPlace
+  side            AnchorSide             @default(CENTER)
+  position        Json                                     // { x, y, z } in body.glb local space (Y-up)
+  rotation        Json                                     // { x, y, z } default jewelry orientation (Euler XYZ rad)
+  cameraPresets   Json                                     // [{ name, position, target, fov }, ...]
+  jewelryBindings JewelryAnchorBinding[]                   // explicit junction (Phase B); see docs/20-multi-anchor-jewelry.md
 }
 
 // ───── Catalog ─────
 enum JewelryStatus { DRAFT PROCESSING PENDING_REVIEW PUBLISHED REJECTED }
+
+// Drives renderer math + admin form constraints. See
+// docs/20-multi-anchor-jewelry.md for the full mapping.
+//
+//   STUD              — 1 attach point per equip, semantics="compat-list"
+//   RING              — 1 attach point per equip, semantics="compat-list"
+//   BARBELL           — 2 attach points equipped together (industrial bar, surface bar)
+//   CIRCULAR_BARBELL  — 2 attach points (horseshoe through 2 holes)
+//   ORBITAL           — 2 attach points (closed ring through 2 holes)
+//   CHAIN_LADDER      — N attach points (corset)
+enum JewelryType { STUD RING BARBELL CIRCULAR_BARBELL ORBITAL CHAIN_LADDER }
 
 model JewelryCategory {
   id        String    @id @default(cuid())
@@ -91,30 +102,49 @@ model JewelryCategory {
 }
 
 model Jewelry {
-  id          String          @id @default(cuid())
-  slug        String?         @unique     // stable seed-pipeline key (kebab-case); nullable for admin-created pieces
-  name        String
-  description String?
-  category    JewelryCategory @relation(fields: [categoryId], references: [id])
-  categoryId  String
-  material    String                        // "Титан G23", "Золото 585", ...
-  gauge       Float?                        // mm
-  size        Float?                        // mm
-  color       String?
-  stones      String?                       // "Циркон", "Опал", "Без камней"
-  price       Decimal
-  inStock     Int             @default(0)
-  photos      Json                          // [{ url, alt }]
-  glbUrl      String?
-  glbScale    Float           @default(1)   // EquippedPieces render multiplier; 1 for parametric Blender (real meters), 0.025 for Tripo3D
-  glbThumbUrl String?
-  status      JewelryStatus   @default(DRAFT)
-  featured    Boolean         @default(false) // landing 6
-  anchors     AnchorPoint[]   @relation("JewelryAnchors")
-  jobs        GenerationJob[]
-  bookings    JewelryBooking[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String                 @id @default(cuid())
+  slug           String?                @unique     // stable seed-pipeline key (kebab-case); nullable for admin-created pieces
+  name           String
+  description    String?
+  category       JewelryCategory        @relation(fields: [categoryId], references: [id])
+  categoryId     String
+  type           JewelryType            @default(STUD)  // Phase B: drives 1-anchor vs N-anchor renderer math
+  material       String                                 // "Титан G23", "Золото 585", ...
+  gauge          Float?                                 // mm
+  size           Float?                                 // mm
+  color          String?
+  stones         String?                                // "Циркон", "Опал", "Без камней"
+  price          Decimal
+  inStock        Int                    @default(0)
+  photos         Json                                   // [{ url, alt }]
+  glbUrl         String?
+  glbScale       Float                  @default(1)     // EquippedPieces render multiplier; 1 for parametric Blender (real meters), 0.025 for Tripo3D
+  glbThumbUrl    String?
+  status         JewelryStatus          @default(DRAFT)
+  featured       Boolean                @default(false) // landing 6
+  // Phase B: explicit junction replacing the old implicit `_JewelryAnchors`
+  // M2M. For STUD/RING (semantics="compat-list") each row is an alternative
+  // anchor; for multi-anchor types (semantics="fixed") all rows are equipped
+  // together with `order` distinguishing primary (0) / secondary (1) / etc.
+  anchorBindings JewelryAnchorBinding[]
+  jobs           GenerationJob[]
+  bookings       JewelryBooking[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+// Phase B junction. See docs/20-multi-anchor-jewelry.md for the full
+// rationale and renderer integration.
+model JewelryAnchorBinding {
+  id        String      @id @default(cuid())
+  jewelry   Jewelry     @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+  jewelryId String
+  anchor    AnchorPoint @relation(fields: [anchorId], references: [id])
+  anchorId  String
+  order     Int         @default(0)  // 0 = mesh's `attach:primary`, 1 = `attach:secondary`, ...
+  createdAt DateTime    @default(now())
+
+  @@unique([jewelryId, anchorId, order])
 }
 
 // ───── Auto-3D pipeline ─────

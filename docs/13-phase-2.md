@@ -14,6 +14,8 @@ This document captures planned work that is intentionally **out of v1 scope**. N
 
 **Open question for Phase 2:** push notifications via Expo's notification service for booking confirmations and reminders.
 
+→ Implementation spec (Expo + WebView shell): see [19-mobile-app.md](./19-mobile-app.md). Push notifications deferred to a follow-up task.
+
 ## Photo-upload "lite mode"
 
 **Goal:** a 2D fallback for devices that fail the WebGL2 check or render the 3D scene poorly.
@@ -27,6 +29,8 @@ This document captures planned work that is intentionally **out of v1 scope**. N
 
 **Schema impact:** likely none in v1 — jewelry photos already exist. May add a 2D anchor offset table later if precision needs tuning.
 
+→ Implementation spec: see [15-lite-mode.md](./15-lite-mode.md).
+
 ## Self-hosted 3D generation
 
 **Trigger:** if monthly volume outgrows the Tripo3D budget, or if quality on jewelry-specific shapes lags.
@@ -35,6 +39,10 @@ This document captures planned work that is intentionally **out of v1 scope**. N
 
 **Pros:** unlimited generations, no per-call cost.
 **Cons:** GPU server cost (~$30–100/mo depending on GPU), ops overhead, cold-start latency.
+
+→ Implementation spec (managed-inference variant via Replicate):
+see [18-replicate-3d.md](./18-replicate-3d.md). True self-hosted GPU
+remains deferred until volume justifies it.
 
 ## Payments
 
@@ -59,9 +67,16 @@ This is a breaking schema change; deferring until there is concrete demand.
 - Structured data (JSON-LD) for jewelry as `Product` and the studio as `LocalBusiness`.
 - A sitemap and robots.txt generated from the catalog and content.
 
+→ Lightweight subset shipped: see [17-seo.md](./17-seo.md) for the
+trimmed-down package (metadata/OG/Twitter, sitemap, robots,
+LocalBusiness JSON-LD, Vercel Analytics). The heavy items (Plausible,
+Product JSON-LD, dedicated `/reviews` index) remain deferred.
+
 ## Reviews & testimonials
 
 If the studio wants to surface social proof:
 - New `Review` model linked to a completed `Appointment`.
 - Public moderation flow in admin (approve before showing).
 - Display on `/about` and individual jewelry pages.
+
+→ Implementation spec: see [16-reviews.md](./16-reviews.md).
