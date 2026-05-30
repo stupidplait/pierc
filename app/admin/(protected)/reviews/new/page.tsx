@@ -3,12 +3,11 @@ import { prisma } from "@/lib/prisma";
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ReviewForm } from "@/components/admin/ReviewForm";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.reviews.newTitle} — ${ru.admin.panel}`,
+  title: ru.admin.reviews.newTitle,
 };
 
 export default async function AdminReviewNewPage() {
@@ -23,15 +22,21 @@ export default async function AdminReviewNewPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <PageHeader
-        eyebrow={ru.admin.reviews.title}
-        title={ru.admin.reviews.newTitle}
-      >
-        <Button href="/admin/reviews" variant="ghost" size="sm" radius="rounded-xl">
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="mb-10 flex flex-col gap-4 pt-2 sm:mb-12 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
+        <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+          {ru.admin.reviews.newTitle}
+        </h1>
+        <Button
+          href="/admin/reviews"
+          variant="ghost"
+          size="sm"
+          radius="rounded-xl"
+          className="shrink-0"
+        >
           ← {ru.admin.reviews.backToList}
         </Button>
-      </PageHeader>
+      </header>
 
       <ReviewForm
         isNew

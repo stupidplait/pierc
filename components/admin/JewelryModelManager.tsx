@@ -1,8 +1,9 @@
 import { ru } from "@/lib/i18n/ru";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
-import { JewelryGlbUploadForm } from "@/components/admin/JewelryGlbUploadForm";
+import { GlbDropzone } from "@/components/admin/GlbDropzone";
 import { JewelryGenerationActions } from "@/components/admin/JewelryGenerationActions";
-import { CARD, GHOST_DELETE } from "@/components/admin/form/styles";
+import { GlbInspector } from "@/components/admin/GlbInspector";
+import { CARD } from "@/components/admin/form/styles";
 import { removeJewelryGlb } from "@/lib/admin/jewelry-actions";
 import { getProviderStatus } from "@/lib/three-gen";
 import { isSingleAnchorType, type JewelryType } from "@/lib/catalog/types";
@@ -22,15 +23,22 @@ interface JewelryModelManagerProps {
   } | null;
 }
 
-// Hairline chip shared by the "open .glb" link — neutral by default, firms its
-// border + ink on hover, matching the Steel Atelier secondary vocabulary.
+// Hairline chip shared by the "download .glb" link — neutral by default, firms
+// its border + ink on hover, matching the Steel Atelier secondary vocabulary.
 const CHIP =
   "inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40";
+
+// Same chip dimensions as CHIP, warmed to the error tone on hover — keeps the
+// delete trigger the exact size of the download link beside it. (GHOST_DELETE
+// can't be reused here: it bakes in h-11/px-5/rounded-xl and these class
+// strings aren't tailwind-merged, so its sizes would win over any override.)
+const CHIP_DELETE =
+  "inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-error/50 hover:text-error";
 
 /**
  * Server component orchestrating the 3D-model panel on the jewelry edit page:
  *
- *   • Header — current GLB state + "Открыть .glb" + "Удалить модель".
+ *   • Header — current GLB state + "Скачать .glb" + "Удалить модель".
  *   • Auto generation — Replicate / Tripo3D (when configured) — RESTRICTED to
  *     single-anchor types (STUD, RING). Multi-anchor types (BARBELL,
  *     CIRCULAR_BARBELL, ORBITAL, CHAIN_LADDER) require precise endpoint
@@ -51,6 +59,36 @@ export function JewelryModelManager({
   const providers = getProviderStatus();
   const aiAllowed = isSingleAnchorType(jewelryType);
 
+  // A generated model awaiting approval (result differs from the published one)
+  // owns its own compare/review preview in the generation panel below, so the
+  // header's lone preview is suppressed to avoid showing the model twice.
+  const pendingReview =
+    !!latestJob &&
+    latestJob.status === "SUCCEEDED" &&
+    !!latestJob.resultGlbUrl &&
+    latestJob.resultGlbUrl !== glbUrl;
+
+  // "Скачать .glb" + "Удалить модель" — rendered in the inspector's actions
+  // column beside the model facts, or on their own while a candidate review
+  // owns the preview below. (glbUrl narrows to string inside this branch.)
+  const modelActions = glbUrl ? (
+    <>
+      <a href={glbUrl} download className={CHIP}>
+        {t.viewExternal} ↓
+      </a>
+      <form>
+        <input type="hidden" name="id" value={jewelryId} />
+        <ConfirmDeleteButton
+          formAction={removeJewelryGlb}
+          confirmText={t.confirmRemove}
+          className={CHIP_DELETE}
+        >
+          {t.remove}
+        </ConfirmDeleteButton>
+      </form>
+    </>
+  ) : null;
+
   return (
     <section className={`${CARD} flex flex-col gap-6 p-6 sm:p-8`}>
       <header>
@@ -61,26 +99,17 @@ export function JewelryModelManager({
           {glbUrl ? t.present : t.none}
         </p>
         {glbUrl ? (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <a
-              href={glbUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={CHIP}
-            >
-              {t.viewExternal} ↗
-            </a>
-            <form>
-              <input type="hidden" name="id" value={jewelryId} />
-              <ConfirmDeleteButton
-                formAction={removeJewelryGlb}
-                confirmText={t.confirmRemove}
-                className={`${GHOST_DELETE} h-9 px-4 text-xs`}
-              >
-                {t.remove}
-              </ConfirmDeleteButton>
-            </form>
-          </div>
+          pendingReview ? (
+            // Candidate under review owns the preview in the panel below; here
+            // keep only the current model's actions so it can still be removed.
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {modelActions}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <GlbInspector url={glbUrl} actions={modelActions} />
+            </div>
+          )
         ) : null}
       </header>
 
@@ -91,6 +120,7 @@ export function JewelryModelManager({
           <JewelryGenerationActions
             jewelryId={jewelryId}
             latestJob={latestJob}
+            currentGlbUrl={glbUrl}
             autoAvailable={providers.autoAvailable}
             dryRun={providers.dryRun}
             hasPhotos={hasPhotos}
@@ -106,10 +136,7 @@ export function JewelryModelManager({
       <div className="border-t border-line pt-6">
         <h3 className="mb-3 text-sm font-medium text-ink">{t.manualHeading}</h3>
         <p className="mb-4 max-w-prose text-sm text-mute">{t.manualLead}</p>
-        <JewelryGlbUploadForm
-          jewelryId={jewelryId}
-          blobConfigured={blobConfigured}
-        />
+        <GlbDropzone jewelryId={jewelryId} blobConfigured={blobConfigured} />
       </div>
     </section>
   );

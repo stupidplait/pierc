@@ -6,7 +6,8 @@ import {
   type BulkSlotState,
 } from "@/lib/admin/slot-actions";
 import { CardHeader, Reveal } from "@/components/admin/form/atelier";
-import { CARD, FIELD_H, LABEL, SUBMIT } from "@/components/admin/form/styles";
+import { CARD, LABEL, SUBMIT } from "@/components/admin/form/styles";
+import { Input } from "@/components/shadcn/ui/input";
 import { ru } from "@/lib/i18n/ru";
 import { pluralRu } from "@/lib/i18n/plural";
 
@@ -76,24 +77,22 @@ export function BulkSlotForm({ delay = 0 }: { delay?: number }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t.bulkFromLabel}</span>
-            <input
+            <Input
               type="date"
               name="from"
               required
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className={FIELD_H}
             />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t.bulkToLabel}</span>
-            <input
+            <Input
               type="date"
               name="to"
               required
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className={FIELD_H}
             />
           </label>
         </div>
@@ -128,33 +127,31 @@ export function BulkSlotForm({ delay = 0 }: { delay?: number }) {
           </div>
         </fieldset>
 
-        {/* Hours + slot length + live preview */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        {/* Hours + slot length */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t.bulkHoursLabel}</span>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="time"
                 name="start"
                 required
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
-                className={FIELD_H}
               />
               <span className="text-mute">–</span>
-              <input
+              <Input
                 type="time"
                 name="end"
                 required
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
-                className={FIELD_H}
               />
             </div>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t.bulkSlotMinLabel}</span>
-            <input
+            <Input
               type="number"
               name="slotMin"
               min={15}
@@ -163,31 +160,33 @@ export function BulkSlotForm({ delay = 0 }: { delay?: number }) {
               required
               value={slotMin}
               onChange={(e) => setSlotMin(Number(e.target.value))}
-              className={FIELD_H}
             />
           </label>
-          <div className="flex flex-col gap-1.5">
+        </div>
+
+        {/* Focal preview + submit */}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-ink/10 bg-ink/3 px-5 py-4">
+          <div className="flex flex-col gap-0.5">
             <span className={LABEL}>{t.bulkPreviewLabel}</span>
-            <div className="flex h-11 items-baseline gap-1.5 rounded-xl border border-ink/10 bg-ink/3 px-4">
-              <span className="text-lg font-medium tabular-nums text-ink">
+            <span className="flex items-baseline gap-1.5">
+              <span className="font-display text-3xl font-medium tabular-nums text-ink">
                 {previewCount}
               </span>
               <span className="text-sm text-mute">
                 {pluralRu(previewCount, t.windows)}
               </span>
-            </div>
+            </span>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="submit"
-            disabled={pending || previewCount === 0}
-            className={SUBMIT}
-          >
-            {pending ? t.bulkSubmitting : t.bulkSubmit}
-          </button>
-          <BulkStatus state={state} />
+          <div className="flex flex-wrap items-center gap-4">
+            <BulkStatus state={state} />
+            <button
+              type="submit"
+              disabled={pending || previewCount === 0}
+              className={SUBMIT}
+            >
+              {pending ? t.bulkSubmitting : t.bulkSubmit}
+            </button>
+          </div>
         </div>
 
         <p className="text-xs text-mute">{t.timezoneNote}</p>

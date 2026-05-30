@@ -30,7 +30,12 @@ export function StatusBoard({
 
   return (
     <MotionConfig reducedMotion="user">
-      <motion.div variants={container} initial="hidden" animate="show">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="mx-auto w-full max-w-6xl"
+      >
         <DashHeader adminName={adminName} />
 
       <div className="grid items-stretch gap-6 lg:grid-cols-[20rem_1fr]">
@@ -48,19 +53,32 @@ export function StatusBoard({
             </span>
           </div>
           <div className="mt-7 flex flex-col gap-2">
-            {quickActions.map((a) => (
-              <Link
-                key={a.href}
-                href={a.href}
-                className="group flex items-center gap-3 rounded-xl border border-line px-3.5 py-2.5 text-sm font-medium text-ink transition-colors duration-150 hover:border-ink/40 hover:bg-ink/3"
-              >
-                <span className="text-mute transition-colors duration-150 group-hover:text-ink">
-                  <ActionIcon kind={a.kind} />
-                </span>
-                <span className="flex-1">{a.label}</span>
-                <ArrowIcon className="text-mute/0 transition-colors duration-150 group-hover:text-mute" />
-              </Link>
-            ))}
+            {quickActions.map((a) => {
+              const cls =
+                "group flex w-full items-center gap-3 rounded-xl border border-line px-3.5 py-2.5 text-left text-sm font-medium text-ink transition-colors duration-150 hover:border-ink/40 hover:bg-ink/3";
+              const inner = (
+                <>
+                  <span className="text-mute transition-colors duration-150 group-hover:text-ink">
+                    <ActionIcon kind={a.kind} />
+                  </span>
+                  <span className="flex-1">{a.label}</span>
+                  <ArrowIcon className="text-mute/0 transition-colors duration-150 group-hover:text-mute" />
+                </>
+              );
+              // Mutation quick-actions POST via a server action (a draft create
+              // can't be a prefetched GET link); navigational ones stay as Links.
+              return a.action ? (
+                <form key={a.label} action={a.action}>
+                  <button type="submit" className={cls}>
+                    {inner}
+                  </button>
+                </form>
+              ) : (
+                <Link key={a.href} href={a.href!} className={cls}>
+                  {inner}
+                </Link>
+              );
+            })}
           </div>
         </motion.aside>
 

@@ -7,14 +7,20 @@ import {
   type ReviewActionState,
 } from "@/lib/admin/review-actions";
 import { ru } from "@/lib/i18n/ru";
+import { LABEL } from "@/components/admin/form/styles";
+import { Card } from "@/components/shadcn/ui/card";
+import { Button } from "@/components/shadcn/ui/button";
+import { Input } from "@/components/shadcn/ui/input";
+import { Textarea } from "@/components/shadcn/ui/textarea";
+import { Switch } from "@/components/shadcn/ui/switch";
 import {
-  SURFACE,
-  FIELD,
-  TEXTAREA,
-  SAVE_PILL,
-  container,
-  item,
-} from "@/components/admin/reviews/ui";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/ui/select";
+import { container, item } from "@/components/admin/reviews/ui";
 
 interface JewelryOption {
   id: string;
@@ -83,141 +89,145 @@ export function ReviewForm({ initial, jewelry, isNew = false }: ReviewFormProps)
           ) : null}
 
           {/* ── Content ──────────────────────────────────────────── */}
-          <motion.section variants={item} className={`${SURFACE} p-7 sm:p-9`}>
-            <CardHead heading={t.sections.attributes} />
-            <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-medium text-mute">{f.rating}</span>
-                <RatingPicker value={rating} onChange={setRating} />
-                <input type="hidden" name="rating" value={rating} />
-              </div>
-
-              <Field label={f.text}>
-                <textarea
-                  name="text"
-                  rows={5}
-                  required
-                  defaultValue={initial?.text ?? ""}
-                  placeholder={f.textPlaceholder}
-                  className={TEXTAREA}
-                />
-              </Field>
-
-              <Field label={f.authorName}>
-                <input
-                  name="authorName"
-                  required
-                  defaultValue={initial?.authorName ?? ""}
-                  placeholder={f.authorNamePlaceholder}
-                  autoComplete="off"
-                  className={FIELD}
-                />
-              </Field>
-
-              {!isNew && initial?.appointmentId ? (
-                <div className="rounded-xl border border-line bg-ink/3 p-3.5">
-                  <span className="text-xs font-medium text-mute">
-                    {f.appointmentId}
-                  </span>
-                  <a
-                    href={`/admin/appointments/${initial.appointmentId}`}
-                    className="mt-1 block truncate text-sm text-accent underline-offset-4 hover:underline"
-                  >
-                    {initial.appointmentId}
-                  </a>
-                  <input
-                    type="hidden"
-                    name="appointmentId"
-                    value={initial.appointmentId}
-                  />
+          <motion.div variants={item}>
+            <Card className="p-7 sm:p-9">
+              <CardHead heading={t.sections.attributes} />
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <span className={LABEL}>{f.rating}</span>
+                  <RatingPicker value={rating} onChange={setRating} />
+                  <input type="hidden" name="rating" value={rating} />
                 </div>
-              ) : null}
-            </div>
-          </motion.section>
+
+                <Field label={f.text}>
+                  <Textarea
+                    name="text"
+                    rows={5}
+                    required
+                    defaultValue={initial?.text ?? ""}
+                    placeholder={f.textPlaceholder}
+                  />
+                </Field>
+
+                <Field label={f.authorName}>
+                  <Input
+                    name="authorName"
+                    required
+                    defaultValue={initial?.authorName ?? ""}
+                    placeholder={f.authorNamePlaceholder}
+                    autoComplete="off"
+                  />
+                </Field>
+
+                {!isNew && initial?.appointmentId ? (
+                  <div className="rounded-xl border border-line bg-ink/3 p-3.5">
+                    <span className={LABEL}>{f.appointmentId}</span>
+                    <a
+                      href={`/admin/appointments/${initial.appointmentId}`}
+                      className="mt-1 block truncate text-sm text-accent underline-offset-4 hover:underline"
+                    >
+                      {initial.appointmentId}
+                    </a>
+                    <input
+                      type="hidden"
+                      name="appointmentId"
+                      value={initial.appointmentId}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </Card>
+          </motion.div>
 
           {/* ── Jewelry tags ─────────────────────────────────────── */}
-          <motion.section variants={item} className={`${SURFACE} p-7 sm:p-9`}>
-            <CardHead heading={t.sections.jewelry} lead={f.jewelryHint} />
-            {jewelry.length === 0 ? (
-              <p className="text-sm text-mute">—</p>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {jewelry.map((j) => {
-                  const checked = selectedJewelry.has(j.id);
-                  return (
-                    <label
-                      key={j.id}
-                      className={`flex items-start gap-2.5 rounded-xl border p-3 text-sm transition-colors ${
-                        checked
-                          ? "border-accent/50 bg-accent/5"
-                          : "border-ink/12 bg-ink/2 hover:border-ink/25"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="jewelryIds"
-                        value={j.id}
-                        checked={checked}
-                        onChange={(e) => toggleJewelry(j.id, e.target.checked)}
-                        className="mt-0.5 size-4 rounded border-ink/25 bg-ink/3 text-accent focus:ring-accent/30"
-                      />
-                      <span className="min-w-0">
-                        <span className="font-medium text-ink">{j.name}</span>
-                        <span className="ml-1 text-mute">· {j.categoryName}</span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </motion.section>
+          <motion.div variants={item}>
+            <Card className="p-7 sm:p-9">
+              <CardHead heading={t.sections.jewelry} lead={f.jewelryHint} />
+              {jewelry.length === 0 ? (
+                <p className="text-sm text-mute">—</p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {jewelry.map((j) => {
+                    const checked = selectedJewelry.has(j.id);
+                    return (
+                      <label
+                        key={j.id}
+                        className={`flex items-start gap-2.5 rounded-xl border p-3 text-sm transition-colors ${
+                          checked
+                            ? "border-accent/50 bg-accent/5"
+                            : "border-ink/12 bg-ink/3 hover:border-ink/25"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="jewelryIds"
+                          value={j.id}
+                          checked={checked}
+                          onChange={(e) => toggleJewelry(j.id, e.target.checked)}
+                          className="mt-0.5 size-4 rounded border-ink/25 bg-ink/3 text-accent focus:ring-accent/30"
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium text-ink">{j.name}</span>
+                          <span className="ml-1 text-mute">· {j.categoryName}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </motion.div>
 
           {/* ── Moderation ───────────────────────────────────────── */}
-          <motion.section variants={item} className={`${SURFACE} p-7 sm:p-9`}>
-            <CardHead heading={t.sections.moderation} />
-            <div className="flex flex-col gap-5">
-              <Field label={f.status}>
-                <select
-                  name="status"
-                  aria-label={f.status}
-                  defaultValue={initial?.status ?? "PENDING"}
-                  className={FIELD}
+          <motion.div variants={item}>
+            <Card className="p-7 sm:p-9">
+              <CardHead heading={t.sections.moderation} />
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <span className={LABEL}>{f.status}</span>
+                  <Select name="status" defaultValue={initial?.status ?? "PENDING"}>
+                    <SelectTrigger aria-label={f.status} className="sm:max-w-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {ru.admin.statusLabels.review[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <label
+                  htmlFor="review-featured"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-ink/12 bg-ink/3 px-3.5 py-3"
                 >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {ru.admin.statusLabels.review[s]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                  <span className="text-sm text-ink">{f.featured}</span>
+                  <Switch
+                    id="review-featured"
+                    name="featured"
+                    defaultChecked={initial?.featured ?? false}
+                  />
+                </label>
 
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  name="featured"
-                  defaultChecked={initial?.featured ?? false}
-                  className="mt-0.5 size-4 rounded border-ink/25 bg-ink/3 text-accent focus:ring-accent/30"
-                />
-                <span className="text-sm text-ink">{f.featured}</span>
-              </label>
-
-              <Field label={f.moderatorNotes}>
-                <textarea
-                  name="moderatorNotes"
-                  rows={3}
-                  defaultValue={initial?.moderatorNotes ?? ""}
-                  placeholder={f.moderatorNotesPlaceholder}
-                  className={TEXTAREA}
-                />
-              </Field>
-            </div>
-          </motion.section>
+                <Field label={f.moderatorNotes}>
+                  <Textarea
+                    name="moderatorNotes"
+                    rows={3}
+                    defaultValue={initial?.moderatorNotes ?? ""}
+                    placeholder={f.moderatorNotesPlaceholder}
+                  />
+                </Field>
+              </div>
+            </Card>
+          </motion.div>
 
           {/* ── Save ─────────────────────────────────────────────── */}
           <motion.div variants={item} className="flex flex-wrap items-center gap-4 pt-1">
-            <button type="submit" disabled={pending} className={SAVE_PILL}>
+            <Button type="submit" disabled={pending} className="px-6">
               {pending ? "…" : isNew ? t.actions.create : t.actions.save}
-            </button>
+            </Button>
             {state ? <InlineStatus state={state} /> : null}
           </motion.div>
         </motion.div>
@@ -240,7 +250,7 @@ function CardHead({ heading, lead }: { heading: string; lead?: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-mute">{label}</span>
+      <span className={LABEL}>{label}</span>
       {children}
     </label>
   );

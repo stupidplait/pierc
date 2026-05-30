@@ -38,9 +38,9 @@ function BodyMesh() {
   const gltf = useGLTF("/models/body/body.glb");
 
   // Hide all `anchor:*` empties so they don't render or eat picks.
-  // useEffect because the scene graph is mutated in place — we want this to
-  // happen once after the GLB is loaded.
+  // Mark the scene as body model for occlusion culling optimization.
   useEffect(() => {
+    gltf.scene.userData.isBodyModel = true;
     gltf.scene.traverse((obj: Object3D) => {
       if (obj.name.startsWith("anchor:")) {
         obj.visible = false;

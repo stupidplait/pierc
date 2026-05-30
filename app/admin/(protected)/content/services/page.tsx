@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { ru } from "@/lib/i18n/ru";
-import { ServiceForm } from "@/components/admin/ServiceForm";
+import { ServiceItem } from "@/components/admin/content/ServiceItem";
+import { AddService } from "@/components/admin/content/AddService";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.content.tabs.services} — ${ru.admin.panel}`,
+  title: ru.admin.content.tabs.services,
 };
 
 // Admin page — auth-walled and reads Service rows on every request.
@@ -16,12 +17,12 @@ export default async function AdminServicesPage() {
   });
 
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex flex-col gap-3">
       {services.length === 0 ? (
         <p className="text-sm text-mute">{ru.admin.content.services.empty}</p>
       ) : (
         services.map((s, i) => (
-          <ServiceForm
+          <ServiceItem
             key={s.id}
             delay={Math.min(i, 6) * 0.05}
             initial={{
@@ -37,7 +38,7 @@ export default async function AdminServicesPage() {
         ))
       )}
 
-      <ServiceForm isNew delay={Math.min(services.length, 6) * 0.05} />
+      <AddService />
     </section>
   );
 }

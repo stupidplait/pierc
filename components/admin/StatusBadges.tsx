@@ -1,7 +1,15 @@
-import { ru } from "@/lib/i18n/ru";
+import { ru, jewelryStatusLabels } from "@/lib/i18n/ru";
+import { Badge } from "@/components/shadcn/ui/badge";
 
 // Status colour palette (theme-token aware). Keep in sync with the
 // JewelryBookingStatus + AppointmentStatus enums in prisma/schema.prisma.
+//
+// Each entry is layered over the shadcn `Badge` (variant="outline") base. The
+// shared PILL string restores the rounded-full pill shape over Badge's
+// `rounded-md`; `cn`/twMerge inside Badge lets the per-status border/bg/text
+// utilities win over the variant defaults.
+
+const PILL = "w-fit rounded-full px-2.5 py-0.5";
 
 const BOOKING: Record<
   "RESERVED" | "CONFIRMED" | "FULFILLED" | "CANCELLED",
@@ -30,17 +38,26 @@ const REVIEW: Record<"PENDING" | "PUBLISHED" | "REJECTED", string> = {
   REJECTED: "border-mute/40 bg-card text-mute",
 };
 
+const JEWELRY: Record<
+  "DRAFT" | "PROCESSING" | "PENDING_REVIEW" | "PUBLISHED" | "REJECTED",
+  string
+> = {
+  DRAFT: "border-line bg-card text-mute",
+  PROCESSING: "border-primary/40 bg-primary/10 text-primary",
+  PENDING_REVIEW: "border-warn/40 bg-warn-soft text-warn",
+  PUBLISHED: "border-success/40 bg-success-soft text-success",
+  REJECTED: "border-mute/40 bg-card text-mute",
+};
+
 export function BookingStatusBadge({
   status,
 }: {
   status: keyof typeof BOOKING;
 }) {
   return (
-    <span
-      className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${BOOKING[status]}`}
-    >
+    <Badge variant="outline" className={`${PILL} ${BOOKING[status]}`}>
       {ru.admin.statusLabels.booking[status]}
-    </span>
+    </Badge>
   );
 }
 
@@ -50,15 +67,11 @@ export function AppointmentStatusBadge({
   status: keyof typeof APPT;
 }) {
   return (
-    <span
-      className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${APPT[status]}`}
-    >
+    <Badge variant="outline" className={`${PILL} ${APPT[status]}`}>
       {ru.admin.statusLabels.appointment[status]}
-    </span>
+    </Badge>
   );
 }
-
-
 
 export function ReviewStatusBadge({
   status,
@@ -66,10 +79,20 @@ export function ReviewStatusBadge({
   status: keyof typeof REVIEW;
 }) {
   return (
-    <span
-      className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${REVIEW[status]}`}
-    >
+    <Badge variant="outline" className={`${PILL} ${REVIEW[status]}`}>
       {ru.admin.statusLabels.review[status]}
-    </span>
+    </Badge>
+  );
+}
+
+export function JewelryStatusBadge({
+  status,
+}: {
+  status: keyof typeof JEWELRY;
+}) {
+  return (
+    <Badge variant="outline" className={`${PILL} ${JEWELRY[status]}`}>
+      {jewelryStatusLabels[status]}
+    </Badge>
   );
 }

@@ -4,12 +4,13 @@ import { prisma } from "@/lib/prisma";
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { SettingsTabs } from "@/components/admin/settings/SettingsTabs";
+import { SettingsWorkspace } from "@/components/admin/settings/SettingsWorkspace";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.settings.title} — ${ru.admin.panel}`,
+  title: ru.admin.settings.title,
 };
+
+const t = ru.admin.settings;
 
 export default async function AdminSettingsPage() {
   // Singleton — `prisma/seed.ts` ensures the row exists.
@@ -20,12 +21,14 @@ export default async function AdminSettingsPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <PageHeader
-        title={ru.admin.settings.title}
-        lead={ru.admin.settings.lead}
-      />
-      <SettingsTabs
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="mb-10 pt-2 sm:mb-12 sm:pt-4">
+        <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+          {t.title}
+        </h1>
+        <p className="mt-3 text-base text-mute">{t.lead}</p>
+      </header>
+      <SettingsWorkspace
         initial={{
           contactEmail: settings.contactEmail,
           contactPhone: settings.contactPhone,

@@ -8,8 +8,7 @@ import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/shadcn/ui/button";
 import { CARD } from "@/components/admin/form/styles";
 import { Reveal } from "@/components/admin/form/atelier";
 import { BookingStatusBadge } from "@/components/admin/StatusBadges";
@@ -36,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     select: { jewelry: { select: { name: true } } },
   });
   return {
-    title: `${b?.jewelry?.name ?? ru.admin.bookings.detail.title} — ${ru.admin.panel}`,
+    title: b?.jewelry?.name ?? ru.admin.bookings.detail.title,
   };
 }
 
@@ -61,12 +60,15 @@ export default async function AdminBookingDetailPage({ params }: Props) {
   const t = ru.admin.bookings;
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      <PageHeader eyebrow={ru.admin.panel} title={t.detail.title}>
-        <Button href="/admin/bookings" variant="ghost" size="sm">
-          ← {t.backToList}
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="mb-10 flex flex-col gap-4 pt-2 sm:mb-12 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
+        <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+          {t.detail.title}
+        </h1>
+        <Button asChild variant="ghost" size="sm" className="shrink-0">
+          <Link href="/admin/bookings">← {t.backToList}</Link>
         </Button>
-      </PageHeader>
+      </header>
 
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">

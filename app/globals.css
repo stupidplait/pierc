@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Animation utilities (animate-in / fade-in / zoom-in …) consumed by the
+   shadcn primitives in components/shadcn. Adds utilities only — touches no
+   theme tokens, so the Steel Atelier palette below is untouched. */
+@import "tw-animate-css";
 
 /* ─── Steel Atelier theme ───────────────────────────────────────
  * Dark, single-source theme based on the new-design hero. This
@@ -21,7 +25,8 @@
  * the right colours without a project-wide rename.
  * ──────────────────────────────────────────────────────────── */
 
-:root {
+:root,
+:root.theme-dark {
   color-scheme: dark;
 
   /* Steel Atelier — surfaces */
@@ -71,6 +76,52 @@
   --error-soft:       rgba(248, 113, 113, 0.12);
   --success:          #34d399;  /* emerald-400 */
   --success-soft:     rgba(52, 211, 153, 0.12);
+}
+
+/* Light theme variant */
+:root.theme-light {
+  color-scheme: light;
+
+  /* Light surfaces */
+  --bg:               #ffffff;
+  --bg-elev:          #f8f8f8;
+
+  /* Light text */
+  --ink:              #0a0a0a;
+  --ink-muted:        rgba(10, 10, 10, 0.65);
+
+  /* Light lines */
+  --ink-line:         #e5e5e5;
+  --ink-line-strong:  #d4d4d4;
+  --rule:             #e0e0e0;
+
+  /* Light grids */
+  --grid-minor:       #f0f0f0;
+  --grid-major:       #d4d4d4;
+
+  /* Accent stays the same but adjust for light bg */
+  --accent:           #e91e63;
+
+  /* Light shadows */
+  --shadow-soft:      rgba(0, 0, 0, 0.08);
+  --shadow-deep:      rgba(0, 0, 0, 0.15);
+
+  /* Legacy aliases */
+  --page:             var(--bg);
+  --card:             var(--bg-elev);
+  --mute:             var(--ink-muted);
+  --line:             var(--ink-line);
+  --primary:          var(--accent);
+  --primary-soft:     #c2185b;
+  --on-primary:       #ffffff;
+
+  /* Semantic feedback for light theme */
+  --warn:             #f59e0b;
+  --warn-soft:        rgba(245, 158, 11, 0.1);
+  --error:            #ef4444;
+  --error-soft:       rgba(239, 68, 68, 0.1);
+  --success:          #10b981;
+  --success-soft:     rgba(16, 185, 129, 0.1);
 }
 
 /* Expose vars to Tailwind utilities. New Steel Atelier tokens are
@@ -174,6 +225,19 @@ html.landing-mounted {
 ::placeholder {
   color: var(--ink-muted);
   opacity: 0.7;
+}
+
+/* Hide the native number-input spin buttons. The admin catalog (and other
+   number fields) read cleaner without the up/down stepper chrome; values are
+   still typed/edited normally. Firefox + WebKit/Blink covered. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Preloader scroll-lock — used by app/new-design/Preloader.tsx, which

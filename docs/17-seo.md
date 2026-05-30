@@ -117,11 +117,11 @@ page only specifies what's actually unique to it.
 
 | Route | Title | Description source | OG image |
 |---|---|---|---|
-| `/` | "Pierc Studio — пирсинг и 3D-примерочная" | hardcoded RU lead | `/og/home.jpg` (static) |
+| `/` | "PIERCERKZN — пирсинг и 3D-примерочная" | hardcoded RU lead | `/og/home.jpg` (static) |
 | `/about` | "О студии" | first ~160 chars of the about body, fallback to a default | `/og/home.jpg` |
 | `/services` | "Услуги и цены" | hardcoded RU list lead | `/og/home.jpg` |
 | `/catalog` | "Каталог украшений" | hardcoded RU lead | `/og/home.jpg` |
-| `/catalog/[id]` | "{name} — Pierc Studio" | first ~160 chars of `description`, fallback to attributes | `firstPhotoUrl(j.photos)` |
+| `/catalog/[id]` | "{name} — PIERCERKZN" | first ~160 chars of `description`, fallback to attributes | `firstPhotoUrl(j.photos)` |
 | `/gallery` | "Галерея" | hardcoded RU lead | `/og/home.jpg` |
 | `/faq` | "Частые вопросы" | hardcoded RU lead | `/og/home.jpg` |
 | `/book` | "Запись и бронирование" | hardcoded RU lead | `/og/home.jpg` |
@@ -180,7 +180,7 @@ Shape (minimum useful):
 {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  "name": "Pierc Studio",
+  "name": "PIERCERKZN",
   "image": "https://<deploy>/og/home.jpg",
   "url": "https://<deploy>/",
   "telephone": "<settings.contactPhone>",

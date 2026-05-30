@@ -441,7 +441,7 @@ export async function sendTestNotification(): Promise<{
   } else {
     const r = await sendEmail({
       to: settings.contactEmail,
-      subject: "Тестовое уведомление — Pierc Studio",
+      subject: "Тестовое уведомление — PIERCERKZN",
       html: `<p>Это тестовое письмо. Resend и адрес студии настроены корректно.</p><p style="color:#666;font-size:12px">${new Date().toISOString()}</p>`,
       text: "Это тестовое письмо. Resend и адрес студии настроены корректно.",
     });
@@ -460,7 +460,7 @@ export async function sendTestNotification(): Promise<{
   } else {
     const r = await sendTelegram({
       chatId: settings.telegramChatId,
-      text: "✅ Тестовое уведомление от Pierc Studio. Бот работает.",
+      text: "✅ Тестовое уведомление от PIERCERKZN. Бот работает.",
     });
     tgOk = r.ok;
     if (!r.ok) tgReason = r.error ?? r.reason;

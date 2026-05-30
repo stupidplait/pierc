@@ -2,13 +2,21 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru, catalogStrings } from "@/lib/i18n/ru";
 import { Section } from "@/components/ui/Section";
-import { Card } from "@/components/ui/Card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/shadcn/ui/card";
+import { Badge } from "@/components/shadcn/ui/badge";
+import { Button } from "@/components/shadcn/ui/button";
 import { asPhotos, formatPrice } from "@/lib/jewelry/format";
 import { getBookingPrefillUser } from "@/lib/public/queries";
 import { JewelryDetailBookButton } from "@/components/booking/JewelryDetailBookButton";
@@ -75,21 +83,21 @@ export default async function CatalogItemPage({
 
   return (
     <Section>
-      <Link
-        href="/catalog"
-        className="mb-6 inline-block text-sm text-mute transition-colors hover:text-primary"
-      >
-        ← {ru.pages.catalog.title}
-      </Link>
+      <Button asChild variant="ghost" size="sm" className="mb-6 gap-2">
+        <Link href="/catalog">
+          <ArrowLeft className="size-4" />
+          {ru.pages.catalog.title}
+        </Link>
+      </Button>
 
       <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
         {/* ── Photos ─────────────────────────────────────────── */}
         <div className="flex flex-col gap-3">
           {photos.length === 0 ? (
-            <div className="aspect-[4/5] rounded-2xl border border-line bg-card" />
+            <div className="aspect-4/5 rounded-2xl border border-line bg-card" />
           ) : (
             <>
-              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-line bg-card">
+              <Card className="aspect-4/5 overflow-hidden p-0">
                 <Image
                   src={photos[0].url}
                   alt={photos[0].alt || j.name}
@@ -98,21 +106,20 @@ export default async function CatalogItemPage({
                   className="object-cover"
                   priority
                 />
-              </div>
+              </Card>
               {photos.length > 1 ? (
                 <ul className="grid grid-cols-4 gap-2">
                   {photos.slice(1).map((p) => (
-                    <li
-                      key={p.url}
-                      className="relative aspect-square overflow-hidden rounded-xl border border-line bg-card"
-                    >
-                      <Image
-                        src={p.url}
-                        alt={p.alt}
-                        fill
-                        sizes="20vw"
-                        className="object-cover"
-                      />
+                    <li key={p.url}>
+                      <Card className="relative aspect-square overflow-hidden p-0">
+                        <Image
+                          src={p.url}
+                          alt={p.alt}
+                          fill
+                          sizes="20vw"
+                          className="object-cover"
+                        />
+                      </Card>
                     </li>
                   ))}
                 </ul>
@@ -123,13 +130,13 @@ export default async function CatalogItemPage({
 
         {/* ── Details ────────────────────────────────────────── */}
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-primary">
+          <Badge variant="accent" className="mb-3">
             {j.category.name}
-          </p>
-          <h1 className="mt-3 font-display text-4xl font-medium text-ink sm:text-5xl">
+          </Badge>
+          <h1 className="font-display text-4xl font-medium text-ink sm:text-5xl">
             {j.name}
           </h1>
-          <p className="mt-4 text-2xl font-medium text-ink">
+          <p className="mt-4 text-2xl font-medium text-accent">
             {formatPrice(j.price)}
           </p>
 
@@ -142,22 +149,20 @@ export default async function CatalogItemPage({
           {/* CTA row */}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {primaryAnchor ? (
-              <Link
-                href={tryOnHref}
-                className="inline-flex h-12 items-center rounded-full bg-primary px-6 font-medium text-on-primary transition-colors hover:bg-primary-soft"
-              >
-                {catalogStrings.showroom.tryItOn}
-              </Link>
+              <Button asChild className="bg-accent text-on-primary hover:bg-accent/90">
+                <Link href={tryOnHref}>
+                  {catalogStrings.showroom.tryItOn}
+                </Link>
+              </Button>
             ) : null}
             {out ? (
-              <button
-                type="button"
+              <Button
                 disabled
+                variant="outline"
                 title={catalogStrings.outOfStock}
-                className="inline-flex h-12 items-center rounded-full border border-line px-6 font-medium text-ink opacity-50"
               >
                 {catalogStrings.outOfStock}
-              </button>
+              </Button>
             ) : (
               <JewelryDetailBookButton
                 item={{
@@ -175,7 +180,12 @@ export default async function CatalogItemPage({
 
           {/* Attributes */}
           <Card className="mt-8">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <CardHeader>
+              <CardTitle className="text-base">
+                {catalogStrings.attributes.material}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Row label={attrs.material}>{j.material}</Row>
               {j.gauge != null ? (
                 <Row label={attrs.gauge}>
@@ -194,24 +204,30 @@ export default async function CatalogItemPage({
                   ? catalogStrings.outOfStock
                   : `${j.inStock} ${catalogStrings.units.pcs}`}
               </Row>
-            </dl>
+            </CardContent>
 
             {anchorChips.length > 0 ? (
-              <div className="mt-5 border-t border-line pt-5">
-                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-mute">
-                  {attrs.anchors}
-                </p>
-                <ul className="flex flex-wrap gap-2">
-                  {anchorChips.map((a) => (
-                    <li
-                      key={a.id}
-                      className="rounded-full border border-line px-3 py-1 text-sm text-ink"
-                    >
-                      {a.name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <>
+                <div className="h-px bg-line" />
+                <CardContent className="space-y-2 pt-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-mute">
+                    {attrs.anchors}
+                  </p>
+                  <ul className="flex flex-wrap gap-2">
+                    {anchorChips.map((a) => (
+                      <li key={a.id}>
+                        <Badge
+                          variant={
+                            a.id === primaryAnchor?.id ? "accent" : "secondary"
+                          }
+                        >
+                          {a.name}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </>
             ) : null}
           </Card>
         </div>
@@ -228,9 +244,9 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between gap-4 sm:block">
-      <dt className="text-mute">{label}</dt>
-      <dd className="text-ink sm:mt-0.5">{children}</dd>
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="text-mute">{label}</span>
+      <span className="text-ink">{children}</span>
     </div>
   );
 }

@@ -3,10 +3,16 @@
 import { put, del } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
 import { asPhotos, type JewelryPhoto } from "@/lib/jewelry/format";
+import {
+  ATTACH_RULES,
+  fieldErrorsFromZod,
+  parseJewelryFormData,
+  VALIDATION_SUMMARY,
+  type FieldErrors,
+} from "@/lib/admin/jewelry-schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -14,7 +20,7 @@ import { asPhotos, type JewelryPhoto } from "@/lib/jewelry/format";
 
 export type ActionState =
   | { ok: true; message?: string; id?: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; fieldErrors?: FieldErrors }
   | undefined;
 
 function revalidateForJewelry(id?: string) {
@@ -25,69 +31,9 @@ function revalidateForJewelry(id?: string) {
   revalidatePath("/", "layout"); // featured items affect the landing later
 }
 
-// Strip empty strings -> undefined so optional fields stay null in DB.
-function emptyToUndef(v: FormDataEntryValue | null): string | undefined {
-  if (v == null) return undefined;
-  const s = String(v).trim();
-  return s.length === 0 ? undefined : s;
-}
-
-const STATUSES = [
-  "DRAFT",
-  "PROCESSING",
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "REJECTED",
-] as const;
-
-const JEWELRY_TYPES = [
-  "STUD",
-  "RING",
-  "BARBELL",
-  "CIRCULAR_BARBELL",
-  "ORBITAL",
-  "CHAIN_LADDER",
-] as const;
-
-// Same rule as the seed — keep the form-side and seed-side validation in sync.
-// See prisma/seed.ts → EXPECTED_ATTACH and docs/20-multi-anchor-jewelry.md.
-const ATTACH_RULES: Record<
-  (typeof JEWELRY_TYPES)[number],
-  { min: number; max: number; semantics: "compat-list" | "fixed" }
-> = {
-  STUD: { min: 1, max: 99, semantics: "compat-list" },
-  RING: { min: 1, max: 99, semantics: "compat-list" },
-  BARBELL: { min: 2, max: 2, semantics: "fixed" },
-  CIRCULAR_BARBELL: { min: 2, max: 2, semantics: "fixed" },
-  ORBITAL: { min: 2, max: 2, semantics: "fixed" },
-  CHAIN_LADDER: { min: 2, max: 8, semantics: "fixed" },
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Upsert / delete
 // ─────────────────────────────────────────────────────────────────────────────
-
-const jewelrySchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, "Название обязательно"),
-  description: z.string().trim().optional(),
-  categoryId: z.string().min(1, "Выберите категорию"),
-  type: z.enum(JEWELRY_TYPES).default("STUD"),
-  material: z.string().trim().min(1, "Материал обязателен"),
-  gauge: z
-    .preprocess((v) => (v === "" || v == null ? undefined : Number(v)), z.number().positive().optional()),
-  size: z
-    .preprocess((v) => (v === "" || v == null ? undefined : Number(v)), z.number().positive().optional()),
-  color: z.string().trim().optional(),
-  stones: z.string().trim().optional(),
-  price: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
-  inStock: z.coerce.number().int().nonnegative("Остаток >= 0"),
-  glbUrl: z.string().trim().optional(),
-  glbThumbUrl: z.string().trim().optional(),
-  status: z.enum(STATUSES),
-  featured: z.preprocess((v) => v === "on" || v === true, z.boolean()),
-  anchorIds: z.array(z.string()).default([]),
-});
 
 export async function upsertJewelry(
   _prev: ActionState,
@@ -95,50 +41,22 @@ export async function upsertJewelry(
 ): Promise<ActionState> {
   await assertAdmin();
 
-  const parsed = jewelrySchema.safeParse({
-    id: formData.get("id") || undefined,
-    name: formData.get("name"),
-    description: emptyToUndef(formData.get("description")),
-    categoryId: formData.get("categoryId"),
-    type: formData.get("type") ?? "STUD",
-    material: formData.get("material"),
-    gauge: formData.get("gauge"),
-    size: formData.get("size"),
-    color: emptyToUndef(formData.get("color")),
-    stones: emptyToUndef(formData.get("stones")),
-    price: formData.get("price"),
-    inStock: formData.get("inStock"),
-    glbUrl: emptyToUndef(formData.get("glbUrl")),
-    glbThumbUrl: emptyToUndef(formData.get("glbThumbUrl")),
-    status: formData.get("status") ?? "DRAFT",
-    featured: formData.get("featured"),
-    anchorIds: ((): string[] => {
-      const out: string[] = [];
-      for (const v of formData.getAll("anchorIds")) {
-        const s = String(v);
-        if (s) out.push(s);
-      }
-      return out;
-    })(),
-  });
+  // Same schema the client runs for instant feedback — re-run here as the
+  // authority (category deleted mid-edit, hand-forged POST, anchor-count rule).
+  const parsed = parseJewelryFormData(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
+    return {
+      ok: false,
+      error: VALIDATION_SUMMARY,
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
   }
 
   const { id, anchorIds, ...rest } = parsed.data;
 
-  // Validate binding count against the type. (For STUD/RING the lower bound is
-  // 1 — at least one compatible anchor must be picked. For BARBELL etc. exact
-  // count required.)
+  // Anchor count is enforced inside the schema's superRefine; the rule still
+  // drives binding semantics (compat-list vs ordered) below.
   const rule = ATTACH_RULES[rest.type];
-  if (anchorIds.length < rule.min || anchorIds.length > rule.max) {
-    const expected =
-      rule.min === rule.max ? `${rule.min}` : `${rule.min}–${rule.max}`;
-    return {
-      ok: false,
-      error: `Тип ${rest.type} требует ${expected} анкер(ов), выбрано ${anchorIds.length}.`,
-    };
-  }
 
   // For "compat-list" types: every row gets order=0 (interchangeable).
   // For "fixed" types: the array is treated as ordered (0=primary, 1=secondary).
@@ -159,8 +77,6 @@ export async function upsertJewelry(
     stones: rest.stones ?? null,
     price: rest.price,
     inStock: rest.inStock,
-    glbUrl: rest.glbUrl ?? null,
-    glbThumbUrl: rest.glbThumbUrl ?? null,
     status: rest.status,
     featured: rest.featured,
   };
@@ -196,6 +112,32 @@ export async function upsertJewelry(
     redirect(`/admin/jewelry/${newId}/edit`);
   }
   return { ok: true, message: "Сохранено", id: newId };
+}
+
+// Creates a blank DRAFT row and jumps straight into the edit page, so photo +
+// 3D-model upload (which need a persisted id) are available during "creation".
+// An empty name marks the draft as never-saved — the admin list hides those and
+// the edit page shows the "Новое украшение" title until the first save.
+export async function createDraftJewelry(): Promise<void> {
+  await assertAdmin();
+
+  const category = await prisma.jewelryCategory.findFirst({
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+  if (!category) {
+    throw new Error(
+      "Нет ни одной категории украшений — создайте категорию перед добавлением.",
+    );
+  }
+
+  const draft = await prisma.jewelry.create({
+    data: { name: "", categoryId: category.id, material: "", price: 0 },
+    select: { id: true },
+  });
+
+  revalidateForJewelry(draft.id);
+  redirect(`/admin/jewelry/${draft.id}/edit`);
 }
 
 export async function deleteJewelry(formData: FormData): Promise<void> {
@@ -307,6 +249,41 @@ export async function removeJewelryPhoto(formData: FormData): Promise<void> {
       // ignore — orphan-blob is acceptable
     }
   }
+
+  revalidateForJewelry(id);
+}
+
+/**
+ * Promote a saved photo to the front of the list. The first photo is the
+ * catalog cover (and the source for 3D auto-generation), so this is how the
+ * studio chooses which shot represents the piece. No-op if the photo is gone
+ * or already first.
+ */
+export async function setJewelryCoverPhoto(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = String(formData.get("id") ?? "");
+  const url = String(formData.get("url") ?? "");
+  if (!id || !url) return;
+
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id },
+    select: { photos: true },
+  });
+  if (!jewelry) return;
+
+  const photos = asPhotos(jewelry.photos);
+  const target = photos.find((p) => p.url === url);
+  if (!target || photos[0]?.url === url) return;
+
+  const reordered: JewelryPhoto[] = [
+    target,
+    ...photos.filter((p) => p.url !== url),
+  ];
+
+  await prisma.jewelry.update({
+    where: { id },
+    data: { photos: reordered as unknown as object },
+  });
 
   revalidateForJewelry(id);
 }
@@ -512,4 +489,101 @@ export async function removeJewelrySprite(formData: FormData): Promise<void> {
   }
 
   revalidateForJewelry(id);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI-powered scale analysis and suggestions
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ScaleAnalysisResult {
+  ok: boolean;
+  suggestedScale?: number;
+  currentScale?: number;
+  boundingBox?: {
+    size: { x: number; y: number; z: number };
+  };
+  attachPoint?: { x: number; y: number; z: number } | null;
+  confidence?: number;
+  reasoning?: string;
+  error?: string;
+}
+
+/**
+ * Analyze a jewelry GLB and suggest optimal scale based on gauge/size fields.
+ * Returns analysis data for display in the admin UI.
+ */
+export async function analyzeJewelryScale(
+  jewelryId: string,
+): Promise<ScaleAnalysisResult> {
+  await assertAdmin();
+
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id: jewelryId },
+    select: {
+      glbUrl: true,
+      glbScale: true,
+      gauge: true,
+      size: true,
+      type: true,
+    },
+  });
+
+  if (!jewelry?.glbUrl) {
+    return { ok: false, error: "У украшения нет 3D-модели" };
+  }
+
+  try {
+    // Use fast analyzer that doesn't load Three.js
+    const { calculateScaleFromGlb } = await import("@/lib/admin/glb-scale-fast");
+    const analysis = await calculateScaleFromGlb(jewelry.glbUrl, {
+      gauge: jewelry.gauge,
+      size: jewelry.size,
+      type: jewelry.type,
+    });
+
+    if (!analysis.ok) {
+      return { ok: false, error: analysis.error };
+    }
+
+    return {
+      ok: true,
+      suggestedScale: analysis.suggestedScale ?? undefined,
+      currentScale: jewelry.glbScale,
+      confidence: analysis.confidence,
+      reasoning: analysis.reasoning,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Ошибка анализа модели",
+    };
+  }
+}
+
+/**
+ * Apply suggested scale to a jewelry item.
+ */
+export async function applyJewelryScale(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await assertAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const scaleStr = String(formData.get("scale") ?? "");
+
+  if (!id) return { ok: false, error: "Не указан id украшения" };
+
+  const scale = parseFloat(scaleStr);
+  if (isNaN(scale) || scale <= 0 || scale > 100) {
+    return { ok: false, error: "Некорректное значение масштаба" };
+  }
+
+  await prisma.jewelry.update({
+    where: { id },
+    data: { glbScale: scale },
+  });
+
+  revalidateForJewelry(id);
+  return { ok: true, message: `Масштаб установлен: ${scale.toFixed(4)}` };
 }

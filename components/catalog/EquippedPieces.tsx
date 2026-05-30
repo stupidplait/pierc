@@ -69,17 +69,21 @@ export function EquippedPieces({
   jewelry,
   equipped,
 }: EquippedPiecesProps) {
+  // Create stable keys to avoid recalculating maps when array references change
+  const anchorsKey = useMemo(() => anchors.map(a => a.id).join(','), [anchors]);
+  const jewelryKey = useMemo(() => jewelry.map(j => j.id).join(','), [jewelry]);
+
   const anchorsById = useMemo(() => {
     const m = new Map<string, AnchorWire>();
     for (const a of anchors) m.set(a.id, a);
     return m;
-  }, [anchors]);
+  }, [anchors, anchorsKey]);
 
   const jewelryById = useMemo(() => {
     const m = new Map<string, JewelryWire>();
     for (const j of jewelry) m.set(j.id, j);
     return m;
-  }, [jewelry]);
+  }, [jewelry, jewelryKey]);
 
   const pieces = useMemo(
     () => groupEquipped(equipped, anchorsById, jewelryById),
@@ -170,9 +174,18 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
   const url = jewelry.glbUrl!;
   const gltf = useGLTF(url) as unknown as { scene: Group };
 
-  // Per-instance clone so multiple equips on different anchors don't mutate
-  // a shared scene reference.
-  const cloned = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  // Per-instance clone - use shallow clone for performance, then deep clone only children
+  // This avoids cloning the entire scene graph hierarchy unnecessarily
+  const cloned = useMemo(() => {
+    const clone = new Group();
+    // Clone only the direct children (meshes), not the entire hierarchy
+    gltf.scene.children.forEach((child) => {
+      clone.add(child.clone());
+    });
+    // Copy userData and other properties
+    clone.userData = { ...gltf.scene.userData };
+    return clone;
+  }, [gltf.scene]);
 
   // Read attach:* empties' local positions ONCE per cloned scene.
   const attachLocals = useMemo(

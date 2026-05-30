@@ -14,7 +14,7 @@
 // gracefully-failing stubs that report "Provider not configured" until
 // API keys are added to .env.
 
-export type ProviderId = "replicate" | "tripo3d" | "manual";
+export type ProviderId = "replicate" | "tripo3d" | "local" | "manual";
 
 export interface ProviderInput {
   /** Public URLs of the photos to feed into the generator. */

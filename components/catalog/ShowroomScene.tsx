@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { BodyModel } from "./BodyModel";
 import { AnchorDots } from "./AnchorDots";
@@ -31,19 +31,25 @@ export function ShowroomScene({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const focusedAnchor = anchors.find((a) => a.id === selectedId) ?? null;
 
+  // Create a stable key for equipped map to avoid unnecessary recalculations
+  const equippedKey = useMemo(() =>
+    Object.entries(equipped).sort().map(([k, v]) => `${k}:${v}`).join(','),
+    [equipped]
+  );
+
   // For multi-anchor framing: if the selected anchor has a jewelry equipped
   // on it, find that jewelry. Then collect ALL the anchors that share the
   // same equipped jewelry (the multi-anchor binding set) so CameraRig can
   // expand the frame to fit all endpoints. Single-anchor / nothing equipped
   // → these are null/empty and CameraRig falls back to the per-anchor preset.
-  const equippedJewelryAtSelected = (() => {
+  const equippedJewelryAtSelected = useMemo(() => {
     if (!selectedId) return null;
     const jewelryId = equipped[selectedId];
     if (!jewelryId) return null;
     return jewelry.find((j) => j.id === jewelryId) ?? null;
-  })();
+  }, [selectedId, equippedKey, jewelry]);
 
-  const multiAnchorFramingSet = (() => {
+  const multiAnchorFramingSet = useMemo(() => {
     if (!equippedJewelryAtSelected) return [];
     if (equippedJewelryAtSelected.piercingCount < 2) return [];
     const anchorsForThisJewelry = new Set<string>();
@@ -53,7 +59,7 @@ export function ShowroomScene({
       }
     }
     return anchors.filter((a) => anchorsForThisJewelry.has(a.id));
-  })();
+  }, [equippedJewelryAtSelected, equippedKey, anchors]);
 
   return (
     <div className="relative h-full w-full">
@@ -62,7 +68,12 @@ export function ShowroomScene({
         dpr={[1, 1.75]}
         // Initial camera; CameraRig animates from here.
         camera={{ position: [0, 1.25, 1.6], fov: 35, near: 0.05, far: 50 }}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
+        gl={{
+          antialias: true,
+          powerPreference: "high-performance",
+          // Disable stencil buffer if not needed (saves memory bandwidth)
+          stencil: false,
+        }}
         // Default-clear so the scene reveals the page background.
         style={{ background: "transparent" }}
         // Render only when something invalidates the loop. CameraRig +

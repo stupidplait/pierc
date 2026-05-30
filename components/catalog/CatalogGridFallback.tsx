@@ -5,6 +5,9 @@ import { Section } from "@/components/ui/Section";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { JewelryWire } from "@/lib/catalog/types";
 import { formatPrice } from "@/lib/jewelry/format";
+import { Card } from "@/components/shadcn/ui/card";
+import { Badge } from "@/components/shadcn/ui/badge";
+import { Button } from "@/components/shadcn/ui/button";
 
 interface CatalogGridFallbackProps {
   jewelry: JewelryWire[];
@@ -21,21 +24,20 @@ export function CatalogGridFallback({
   return (
     <Section>
       <PageHeader
-        title={catalogStrings.attributes ? "Каталог" : "Каталог"}
+        title="Каталог"
         lead={catalogStrings.empty}
       >
-        <Link
-          href={showroomHref}
-          className="inline-flex h-10 items-center rounded-full border border-line px-4 text-sm font-medium text-ink transition-colors hover:border-primary hover:text-primary"
-        >
-          {catalogStrings.showroom.showroomLink}
-        </Link>
+        <Button asChild variant="outline">
+          <Link href={showroomHref}>
+            {catalogStrings.showroom.showroomLink}
+          </Link>
+        </Button>
       </PageHeader>
 
       {reason === "fallback" ? (
-        <p className="mb-6 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary">
+        <div className="mb-6 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent">
           {catalogStrings.showroom.fallbackHint}
-        </p>
+        </div>
       ) : null}
 
       {jewelry.length === 0 ? (
@@ -44,39 +46,41 @@ export function CatalogGridFallback({
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {jewelry.map((j) => (
             <li key={j.id}>
-              <Link
-                href={`/catalog/${j.id}`}
-                className="group block overflow-hidden rounded-2xl border border-line bg-page transition-colors hover:border-primary"
-              >
-                <div className="relative aspect-[4/5] bg-card">
-                  {j.photo ? (
-                    <Image
-                      src={j.photo}
-                      alt={j.name}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 33vw"
-                      className="object-cover"
-                    />
-                  ) : null}
-                  {j.inStock <= 0 ? (
-                    <span className="absolute right-3 top-3 rounded-full bg-page/80 px-2 py-1 text-xs text-mute backdrop-blur">
-                      {catalogStrings.outOfStock}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex items-start justify-between gap-3 p-4">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-medium text-ink group-hover:text-primary">
-                      {j.name}
-                    </h3>
-                    <p className="truncate text-xs text-mute">
-                      {j.categoryName}
+              <Link href={`/catalog/${j.id}`}>
+                <Card className="group overflow-hidden p-0 transition-colors hover:border-ink/35">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-card">
+                    {j.photo ? (
+                      <Image
+                        src={j.photo}
+                        alt={j.name}
+                        fill
+                        sizes="(max-width: 640px) 100vw, 33vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : null}
+                    {j.inStock <= 0 ? (
+                      <Badge
+                        variant="outline"
+                        className="absolute right-3 top-3 bg-page/80 backdrop-blur"
+                      >
+                        {catalogStrings.outOfStock}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="flex items-start justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-base font-medium text-ink transition-colors group-hover:text-accent">
+                        {j.name}
+                      </h3>
+                      <p className="truncate text-xs text-mute">
+                        {j.categoryName}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-base font-medium text-accent">
+                      {formatPrice(j.price)}
                     </p>
                   </div>
-                  <p className="shrink-0 text-base font-medium text-primary">
-                    {formatPrice(j.price)}
-                  </p>
-                </div>
+                </Card>
               </Link>
             </li>
           ))}

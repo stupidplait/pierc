@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { SAVE_PILL } from "@/components/admin/reviews/ui";
+import { Button } from "@/components/shadcn/ui/button";
 import {
   ReviewsBoard,
   type ReviewCounts,
@@ -14,7 +14,7 @@ import {
 } from "@/components/admin/reviews/ReviewsBoard";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.reviews.title} — ${ru.admin.panel}`,
+  title: ru.admin.reviews.title,
 };
 
 const RU_DATE = new Intl.DateTimeFormat("ru-RU", {
@@ -82,13 +82,21 @@ export default async function AdminReviewsPage({ searchParams }: Props) {
   const t = ru.admin.reviews;
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <PageHeader title={t.title} lead={t.lead}>
-        <Link href="/admin/reviews/new" className={SAVE_PILL}>
-          <span className="mr-1.5 text-base leading-none">+</span>
-          {t.addNew}
-        </Link>
-      </PageHeader>
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="mb-10 flex flex-col gap-4 pt-2 sm:mb-12 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
+        <div>
+          <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+            {t.title}
+          </h1>
+          <p className="mt-3 text-base text-mute">{t.lead}</p>
+        </div>
+        <Button asChild className="shrink-0 gap-2 px-5">
+          <Link href="/admin/reviews/new">
+            <Plus className="size-4" />
+            {t.addNew}
+          </Link>
+        </Button>
+      </header>
 
       <ReviewsBoard
         reviews={rows}

@@ -1,4 +1,4 @@
-# Pierc Studio — Mobile App
+# PIERCERKZN — Mobile App
 
 The native iOS + Android wrapper around the live web app. This is a
 **WebView shell**: native bottom-tab nav, deep linking, share, and

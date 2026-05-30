@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { type Mesh } from "three";
+import { type Group } from "three";
+import * as THREE from "three";
 import type { AnchorWire } from "@/lib/catalog/types";
 
 interface AnchorDotsProps {
@@ -48,6 +49,9 @@ export function AnchorDots({
   );
 }
 
+// Temp vector for world position calculations
+const tempVec = new THREE.Vector3();
+
 interface DotProps {
   anchor: AnchorWire;
   selected: boolean;
@@ -58,41 +62,114 @@ interface DotProps {
 }
 
 function Dot({ anchor, selected, hovered, dimmed, onSelect, onHover }: DotProps) {
-  const meshRef = useRef<Mesh | null>(null);
-  const { invalidate } = useThree();
+  const groupRef = useRef<Group | null>(null);
+  const coreRef = useRef<THREE.Mesh | null>(null);
+  const ringRef = useRef<THREE.Mesh | null>(null);
+  const { camera, scene, invalidate } = useThree();
 
-  // Frame loop participation:
-  // - Selected dot: drive the pulse + invalidate every frame to keep the
-  //   on-demand loop running.
-  // - Hovered dot: settle to scale 1.3 in a single frame, no invalidate.
-  // - Idle: settle to scale 1, no invalidate.
-  // Non-selected dots early-return to skip per-frame Math.sin work.
-  useFrame(({ clock }) => {
-    const m = meshRef.current;
-    if (!m) return;
+  // Per-dot raycaster to avoid shared state mutations
+  const raycasterRef = useRef(new THREE.Raycaster());
 
-    if (selected) {
-      const s = 1 + Math.sin(clock.elapsedTime * 4) * 0.15;
-      m.scale.setScalar(s);
-      invalidate();
-      return;
+  // Cache body mesh references for targeted raycasting (find once, reuse)
+  const bodyMeshesRef = useRef<THREE.Object3D[] | null>(null);
+
+  // Track last camera position to detect movement and throttle occlusion checks
+  const lastCameraPosRef = useRef(new THREE.Vector3());
+  const frameCountRef = useRef(0);
+  const isOccludedRef = useRef(false);
+  const lastHoveredRef = useRef(hovered);
+
+  // Find body meshes once on mount (only test occlusion against body, not jewelry/anchors)
+  useEffect(() => {
+    const bodyMeshes: THREE.Object3D[] = [];
+    scene.traverse((obj) => {
+      // Only test against body mesh, not jewelry or other anchors
+      if (obj.type === 'Mesh' || obj.type === 'SkinnedMesh') {
+        // Check if this is part of the body model (not jewelry)
+        let parent = obj.parent;
+        let isBodyMesh = false;
+        while (parent) {
+          // Body model is loaded via useGLTF("/models/body/body.glb")
+          if (parent.userData?.isBodyModel || parent.name.includes('body')) {
+            isBodyMesh = true;
+            break;
+          }
+          parent = parent.parent;
+        }
+        if (isBodyMesh) {
+          bodyMeshes.push(obj);
+        }
+      }
+    });
+    bodyMeshesRef.current = bodyMeshes.length > 0 ? bodyMeshes : null;
+  }, [scene]);
+
+  // Frame loop: billboard effect + occlusion culling + hover scale
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g) return;
+
+    // Billboard: make the anchor always face the camera (cheap operation)
+    g.quaternion.copy(camera.quaternion);
+
+    // Only run expensive occlusion check every 30 frames (was 5) AND when camera moved significantly
+    frameCountRef.current++;
+    const cameraMoved = camera.position.distanceToSquared(lastCameraPosRef.current) > 0.001;
+
+    if (frameCountRef.current % 30 === 0 || cameraMoved) {
+      lastCameraPosRef.current.copy(camera.position);
+
+      // Occlusion culling: hide anchors behind the body
+      const worldPos = tempVec.setFromMatrixPosition(g.matrixWorld);
+      const dirToCamera = worldPos.clone().sub(camera.position).normalize();
+
+      // Cast ray from anchor toward camera
+      const raycaster = raycasterRef.current;
+      raycaster.set(worldPos, dirToCamera.negate());
+      raycaster.far = worldPos.distanceTo(camera.position);
+
+      // OPTIMIZATION: Only test against body meshes, not entire scene
+      if (bodyMeshesRef.current && bodyMeshesRef.current.length > 0) {
+        const intersects = raycaster.intersectObjects(bodyMeshesRef.current, false);
+        isOccludedRef.current = intersects.some((hit) => {
+          return hit.distance < raycaster.far - 0.01;
+        });
+      } else {
+        // Fallback: no occlusion if body meshes not found
+        isOccludedRef.current = false;
+      }
     }
 
-    if (hovered) {
-      m.scale.setScalar(1.3);
-      return;
-    }
+    // Hide if occluded
+    g.visible = !isOccludedRef.current;
 
-    m.scale.setScalar(1);
+    // Hover scale - only invalidate when hover state changes
+    if (hovered && !isOccludedRef.current) {
+      g.scale.setScalar(1.3);
+      if (!lastHoveredRef.current) {
+        invalidate();
+        lastHoveredRef.current = true;
+      }
+    } else {
+      g.scale.setScalar(1);
+      if (lastHoveredRef.current) {
+        invalidate();
+        lastHoveredRef.current = false;
+      }
+    }
   });
 
-  const radius = 0.012;
-  const color = selected ? "#fe017e" : hovered ? "#fe017e" : "#ffffff";
+  // Smaller sizes - matching landing page body-local units
+  const coreRadius = 0.0008;
+  const ringInner = 0.0022;
+  const ringOuter = 0.0025;
+
+  const accent = "#fe017e";
   const opacity = dimmed ? 0.35 : 1;
 
   return (
-    <mesh
-      ref={meshRef}
+    <group
+      ref={groupRef}
       position={[anchor.position.x, anchor.position.y, anchor.position.z]}
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -108,14 +185,35 @@ function Dot({ anchor, selected, hovered, dimmed, onSelect, onHover }: DotProps)
         document.body.style.cursor = "";
       }}
     >
-      <sphereGeometry args={[radius, 16, 16]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={color}
-        emissiveIntensity={selected ? 0.9 : hovered ? 0.6 : 0.3}
-        transparent
-        opacity={opacity}
-      />
-    </mesh>
+      {/* Hide marker when selected - the equipped jewelry is the visual indicator */}
+      {!selected && (
+        <>
+          {/* Filled core dot */}
+          <mesh ref={coreRef} renderOrder={1000}>
+            <sphereGeometry args={[coreRadius, 14, 14]} />
+            <meshBasicMaterial
+              color={hovered ? "#ffffff" : accent}
+              toneMapped={false}
+              depthTest={false}
+              transparent
+              opacity={opacity}
+            />
+          </mesh>
+
+          {/* Outer ring (hairline outline) */}
+          <mesh ref={ringRef} renderOrder={1000}>
+            <ringGeometry args={[ringInner, ringOuter, 40]} />
+            <meshBasicMaterial
+              color={hovered ? accent : "#888888"}
+              toneMapped={false}
+              depthTest={false}
+              transparent
+              opacity={hovered ? opacity : opacity * 0.6}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </>
+      )}
+    </group>
   );
 }

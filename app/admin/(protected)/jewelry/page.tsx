@@ -1,20 +1,34 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
+import { Plus } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
-import { ru, jewelryStatusLabels } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StockAdjuster } from "@/components/admin/StockAdjuster";
-import { CARD, FIELD_H, GHOST, LABEL, SUBMIT } from "@/components/admin/form/styles";
+import { ru } from "@/lib/i18n/ru";
+import { createDraftJewelry } from "@/lib/admin/jewelry-actions";
+import { SUBMIT } from "@/components/admin/form/styles";
 import { firstPhotoUrl, formatPrice } from "@/lib/jewelry/format";
+import {
+  JewelryFilters,
+  type JewelryStatus,
+} from "@/components/admin/jewelry/JewelryFilters";
+import {
+  JewelryBoard,
+  type JewelryRow,
+} from "@/components/admin/jewelry/JewelryBoard";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.nav.jewelry} — ${ru.admin.panel}`,
+  title: ru.admin.nav.jewelry,
 };
+
+const STATUSES: JewelryStatus[] = [
+  "DRAFT",
+  "PROCESSING",
+  "PENDING_REVIEW",
+  "PUBLISHED",
+  "REJECTED",
+];
 
 interface AdminJewelryPageProps {
   searchParams: Promise<{
@@ -31,26 +45,40 @@ export default async function AdminJewelryPage({
 }: AdminJewelryPageProps) {
   const sp = await searchParams;
   const q = sp.q?.trim() || "";
-  const categoryId = sp.category || "";
-  const status = sp.status || "";
+  // The category Select uses an "all" sentinel for the no-filter option
+  // (Radix forbids an empty item value); treat it as unset.
+  const categoryId = sp.category && sp.category !== "all" ? sp.category : "";
+  const status = STATUSES.includes(sp.status as JewelryStatus)
+    ? (sp.status as JewelryStatus)
+    : "";
   const featured = sp.featured === "1";
   const lowStock = sp.lowStock === "1";
 
-  const where: Prisma.JewelryWhereInput = {};
+  // Filters shared by both the list query and the per-status counts. Hide
+  // never-saved drafts (createDraftJewelry rows the admin abandoned) — the form
+  // requires a name, so empty-name ⟺ untouched draft.
+  const baseWhere: Prisma.JewelryWhereInput = {
+    NOT: { status: "DRAFT", name: "" },
+  };
   if (q) {
-    where.OR = [
+    baseWhere.OR = [
       { name: { contains: q, mode: "insensitive" } },
       { material: { contains: q, mode: "insensitive" } },
     ];
   }
-  if (categoryId) where.categoryId = categoryId;
-  if (status) where.status = status as Prisma.JewelryWhereInput["status"];
-  if (featured) where.featured = true;
-  if (lowStock) where.inStock = { lte: 1 };
+  if (categoryId) baseWhere.categoryId = categoryId;
+  if (featured) baseWhere.featured = true;
+  if (lowStock) baseWhere.inStock = { lte: 1 };
 
-  const [jewelries, categories] = await Promise.all([
+  // The list also narrows by the active status; the count strip does not (so
+  // each chip shows how many match the *other* filters).
+  const listWhere: Prisma.JewelryWhereInput = status
+    ? { ...baseWhere, status }
+    : baseWhere;
+
+  const [jewelries, categories, grouped] = await Promise.all([
     prisma.jewelry.findMany({
-      where,
+      where: listWhere,
       include: {
         category: true,
         anchorBindings: { select: { anchorId: true } },
@@ -58,148 +86,74 @@ export default async function AdminJewelryPage({
       orderBy: [{ updatedAt: "desc" }],
     }),
     prisma.jewelryCategory.findMany({ orderBy: { order: "asc" } }),
+    prisma.jewelry.groupBy({
+      by: ["status"],
+      where: baseWhere,
+      _count: { _all: true },
+    }),
   ]);
+
+  const counts = STATUSES.reduce(
+    (acc, s) => {
+      acc[s] = 0;
+      return acc;
+    },
+    {} as Record<JewelryStatus, number>,
+  );
+  let total = 0;
+  for (const g of grouped) {
+    const s = g.status as JewelryStatus;
+    if (s in counts) {
+      counts[s] = g._count._all;
+      total += g._count._all;
+    }
+  }
+
+  const rows: JewelryRow[] = jewelries.map((j) => ({
+    id: j.id,
+    name: j.name,
+    status: j.status as JewelryStatus,
+    featured: j.featured,
+    photo: firstPhotoUrl(j.photos),
+    price: formatPrice(j.price),
+    categoryName: j.category.name,
+    material: j.material,
+    anchorCount: j.anchorBindings.length,
+    inStock: j.inStock,
+  }));
 
   const t = ru.admin.jewelry;
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <PageHeader eyebrow={ru.admin.panel} title={t.title} lead={t.lead}>
-        <Link href="/admin/jewelry/new" className={SUBMIT}>
-          {t.addNew}
-        </Link>
-      </PageHeader>
-
-      {/* ── Filters ─────────────────────────────────────────────── */}
-      <form method="get" className={`${CARD} mb-8 grid gap-5 p-5 sm:grid-cols-4 sm:p-6`}>
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className={LABEL}>{t.searchLabel}</span>
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder={t.searchPlaceholder}
-            className={FIELD_H}
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>{t.categoryLabel}</span>
-          <select name="category" defaultValue={categoryId} className={FIELD_H}>
-            <option value="">—</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>{t.statusLabel}</span>
-          <select name="status" defaultValue={status} className={FIELD_H}>
-            <option value="">—</option>
-            {Object.entries(jewelryStatusLabels).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-3 sm:col-span-2">
-          <input
-            type="checkbox"
-            name="featured"
-            value="1"
-            defaultChecked={featured}
-            className="size-4 rounded border-ink/25 bg-ink/5 accent-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-          />
-          <span className="text-sm text-ink">{t.featuredLabel}</span>
-        </label>
-        <label className="flex items-center gap-3 sm:col-span-2">
-          <input
-            type="checkbox"
-            name="lowStock"
-            value="1"
-            defaultChecked={lowStock}
-            className="size-4 rounded border-ink/25 bg-ink/5 accent-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-          />
-          <span className="text-sm text-ink">{t.lowStockLabel}</span>
-        </label>
-
-        <div className="flex items-center gap-3 sm:col-span-4 sm:justify-end">
-          <Link href="/admin/jewelry" className={GHOST}>
-            {t.clear}
-          </Link>
-          <button type="submit" className={SUBMIT}>
-            {t.apply}
-          </button>
+      <header className="mb-10 flex flex-col gap-4 pt-2 sm:mb-12 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
+        <div>
+          <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+            {t.title}
+          </h1>
+          <p className="mt-3 text-base text-mute">{t.lead}</p>
         </div>
-      </form>
+        <form action={createDraftJewelry} className="shrink-0">
+          <button type="submit" className={`${SUBMIT} gap-2 px-5`}>
+            <Plus className="size-4" />
+            {t.addShort}
+          </button>
+        </form>
+      </header>
 
-      {/* ── Results ─────────────────────────────────────────────── */}
-      {jewelries.length === 0 ? (
-        <p className="text-sm text-mute">{t.empty}</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {jewelries.map((j) => {
-            const photo = firstPhotoUrl(j.photos);
-            return (
-              <li
-                key={j.id}
-                className="flex items-center gap-4 rounded-2xl border border-line bg-card p-3 transition-colors hover:border-ink/30"
-              >
-                <Link
-                  href={`/admin/jewelry/${j.id}/edit`}
-                  className="flex min-w-0 flex-1 items-center gap-4"
-                >
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-bg">
-                    {photo ? (
-                      <Image
-                        src={photo}
-                        alt=""
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-base font-medium text-ink">
-                        {j.name}
-                      </h3>
-                      {j.featured ? (
-                        <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
-                          ★
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs text-mute">
-                      {j.category.name} · {j.material} · {j.anchorBindings.length}{" "}
-                      анкер(ов)
-                    </p>
-                  </div>
-                  <div className="hidden text-right sm:block">
-                    <p className="text-sm font-medium text-ink">
-                      {formatPrice(j.price)}
-                    </p>
-                    <p className="text-xs text-mute">
-                      {jewelryStatusLabels[j.status]}
-                    </p>
-                  </div>
-                </Link>
-                {/* StockAdjuster lives outside the Link so its buttons
-                    don't trigger navigation. */}
-                <div className="shrink-0">
-                  <StockAdjuster jewelryId={j.id} stock={j.inStock} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="flex flex-col gap-8">
+        <JewelryFilters
+          q={q}
+          categoryId={categoryId}
+          status={status}
+          featured={featured}
+          lowStock={lowStock}
+          categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+          counts={counts}
+          total={total}
+        />
+        <JewelryBoard rows={rows} />
+      </div>
     </div>
   );
 }

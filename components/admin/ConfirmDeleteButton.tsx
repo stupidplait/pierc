@@ -13,6 +13,8 @@ interface ConfirmDeleteButtonProps {
   formAction?: (formData: FormData) => void | Promise<void>;
   /** Override the trigger's classes (e.g. the Steel Atelier ghost variant). */
   className?: string;
+  /** Accessible label for icon-only triggers (no visible text). */
+  ariaLabel?: string;
 }
 
 const DEFAULT_TRIGGER =
@@ -29,6 +31,7 @@ export function ConfirmDeleteButton({
   confirmLabel,
   formAction,
   className,
+  ariaLabel,
 }: ConfirmDeleteButtonProps) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -39,6 +42,7 @@ export function ConfirmDeleteButton({
         ref={btnRef}
         type="submit"
         formAction={formAction}
+        aria-label={ariaLabel}
         onClick={(e) => {
           e.preventDefault();
           setOpen(true);

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["--python", "3.12", "blender-mcp"]
+    },
+    "chrome-devtools": {
+      "command": "npx.cmd",
+      "args": ["chrome-devtools-mcp@latest", "--isolated"]
+    },
+    "playwright": {
+      "command": "npx.cmd",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}

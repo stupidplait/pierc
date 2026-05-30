@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { subscribeScroll } from "@/lib/hooks/useScrollBus";
 import { signOutPublicAction } from "@/lib/user/auth-actions";
 import { signOutAdminAction } from "@/lib/admin/auth-actions";
+import { BrandMark } from "@/components/ui/BrandMark";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
+import { ru } from "@/lib/i18n/ru";
 
 interface HeaderProps {
     // When signed in, the header shows the account dropdown + sign-out instead
@@ -43,7 +46,7 @@ function isActive(href: string, pathname: string): boolean {
 const FOCUS_RING =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm";
 
-const NAV_LINK_CLASSES = `text-[12px] tracking-[0.04em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_1px_12px_rgba(8,8,8,0.45)] ${FOCUS_RING}`;
+const NAV_LINK_CLASSES = `text-[12px] tracking-[0.04em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
 
 const MOBILE_LINK_CLASSES = `font-display text-[clamp(28px,6vw,40px)] font-bold tracking-[-0.01em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] ${FOCUS_RING}`;
 
@@ -51,10 +54,10 @@ const MOBILE_LINK_CLASSES = `font-display text-[clamp(28px,6vw,40px)] font-bold 
 // sign-in / sign-up button + card vocabulary.
 // Secondary pill ("Войти") — same shape as the "Записаться" CTA so the right
 // side reads as a consistent set of buttons.
-const BTN_PILL_SECONDARY = `inline-flex items-center justify-center rounded-xl border border-ink-line-strong bg-transparent px-[14px] py-[8px] text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:border-ink active:scale-[0.97] [text-shadow:0_1px_12px_rgba(8,8,8,0.45)] ${FOCUS_RING}`;
+const BTN_PILL_SECONDARY = `inline-flex items-center justify-center rounded-xl border border-ink-line-strong bg-transparent px-[14px] py-[8px] text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:border-ink active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
 // Account dropdown trigger (avatar + name + chevron) — borderless so the
 // account reads as a quiet control, distinct from the bordered CTA buttons.
-const CHIP = `inline-flex items-center gap-2 rounded-xl bg-transparent py-1 pl-1 pr-2 text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:bg-ink/5 active:scale-[0.97] ${FOCUS_RING}`;
+const CHIP = `inline-flex items-center gap-2 rounded-xl bg-transparent py-1 pl-1 pr-2 text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:bg-ink/5 active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
 // Avatar: rounded-lg so it sits concentrically inside the chip's rounded-xl.
 const AVATAR = "flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink text-[11px] font-semibold text-bg";
 const MENU_PANEL = "absolute right-0 top-[calc(100%+10px)] z-40 min-w-[180px] overflow-hidden rounded-xl border border-ink-line-strong bg-[rgba(8,8,8,0.94)] p-1.5 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl animate-[landingChromeFadeIn_150ms_ease-out_both]";
@@ -176,12 +179,11 @@ export function Header({ user = null, admin = null }: HeaderProps) {
             >
                 <Link
                     href="/"
-                    aria-label="PiercerKZN"
-                    className={`inline-flex items-center gap-2 font-display font-bold tracking-[0.18em] text-[12px] text-ink no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_1px_12px_rgba(8,8,8,0.45)] ${FOCUS_RING}`}
+                    aria-label="PIERCERKZN"
+                    className={`inline-flex items-center gap-2 font-display font-bold tracking-[0.18em] text-[12px] text-ink no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`}
                 >
-                    <span>PIERCER</span>
-                    <span aria-hidden="true" className="size-[5px] rounded-full bg-accent" />
-                    <span>KZN</span>
+                    <BrandMark className="size-5" />
+                    {ru.studio.name}
                 </Link>
 
                 <nav
@@ -204,6 +206,7 @@ export function Header({ user = null, admin = null }: HeaderProps) {
                 </nav>
 
                 <div className="flex items-center gap-[10px]">
+                    <ThemeSwitcher />
                     {admin ? (
                         <div
                             ref={menuRef}

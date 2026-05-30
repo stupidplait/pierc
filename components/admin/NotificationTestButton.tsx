@@ -5,6 +5,7 @@ import {
   runNotificationTest,
   type NotificationTestActionState,
 } from "@/lib/admin/notification-test-action";
+import { Button } from "@/components/shadcn/ui/button";
 import { ru } from "@/lib/i18n/ru";
 
 export function NotificationTestButton() {
@@ -18,17 +19,13 @@ export function NotificationTestButton() {
   const t = ru.admin.settings;
 
   return (
-    <form action={action} className="flex flex-col gap-3">
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex h-11 w-fit items-center justify-center rounded-xl border border-ink-line-strong px-5 text-sm font-medium text-ink transition-colors duration-150 hover:border-ink active:scale-[0.98] disabled:opacity-60"
-      >
+    <form action={action} className="flex flex-col gap-4">
+      <Button type="submit" variant="outline" disabled={pending} className="w-fit">
         {pending ? t.testRunning : t.testButton}
-      </button>
+      </Button>
 
       {state ? (
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col divide-y divide-line/60 overflow-hidden rounded-xl border border-line bg-ink/3">
           <ResultLine
             label={t.testEmailLabel}
             ok={state.email.ok}
@@ -55,18 +52,17 @@ function ResultLine({
   reason: string;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-2">
+    <li className="flex flex-wrap items-center gap-2.5 px-4 py-3 text-sm">
       <span
-        className={`inline-flex size-5 items-center justify-center rounded-full text-xs font-semibold ${
-          ok
-            ? "bg-primary/15 text-primary"
-            : "bg-mute/20 text-mute"
+        aria-hidden
+        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+          ok ? "bg-success-soft text-success" : "bg-ink/10 text-mute"
         }`}
       >
         {ok ? "✓" : "·"}
       </span>
-      <span className="font-medium text-ink">{label}:</span>
-      <span className={ok ? "text-mute" : "text-mute"}>{reason}</span>
+      <span className="font-medium text-ink">{label}</span>
+      <span className="text-mute">— {reason}</span>
     </li>
   );
 }

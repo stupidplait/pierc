@@ -1,0 +1,51 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
+import { ru } from "@/lib/i18n/ru";
+import type { GlbStats } from "./GlbPreviewScene";
+
+export type { GlbStats } from "./GlbPreviewScene";
+
+// Three.js needs `window` — defer the whole scene past hydration, never SSR it.
+const GlbPreviewScene = dynamic(
+  () => import("./GlbPreviewScene").then((m) => m.GlbPreviewScene),
+  { ssr: false },
+);
+
+/**
+ * GlbPreview — client gate + framed surface for the interactive jewelry GLB
+ * viewer used in the admin model panel. Lets the admin orbit/zoom an uploaded
+ * or AI-generated piece to verify it before publishing/approving.
+ *
+ * Follows the project's 3D discipline: WebGL2-gated, `dynamic(ssr:false)`,
+ * dpr-capped (in the scene). On browsers without WebGL2 it shows a short
+ * notice — callers keep their "open .glb" link as the real fallback.
+ *
+ * `onStats` bubbles the loaded GLB's geometry tally up to the inspector.
+ */
+export function GlbPreview({
+  url,
+  className = "",
+  onStats,
+}: {
+  url: string;
+  className?: string;
+  onStats?: (stats: GlbStats) => void;
+}) {
+  const webgl2 = useWebGL2Supported();
+
+  return (
+    <div
+      className={`relative aspect-square w-full overflow-hidden rounded-xl border border-line bg-bg ${className}`}
+    >
+      {webgl2 === false ? (
+        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-mute">
+          {ru.admin.jewelry.model.previewUnavailable}
+        </div>
+      ) : webgl2 ? (
+        <GlbPreviewScene url={url} onStats={onStats} />
+      ) : null}
+    </div>
+  );
+}

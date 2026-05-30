@@ -6,7 +6,6 @@ import { formatRuPhone } from "@/lib/phone";
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { formatPrice } from "@/lib/jewelry/format";
 import {
   BookingsBoard,
@@ -15,7 +14,7 @@ import {
 } from "@/components/admin/bookings/BookingsBoard";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.bookings.title} — ${ru.admin.panel}`,
+  title: ru.admin.bookings.title,
 };
 
 const RU_DT = new Intl.DateTimeFormat("ru-RU", {
@@ -34,7 +33,7 @@ const STATUSES: BookingStatus[] = [
 ];
 
 interface Props {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }
 
 export default async function AdminBookingsPage({ searchParams }: Props) {
@@ -42,24 +41,39 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
   const status = STATUSES.includes(sp.status as BookingStatus)
     ? (sp.status as BookingStatus)
     : "";
+  const q = sp.q?.trim() || "";
 
-  const where: Prisma.JewelryBookingWhereInput = {};
-  if (status) where.status = status;
+  // Search spans the linked jewelry name + the client's name/email, so the box
+  // finds a booking whether the admin remembers the piece or the person.
+  const baseWhere: Prisma.JewelryBookingWhereInput = {};
+  if (q) {
+    baseWhere.OR = [
+      { jewelry: { name: { contains: q, mode: "insensitive" } } },
+      { user: { name: { contains: q, mode: "insensitive" } } },
+      { user: { email: { contains: q, mode: "insensitive" } } },
+    ];
+  }
 
-  // The list honours the active filter; the counts feeding the filter chips are
-  // unfiltered, so each chip always shows its total regardless of selection.
+  // The list narrows by the active status too; the chip counts honour the search
+  // but not the status, so each chip shows how many of the *matched* bookings
+  // sit in that status.
+  const listWhere: Prisma.JewelryBookingWhereInput = status
+    ? { ...baseWhere, status }
+    : baseWhere;
+
   const [bookings, grouped] = await Promise.all([
     prisma.jewelryBooking.findMany({
-      where,
+      where: listWhere,
       orderBy: { createdAt: "desc" },
       include: {
-        jewelry: { select: { id: true, name: true, price: true } },
+        jewelry: { select: { id: true, name: true, price: true, material: true } },
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
       take: 200,
     }),
     prisma.jewelryBooking.groupBy({
       by: ["status"],
+      where: baseWhere,
       _count: { _all: true },
     }),
   ]);
@@ -77,9 +91,10 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
     id: b.id,
     status: b.status,
     jewelryName: b.jewelry.name,
+    material: b.jewelry.material,
     price: formatPrice(b.jewelry.price.toString()),
-    client: [
-      b.user.name,
+    clientName: b.user.name,
+    clientContact: [
       b.user.email,
       b.user.phone ? formatRuPhone(b.user.phone) : null,
     ]
@@ -91,11 +106,17 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
   const t = ru.admin.bookings;
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <PageHeader eyebrow={ru.admin.panel} title={t.title} lead={t.lead} />
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="mb-10 pt-2 sm:mb-12 sm:pt-4">
+        <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+          {t.title}
+        </h1>
+        <p className="mt-3 text-base text-mute">{t.lead}</p>
+      </header>
       <BookingsBoard
         rows={rows}
         status={status}
+        query={q}
         counts={counts}
         total={total}
       />

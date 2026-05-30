@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { ru } from "@/lib/i18n/ru";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
 
 // Body font: Inter (Latin + Cyrillic).
 const inter = Inter({
@@ -63,19 +64,20 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // suppressHydrationWarning: globals.css applies prefers-color-scheme
-    // theme tokens; the future <ThemeToggle> will set .theme-light /
-    // .theme-dark on <html> client-side, which would otherwise produce
-    // a Server/Client className diff.
+    // suppressHydrationWarning: ThemeProvider sets .theme-light / .theme-dark
+    // on <html> client-side, which would otherwise produce a Server/Client
+    // className diff.
     <html
       lang="ru"
       suppressHydrationWarning
       className={`${inter.variable} ${onest.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-page text-ink">
-        {children}
-        <Analytics />
-        <SpeedInsights />
+        <ThemeProvider>
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </ThemeProvider>
       </body>
     </html>
   );

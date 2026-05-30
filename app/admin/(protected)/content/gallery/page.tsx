@@ -9,7 +9,7 @@ import { CARD, GHOST_DELETE } from "@/components/admin/form/styles";
 import { deleteGalleryPhoto } from "@/lib/admin/content-actions";
 
 export const metadata: Metadata = {
-  title: `${ru.admin.content.tabs.gallery} — ${ru.admin.panel}`,
+  title: ru.admin.content.tabs.gallery,
 };
 
 // Admin page — auth-walled and reads GalleryPhoto rows on every request.

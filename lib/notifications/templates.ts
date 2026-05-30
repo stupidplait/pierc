@@ -55,7 +55,7 @@ function slotLine(data: BookingNotificationData): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function userConfirmationEmail(data: BookingNotificationData) {
-  const subject = "Заявка получена — Pierc Studio";
+  const subject = "Заявка получена — PIERCERKZN";
 
   const items =
     data.bookings.length > 0
@@ -85,7 +85,7 @@ export function userConfirmationEmail(data: BookingNotificationData) {
       ${items}
       ${slot}
       <p style="margin:24px 0 0;color:#5a5a5a;font-size:14px">Если что-то нужно изменить — просто ответьте на это письмо.</p>
-      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— Pierc Studio</p>
+      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— PIERCERKZN</p>
     </td></tr>
   </table>
 </body>
@@ -101,7 +101,7 @@ export function userConfirmationEmail(data: BookingNotificationData) {
       : null,
     data.appointment?.slotStart ? `Время: ${slotLine(data)}` : null,
     "",
-    "— Pierc Studio",
+    "— PIERCERKZN",
   ]
     .filter(Boolean)
     .join("\n");
@@ -299,7 +299,7 @@ export function userStatusChangeEmail(data: StatusChangeUserData) {
           ? `<p style="margin:0 0 24px;color:#5a5a5a">${escape(data.context)}</p>`
           : ""
       }
-      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— Pierc Studio</p>
+      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— PIERCERKZN</p>
     </td></tr>
   </table>
 </body>
@@ -312,7 +312,7 @@ export function userStatusChangeEmail(data: StatusChangeUserData) {
     data.context ? "" : null,
     data.context,
     "",
-    "— Pierc Studio",
+    "— PIERCERKZN",
   ]
     .filter((s) => s !== null)
     .join("\n");
@@ -342,7 +342,7 @@ export interface ReviewRequestData {
  * Appointment transitions to COMPLETED. See docs/16-reviews.md.
  */
 export function reviewRequestEmail(data: ReviewRequestData) {
-  const subject = "Поделитесь впечатлением о визите — Pierc Studio";
+  const subject = "Поделитесь впечатлением о визите — PIERCERKZN";
 
   const html = `<!doctype html>
 <html lang="ru">
@@ -355,7 +355,7 @@ export function reviewRequestEmail(data: ReviewRequestData) {
         <a href="${escape(data.reviewUrl)}" style="display:inline-block;padding:12px 24px;background:#fe017e;color:#ffffff;border-radius:9999px;font-weight:500;text-decoration:none">Оставить отзыв</a>
       </p>
       <p style="margin:24px 0 0;color:#5a5a5a;font-size:13px">Ссылка действительна 60 дней. Отзыв публикуется только после нашей проверки.</p>
-      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— Pierc Studio</p>
+      <p style="margin:32px 0 0;color:#5a5a5a;font-size:13px">— PIERCERKZN</p>
     </td></tr>
   </table>
 </body>
@@ -372,7 +372,7 @@ export function reviewRequestEmail(data: ReviewRequestData) {
     "",
     "Ссылка действительна 60 дней. Отзыв публикуется только после проверки.",
     "",
-    "— Pierc Studio",
+    "— PIERCERKZN",
   ].join("\n");
 
   return { subject, html, text };

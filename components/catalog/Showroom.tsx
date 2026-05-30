@@ -3,8 +3,10 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Grid3x3 } from "lucide-react";
 import { CatalogSidebar } from "./CatalogSidebar";
+import { CatalogFloatingHUD } from "./CatalogFloatingHUD";
 import { LiteMode } from "@/components/lite/LiteMode";
 import { JewelryBookingDrawer } from "@/components/booking/JewelryBookingDrawer";
 import {
@@ -17,6 +19,7 @@ import type { BookingUser, WizardJewelry } from "@/lib/booking/wizard-types";
 import { catalogStrings } from "@/lib/i18n/ru";
 import { serializeEquipped } from "@/lib/catalog/url-state";
 import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
+import { Button } from "@/components/shadcn/ui/button";
 
 // Three.js needs window — defer the entire scene until after hydration.
 const ShowroomScene = dynamic(
@@ -49,6 +52,11 @@ interface ShowroomProps {
   hideGridLink?: boolean;
   /** Signed-in user, used to prefill the booking drawer's contact fields. */
   user?: BookingUser | null;
+  /**
+   * Layout variant: "floating" (glass HUD over full-bleed scene, desktop only)
+   * or "docked" (split-screen right rail). Default "floating".
+   */
+  layout?: "floating" | "docked";
 }
 
 export function Showroom({
@@ -59,6 +67,7 @@ export function Showroom({
   pathname = "/catalog",
   hideGridLink = false,
   user = null,
+  layout = "floating",
 }: ShowroomProps) {
   const { replace } = useRouter();
   const searchParams = useSearchParams();
@@ -99,57 +108,43 @@ export function Showroom({
     return m;
   }, [anchors]);
 
-  // Keep the URL in sync — don't trigger a server roundtrip.
-  const syncUrl = useCallback(
-    (next: { anchorId?: string | null; equipped?: EquippedMap }) => {
-      const params = new URLSearchParams(searchParams.toString());
-      const slugForAnchor =
-        next.anchorId === undefined
-          ? selectedId
-            ? anchorIdToSlug.get(selectedId)
-            : null
-          : next.anchorId === null
-            ? null
-            : anchorIdToSlug.get(next.anchorId);
-      if (slugForAnchor) params.set("anchor", slugForAnchor);
-      else params.delete("anchor");
+  // Track previous query string to avoid unnecessary URL updates
+  const prevQueryRef = useRef<string>("");
 
-      const eqMap = next.equipped ?? equipped;
-      const eqStr = serializeEquipped(eqMap, anchorIdToSlug);
-      if (eqStr) params.set("eq", eqStr);
-      else params.delete("eq");
+  // Sync URL after state changes — runs after render, not during.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    const slugForAnchor = selectedId ? anchorIdToSlug.get(selectedId) : null;
+    if (slugForAnchor) params.set("anchor", slugForAnchor);
 
-      const qs = params.toString();
+    const eqStr = serializeEquipped(equipped, anchorIdToSlug);
+    if (eqStr) params.set("eq", eqStr);
+
+    const qs = params.toString();
+
+    // Only update if the query actually changed
+    if (qs !== prevQueryRef.current) {
+      prevQueryRef.current = qs;
       startTransition(() => {
         replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
       });
-    },
-    [anchorIdToSlug, equipped, pathname, replace, searchParams, selectedId],
-  );
+    }
+  }, [selectedId, equipped, anchorIdToSlug, pathname, replace]);
 
-  const handleSelectAnchor = useCallback(
-    (id: string | null) => {
-      setSelectedId(id);
-      syncUrl({ anchorId: id });
-    },
-    [syncUrl],
-  );
+  const handleSelectAnchor = useCallback((id: string | null) => {
+    setSelectedId(id);
+  }, []);
 
   const handleEquip = useCallback(
     (anchorId: string, jewelryId: string) => {
       setEquipped((prev) => {
-        if (
-          Object.keys(prev).length >= SOFT_CAP &&
-          !(anchorId in prev)
-        ) {
+        if (Object.keys(prev).length >= SOFT_CAP && !(anchorId in prev)) {
           return prev;
         }
-        const next = { ...prev, [anchorId]: jewelryId };
-        syncUrl({ equipped: next });
-        return next;
+        return { ...prev, [anchorId]: jewelryId };
       });
     },
-    [syncUrl],
+    [],
   );
 
   const handleUnequip = useCallback(
@@ -158,11 +153,10 @@ export function Showroom({
         if (!(anchorId in prev)) return prev;
         const next = { ...prev };
         delete next[anchorId];
-        syncUrl({ equipped: next });
         return next;
       });
     },
-    [syncUrl],
+    [],
   );
 
   // Layout is height-agnostic: parent decides the actual height. On /catalog
@@ -191,37 +185,120 @@ export function Showroom({
 
   return (
     <>
-      <div className="flex h-full flex-col lg:grid lg:grid-cols-[1fr_360px]">
-        <div className="relative h-[60vh] bg-page lg:h-auto">
-          <ShowroomScene
+      {layout === "floating" ? (
+        // Floating glass HUD layout (desktop only)
+        <div className="flex h-full flex-col">
+          {/* Mobile: stacked docked layout */}
+          <div className="flex flex-col lg:hidden">
+            <div className="relative h-[60vh] bg-page">
+              <ShowroomScene
+                anchors={anchors}
+                jewelry={jewelry}
+                selectedId={selectedId}
+                equipped={equipped}
+                onSelectAnchor={handleSelectAnchor}
+              />
+              {!hideGridLink ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-3 top-3 gap-2 rounded-full border border-line bg-page/80 backdrop-blur"
+                >
+                  <Link href="/catalog?view=grid">
+                    <Grid3x3 className="size-4" />
+                    {catalogStrings.showroom.gridLink}
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+            <CatalogSidebar
+              anchors={anchors}
+              jewelry={jewelry}
+              selectedAnchorId={selectedId}
+              equipped={equipped}
+              canBook={bookingItems.length > 0}
+              onBook={() => setBookingOpen(true)}
+              onSelectAnchor={handleSelectAnchor}
+              onEquip={handleEquip}
+              onUnequip={handleUnequip}
+            />
+          </div>
+
+          {/* Desktop: full-bleed scene + floating glass panel */}
+          <div className="relative hidden h-full lg:block">
+            <ShowroomScene
+              anchors={anchors}
+              jewelry={jewelry}
+              selectedId={selectedId}
+              equipped={equipped}
+              onSelectAnchor={handleSelectAnchor}
+            />
+            {!hideGridLink ? (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="absolute right-3 top-3 gap-2 rounded-full border border-line bg-page/80 backdrop-blur"
+              >
+                <Link href="/catalog?view=grid">
+                  <Grid3x3 className="size-4" />
+                  {catalogStrings.showroom.gridLink}
+                </Link>
+              </Button>
+            ) : null}
+            <CatalogFloatingHUD
+              anchors={anchors}
+              jewelry={jewelry}
+              selectedAnchorId={selectedId}
+              equipped={equipped}
+              canBook={bookingItems.length > 0}
+              onBook={() => setBookingOpen(true)}
+              onSelectAnchor={handleSelectAnchor}
+              onEquip={handleEquip}
+              onUnequip={handleUnequip}
+            />
+          </div>
+        </div>
+      ) : (
+        // Docked split-screen layout (refined direction)
+        <div className="flex h-full flex-col lg:grid lg:grid-cols-[1fr_360px]">
+          <div className="relative h-[60vh] bg-page lg:h-auto">
+            <ShowroomScene
+              anchors={anchors}
+              jewelry={jewelry}
+              selectedId={selectedId}
+              equipped={equipped}
+              onSelectAnchor={handleSelectAnchor}
+            />
+            {!hideGridLink ? (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="absolute right-3 top-3 gap-2 rounded-full border border-line bg-page/80 backdrop-blur"
+              >
+                <Link href="/catalog?view=grid">
+                  <Grid3x3 className="size-4" />
+                  {catalogStrings.showroom.gridLink}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+
+          <CatalogSidebar
             anchors={anchors}
             jewelry={jewelry}
-            selectedId={selectedId}
+            selectedAnchorId={selectedId}
             equipped={equipped}
+            canBook={bookingItems.length > 0}
+            onBook={() => setBookingOpen(true)}
             onSelectAnchor={handleSelectAnchor}
+            onEquip={handleEquip}
+            onUnequip={handleUnequip}
           />
-          {!hideGridLink ? (
-            <Link
-              href="/catalog?view=grid"
-              className="absolute right-3 top-3 rounded-full border border-line bg-page/80 px-3 py-1 text-xs text-mute backdrop-blur transition-colors hover:border-primary hover:text-primary"
-            >
-              {catalogStrings.showroom.gridLink}
-            </Link>
-          ) : null}
         </div>
-
-        <CatalogSidebar
-          anchors={anchors}
-          jewelry={jewelry}
-          selectedAnchorId={selectedId}
-          equipped={equipped}
-          canBook={bookingItems.length > 0}
-          onBook={() => setBookingOpen(true)}
-          onSelectAnchor={handleSelectAnchor}
-          onEquip={handleEquip}
-          onUnequip={handleUnequip}
-        />
-      </div>
+      )}
 
       <JewelryBookingDrawer
         open={bookingOpen}

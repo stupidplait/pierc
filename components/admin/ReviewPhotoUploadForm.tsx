@@ -6,7 +6,7 @@ import {
   type ReviewActionState,
 } from "@/lib/admin/review-actions";
 import { ru } from "@/lib/i18n/ru";
-import { SAVE_PILL } from "@/components/admin/reviews/ui";
+import { Button } from "@/components/shadcn/ui/button";
 
 interface ReviewPhotoUploadFormProps {
   reviewId: string;
@@ -46,9 +46,9 @@ export function ReviewPhotoUploadForm({
       </label>
 
       <div className="flex flex-wrap items-center gap-4">
-        <button type="submit" disabled={pending} className={SAVE_PILL}>
+        <Button type="submit" disabled={pending}>
           {pending ? "…" : t.upload}
-        </button>
+        </Button>
         {state ? (
           state.ok ? (
             <span

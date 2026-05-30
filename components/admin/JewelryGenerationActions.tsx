@@ -10,6 +10,9 @@ import {
 } from "@/lib/admin/jewelry-generation-actions";
 import { ru } from "@/lib/i18n/ru";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { GlbPreview, type GlbStats } from "@/components/admin/GlbPreview";
+import { GlbInspector } from "@/components/admin/GlbInspector";
+import { JobAutoRefresh } from "@/components/admin/JobAutoRefresh";
 
 interface JewelryGenerationActionsProps {
   jewelryId: string;
@@ -21,6 +24,9 @@ interface JewelryGenerationActionsProps {
     errorMessage: string | null;
     createdAt: Date;
   } | null;
+  /** The currently published model URL, if any — used to tell an unapproved
+   *  candidate apart from an already-approved job (whose result == glbUrl). */
+  currentGlbUrl: string | null;
   /** Whether any auto-generation provider is configured. */
   autoAvailable: boolean;
   /** When true, real API calls are stubbed out — clicks are free. */
@@ -32,6 +38,7 @@ interface JewelryGenerationActionsProps {
 export function JewelryGenerationActions({
   jewelryId,
   latestJob,
+  currentGlbUrl,
   autoAvailable,
   dryRun,
   hasPhotos,
@@ -74,16 +81,22 @@ export function JewelryGenerationActions({
     </p>
   ) : null;
 
-  // ── Active in-flight job: show "processing" badge + Refresh button. ─────
+  // ── Active in-flight job: show "processing" badge + live auto-refresh. ──
+  // The external cron (docs/21-free-cron.md) advances the job server-side;
+  // JobAutoRefresh re-reads this page on a timer so the panel flips to
+  // "ready"/"failed" on its own. The button is now a manual force-advance
+  // escape hatch, not the primary path.
   if (latestJob && latestJob.status === "PROCESSING") {
     return (
       <div className="flex flex-col gap-3">
         {dryRunBanner}
+        <JobAutoRefresh />
         <Badge tone="info">{t.autoStatusProcessing}</Badge>
+        <p className="text-xs text-mute">{t.autoLiveHint}</p>
         <form action={pollAction} className="flex flex-col gap-2">
           <input type="hidden" name="id" value={jewelryId} />
           <SubmitButton variant="secondary" pending={pollPending}>
-            {t.autoPoll}
+            {t.autoPollNow}
           </SubmitButton>
           <FeedbackLine state={pollState} />
         </form>
@@ -91,35 +104,77 @@ export function JewelryGenerationActions({
     );
   }
 
-  // ── Job succeeded but admin hasn't approved yet: show preview + actions. ─
-  if (latestJob && latestJob.status === "SUCCEEDED" && latestJob.resultGlbUrl) {
+  // ── Job succeeded but admin hasn't approved yet: compare + actions. ──────
+  // A result that already equals the published model is an approved (or
+  // rejected→null) job — not a pending candidate — so it falls through to the
+  // generate state below instead of lingering as a review prompt.
+  if (
+    latestJob &&
+    latestJob.status === "SUCCEEDED" &&
+    latestJob.resultGlbUrl &&
+    latestJob.resultGlbUrl !== currentGlbUrl
+  ) {
+    const candidateUrl = latestJob.resultGlbUrl;
+
+    // Open + approve + reject — shared between the single-candidate inspector
+    // (right column) and the compare layout (a row beneath the two tiles).
+    const reviewActions = (
+      <>
+        <a
+          href={candidateUrl}
+          download
+          className="inline-flex h-9 items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+        >
+          {t.autoPreview} ↓
+        </a>
+        <form action={approveAction}>
+          <input type="hidden" name="jobId" value={latestJob.id} />
+          <SubmitButton variant="primary" pending={approvePending}>
+            {t.autoApprove}
+          </SubmitButton>
+        </form>
+        <button
+          type="button"
+          onClick={() => setRejectOpen(true)}
+          disabled={rejectPending}
+          className="inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium text-mute transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
+        >
+          {rejectPending ? "…" : t.autoReject}
+        </button>
+      </>
+    );
+
     return (
       <div className="flex flex-col gap-3">
         <Badge tone="success">{t.autoStatusReady}</Badge>
-        <a
-          href={latestJob.resultGlbUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
-        >
-          {t.autoPreview} ↗
-        </a>
-        <div className="flex flex-wrap gap-2">
-          <form action={approveAction}>
-            <input type="hidden" name="jobId" value={latestJob.id} />
-            <SubmitButton variant="primary" pending={approvePending}>
-              {t.autoApprove}
-            </SubmitButton>
-          </form>
-          <button
-            type="button"
-            onClick={() => setRejectOpen(true)}
-            disabled={rejectPending}
-            className="inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-medium text-mute transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
-          >
-            {rejectPending ? "…" : t.autoReject}
-          </button>
-        </div>
+
+        {/* When a piece already has a model, show current vs. candidate side by
+            side (actions beneath). Otherwise the candidate gets the full
+            inspector — preview + facts + actions filling the width. The header
+            preview is suppressed while this surface is up, so it's never twice. */}
+        {currentGlbUrl ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <PreviewCard label={t.autoCompareCurrent} url={currentGlbUrl} />
+              <PreviewCard
+                label={t.autoCompareNew}
+                url={candidateUrl}
+                highlight
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {reviewActions}
+            </div>
+          </>
+        ) : (
+          <GlbInspector
+            url={candidateUrl}
+            label={t.autoReviewSingle}
+            highlight
+            actions={reviewActions}
+          />
+        )}
+
         <ConfirmDialog
           open={rejectOpen}
           onClose={() => setRejectOpen(false)}
@@ -166,6 +221,44 @@ export function JewelryGenerationActions({
 
 // ── Small presentational helpers ─────────────────────────────────────────
 
+/** Labelled GLB viewer tile. `highlight` rings the candidate in accent so the
+ *  new model reads as the thing under review in the compare grid. A compact
+ *  polycount caption appears under the tile once the GLB loads, so the two
+ *  models can be compared on weight at a glance. */
+function PreviewCard({
+  label,
+  url,
+  highlight,
+  className = "",
+}: {
+  label: string;
+  url: string;
+  highlight?: boolean;
+  className?: string;
+}) {
+  const [stats, setStats] = useState<GlbStats | null>(null);
+  return (
+    <figure className={`flex flex-col gap-1.5 ${className}`}>
+      <figcaption
+        className={`text-xs font-medium ${highlight ? "text-accent" : "text-mute"}`}
+      >
+        {label}
+      </figcaption>
+      <GlbPreview
+        url={url}
+        onStats={setStats}
+        className={highlight ? "ring-1 ring-accent/40" : ""}
+      />
+      {stats ? (
+        <figcaption className="text-xs tabular-nums text-mute">
+          {ru.admin.jewelry.model.statTriangles}:{" "}
+          {stats.triangles.toLocaleString("ru-RU")}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 function Badge({
   tone,
   children,
@@ -211,7 +304,7 @@ function SubmitButton({
   children: React.ReactNode;
 }) {
   const base =
-    "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
   const tone =
     variant === "primary"
       ? "bg-ink text-bg hover:bg-ink/90"

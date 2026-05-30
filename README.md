@@ -137,7 +137,7 @@ Set these in **Vercel → Project Settings → Environment Variables** for the P
 | `AUTH_SECRET` | ✅ | `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `AUTH_TRUST_HOST` | — | Vercel sets the host correctly; leave unset on Vercel. Required `"true"` only on non-Vercel hosts. |
 | `RESEND_API_KEY` | optional | Without this, emails skip silently |
-| `RESEND_FROM_EMAIL` | optional | e.g. `Pierc Studio <studio@yourdomain.com>` |
+| `RESEND_FROM_EMAIL` | optional | e.g. `PIERCERKZN <studio@yourdomain.com>` |
 | `TELEGRAM_BOT_TOKEN` | optional | Without this, Telegram alerts skip silently |
 | `REPLICATE_API_TOKEN` | optional | Auto-3D primary. Without this, the chain falls back to Tripo3D. |
 | `REPLICATE_MODEL` | optional | Replicate model spec — accepts `<hash>`, `<owner>/<name>:<hash>`, or `<owner>/<name>`. Default: pin a Hunyuan3D-2 version from https://replicate.com/tencent/hunyuan3d-2 |

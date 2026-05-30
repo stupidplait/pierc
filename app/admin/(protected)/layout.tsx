@@ -82,7 +82,7 @@ export default async function ProtectedAdminLayout({
           className="flex items-center gap-2.5 font-display text-lg font-medium tracking-tight text-ink"
         >
           <BrandMark className="size-6" />
-          {ru.admin.panel}
+          {ru.studio.name}
         </Link>
 
         <div className="mt-8 flex-1">
@@ -101,7 +101,7 @@ export default async function ProtectedAdminLayout({
             className="flex items-center gap-2 font-display text-lg font-medium text-ink"
           >
             <BrandMark className="size-5" />
-            {ru.admin.panel}
+            {ru.studio.name}
           </Link>
           <AdminIdentity name={name} email={email} />
         </header>

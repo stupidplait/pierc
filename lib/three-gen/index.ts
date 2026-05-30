@@ -2,19 +2,23 @@ import type { Provider, ProviderId } from "./types";
 import { manualProvider } from "./manual";
 import { replicateProvider } from "./replicate";
 import { tripo3dProvider } from "./tripo3d";
+import { localProvider } from "./local";
 
 // Auto-generation priority. Replicate (Hunyuan3D-2 by default — see
-// docs/18-replicate-3d.md) is the new primary; Tripo3D demoted to the
-// fallback slot. Both are roughly equivalent on jewelry shapes and the
-// chain falls through gracefully if either fails or is unconfigured.
+// docs/18-replicate-3d.md) is the new primary; Tripo3D the paid fallback.
+// `local` sits at the TAIL as the credit-zero, self-hosted fallback — it's
+// `isAvailable()`-gated on LOCAL_3D_WORKER (off by default), so until the
+// worker is built the chain behaves exactly as before. See
+// docs/22-local-fallback.md.
 //
 // Manual is intentionally not in the auto chain — it's only invoked
 // from the manual upload UI.
-const AUTO_PRIORITY: ProviderId[] = ["replicate", "tripo3d"];
+const AUTO_PRIORITY: ProviderId[] = ["replicate", "tripo3d", "local"];
 
 const all: Record<ProviderId, Provider> = {
   replicate: replicateProvider,
   tripo3d: tripo3dProvider,
+  local: localProvider,
   manual: manualProvider,
 };
 
@@ -50,6 +54,7 @@ export function getProviderStatus() {
   return {
     replicate: replicateProvider.isAvailable(),
     tripo3d: tripo3dProvider.isAvailable(),
+    local: localProvider.isAvailable(),
     manual: manualProvider.isAvailable(),
     autoAvailable: pickAutoProvider() !== null,
     /** When true, the "Сгенерировать 3D" button is in test mode — no API calls. */

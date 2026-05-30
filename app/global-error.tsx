@@ -44,7 +44,7 @@ export default function GlobalError({
               color: "#fe017e",
             }}
           >
-            Pierc Studio
+            PIERCERKZN
           </p>
           <h1
             style={{
