@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/poll-jobs",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/expire-reservations",
+      "schedule": "0 3 * * *"
     }
   ]
 }

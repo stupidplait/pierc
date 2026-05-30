@@ -11,9 +11,9 @@ const { auth } = NextAuth(authConfig);
 export const proxy = auth;
 export default proxy;
 
-// Match every /admin path including the bare /admin, plus /admin/login
-// (so the authorized callback can redirect already-signed-in admins away
-// from the login page). Plus public auth pages and /account.
+// Match every /admin path including the bare /admin. Plus the shared public
+// auth pages and /account (so the authorized callback can bounce already-
+// signed-in visitors to their own home).
 export const config = {
   matcher: [
     "/admin",
