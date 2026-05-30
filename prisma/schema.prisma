@@ -17,6 +17,11 @@ model User {
   id              String           @id @default(cuid())
   email           String           @unique
   phone           String?
+  // Telegram @username the customer typed in — for manual contact.
+  telegram        String?
+  // Linked Telegram chat id (set when the user connects via the bot deep-link)
+  // — used to send them booking confirmations / status updates automatically.
+  telegramChatId  String?
   name            String
   passwordHash    String? // null for guest
   isGuest         Boolean          @default(true)
@@ -55,19 +60,23 @@ enum AnchorSide {
 }
 
 model AnchorPoint {
-  id            String     @id @default(cuid())
-  slug          String     @unique
-  name          String
-  place         BodyPlace
-  side          AnchorSide @default(CENTER)
+  id              String                 @id @default(cuid())
+  slug            String                 @unique
+  name            String
+  place           BodyPlace
+  side            AnchorSide             @default(CENTER)
   // { x, y, z } in body.glb local space (Y-up)
-  position      Json
+  position        Json
   // { x, y, z } default jewelry orientation (Euler XYZ rad)
-  rotation      Json
+  rotation        Json
   // [{ name, position, target, fov }, ...]
-  cameraPresets Json
-  jewelries     Jewelry[]  @relation("JewelryAnchors")
-  createdAt     DateTime   @default(now())
+  cameraPresets   Json
+  // Replaces the old implicit M2M to Jewelry. See JewelryAnchorBinding
+  // for the multi-anchor pricing/rendering model — a single barbell is
+  // 2 rows here, an "industrial-left" jewelry occupies forward-helix-L
+  // (order=0) and posterior-helix-L (order=1) of the same piece.
+  jewelryBindings JewelryAnchorBinding[]
+  createdAt       DateTime               @default(now())
 }
 
 // ───── Catalog ─────
@@ -78,6 +87,31 @@ enum JewelryStatus {
   PENDING_REVIEW
   PUBLISHED
   REJECTED
+}
+
+// Drives binding-count rules and renderer math. See docs/20-multi-anchor-jewelry.md
+// for the canonical mapping from real-world piece → enum value.
+//
+//   STUD              — 1 attach point per equip (labret, nose stud, plug). The
+//                       jewelry's anchorBindings list is a "compatibility list"
+//                       — each row is an alternative anchor the user could equip
+//                       this piece to, all with order=0.
+//   RING              — 1 attach point per equip (hoop / seamless ring through 1 hole).
+//                       Same compatibility-list semantics as STUD.
+//   BARBELL           — 2 attach points equipped together (industrial bar, surface bar).
+//                       anchorBindings has exactly 2 rows: order=0 = "in" / forward end,
+//                       order=1 = "out" / posterior end. Bindings are FIXED; left-side
+//                       industrial and right-side industrial are separate Jewelry rows.
+//   CIRCULAR_BARBELL  — 2 attach points (horseshoe used through 2 holes).
+//   ORBITAL           — 2 attach points (closed ring through 2 holes on the same cartilage).
+//   CHAIN_LADDER      — N attach points (corset). 2..8 bindings.
+enum JewelryType {
+  STUD
+  RING
+  BARBELL
+  CIRCULAR_BARBELL
+  ORBITAL
+  CHAIN_LADDER
 }
 
 model JewelryCategory {
@@ -99,6 +133,10 @@ model Jewelry {
   description String?
   category    JewelryCategory @relation(fields: [categoryId], references: [id])
   categoryId  String
+  // Drives renderer math (1-anchor vs multi-anchor placement) and admin
+  // form constraints (e.g. AI generation is restricted to STUD/RING).
+  // See enum docs above and docs/20-multi-anchor-jewelry.md.
+  type        JewelryType     @default(STUD)
   material    String
   gauge       Float?
   size        Float?
@@ -116,17 +154,63 @@ model Jewelry {
   // (historically `0.025` was hardcoded in the renderer).
   glbScale    Float           @default(1)
   glbThumbUrl String?
+  // Transparent-background PNG used as a 2D sprite in the photo-upload
+  // "lite mode" try-on (see docs/15-lite-mode.md). When null, the piece is
+  // hidden from the lite-mode try-on list but still appears in the
+  // "Все украшения" grid view.
+  spriteUrl   String?
   status      JewelryStatus   @default(DRAFT)
   featured    Boolean         @default(false)
-  anchors     AnchorPoint[]   @relation("JewelryAnchors")
+  // Replaces the old implicit M2M `anchors AnchorPoint[]`. For STUD/RING:
+  // each row is one alternative anchor the user can equip the piece on,
+  // all with order=0. For BARBELL/CIRCULAR_BARBELL/ORBITAL/CHAIN_LADDER:
+  // exactly the bindings the piece occupies, in attach order.
+  anchorBindings JewelryAnchorBinding[]
   jobs        GenerationJob[]
   bookings    JewelryBooking[]
+  reviews     Review[]        @relation("JewelryReviews")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([status])
   @@index([categoryId])
   @@index([featured])
+  @@index([type])
+}
+
+// Explicit junction table replacing the old implicit `_JewelryAnchors` M2M.
+// One row per (jewelry, anchor, order) — `order` is the attach-point index
+// within the jewelry's mesh:
+//
+//   order=0 → mesh's `attach:primary` empty
+//   order=1 → mesh's `attach:secondary` empty
+//   order=2..N → `attach:tertiary`, `attach:quaternary`, … (CHAIN_LADDER)
+//
+// Semantics differ by Jewelry.type:
+//   STUD / RING                  : every row is an independent compatibility option;
+//                                  the user equips the piece on ONE of them at a time.
+//                                  (i.e. 6 rows = "this piece can be worn at 6 anchors".)
+//   BARBELL / CIRCULAR_BARBELL /
+//   ORBITAL / CHAIN_LADDER       : ALL rows are equipped simultaneously; the user
+//                                  picks the piece (not the anchor) and both/all
+//                                  endpoints attach together.
+//
+// See docs/20-multi-anchor-jewelry.md for the renderer math + UX rules.
+model JewelryAnchorBinding {
+  id        String      @id @default(cuid())
+  jewelry   Jewelry     @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+  jewelryId String
+  anchor    AnchorPoint @relation(fields: [anchorId], references: [id])
+  anchorId  String
+  // 0-indexed position within the jewelry's bindings. For STUD/RING all
+  // rows have order=0; for multi-anchor types, order distinguishes
+  // attach:primary (0), attach:secondary (1), etc.
+  order     Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@unique([jewelryId, anchorId, order])
+  @@index([jewelryId])
+  @@index([anchorId])
 }
 
 // ───── 3D generation pipeline ─────
@@ -202,15 +286,29 @@ model Appointment {
   userId    String
   slot      AvailabilitySlot? @relation(fields: [slotId], references: [id])
   slotId    String?           @unique
+  // The piercing service booked for this visit. Optional so legacy
+  // appointments (and the rare no-service consult) remain valid.
+  service   Service?          @relation(fields: [serviceId], references: [id])
+  serviceId String?
   status    AppointmentStatus @default(PENDING)
   notes     String?
+  // Snapshot of the booked slot's start time, captured when the slot is
+  // released (e.g. on cancellation, which nulls slotId to free the slot for
+  // rebooking). Lets the account UI still show *when* a cancelled visit was
+  // for, instead of losing the date with the slot link.
+  scheduledAt DateTime?
   bookings  JewelryBooking[]
+  reviews   Review[]
+  // Set when a magic-link review submission succeeds for this
+  // appointment. One-shot — see docs/16-reviews.md.
+  reviewedAt DateTime?
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
   @@index([userId])
   @@index([status])
   @@index([slotId])
+  @@index([serviceId])
 }
 
 enum JewelryBookingStatus {
@@ -255,21 +353,26 @@ model SiteContent {
 }
 
 model Service {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  durationMin Int
-  order       Int      @default(0)
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  price        Decimal       @db.Decimal(10, 2)
+  durationMin  Int
+  order        Int           @default(0)
+  published    Boolean       @default(true)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model FAQItem {
   id        String   @id @default(cuid())
   question  String
   answer    String
+  // Category bucket key (e.g. "prep", "care"); see FAQ_CATEGORIES in
+  // components/faq/faqData.ts. Nullable — rows without a key fall back to the
+  // keyword classifier at render time.
+  category  String?
   order     Int      @default(0)
   published Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -283,6 +386,48 @@ model GalleryPhoto {
   order     Int      @default(0)
   published Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+// ───── Reviews & testimonials ─────
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+// One customer review of a piercing session and/or specific jewelry
+// piece(s). See docs/16-reviews.md for the full feature spec.
+//
+//   PENDING   → fresh submission (manual admin entry or magic-link)
+//   PUBLISHED → admin-approved, visible on /about and per-jewelry pages
+//   REJECTED  → admin-rejected, kept for audit trail (never public)
+//
+// `appointmentId` is nullable: magic-link submissions carry it (verified
+// customer badge); admin manual entries don't. `jewelryItems` is m2m so
+// a single review can tag multiple pieces from one session.
+model Review {
+  id             String       @id @default(cuid())
+  rating         Int          @default(5) // 1..5 (validated app-side)
+  text           String
+  authorName     String       // "Анна П." — public display name
+  photoUrl       String?      // optional Vercel Blob URL
+  status         ReviewStatus @default(PENDING)
+  featured       Boolean      @default(false) // surfaces on /about
+  moderatorNotes String?
+
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  appointmentId String?
+
+  jewelryItems Jewelry[] @relation("JewelryReviews")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  @@index([status])
+  @@index([featured])
+  @@index([appointmentId])
 }
 
 // ───── Settings (singleton) ─────

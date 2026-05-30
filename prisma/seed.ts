@@ -33,7 +33,6 @@ async function main() {
     },
   });
 
-  // eslint-disable-next-line no-console
   console.log(`✓ Admin upserted: ${admin.email} (id=${admin.id})`);
 
   // Ensure the Settings singleton exists so /admin/settings always has a row.
@@ -42,7 +41,6 @@ async function main() {
     update: {},
     create: { id: "default" },
   });
-  // eslint-disable-next-line no-console
   console.log("✓ Settings(default) ensured");
 
   // Seed a default About body so the public /about page renders something
@@ -60,7 +58,6 @@ async function main() {
       },
     },
   });
-  // eslint-disable-next-line no-console
   console.log("✓ SiteContent(about) ensured");
 
   // ─── Jewelry categories ───
@@ -74,16 +71,16 @@ async function main() {
     { slug: "navel", name: "Пупок", order: 6 },
     { slug: "nipple", name: "Сосок", order: 7 },
   ];
-  await Promise.all(
-    categories.map((c) =>
-      prisma.jewelryCategory.upsert({
-        where: { slug: c.slug },
-        update: { name: c.name, order: c.order },
-        create: c,
-      }),
-    ),
-  );
-  // eslint-disable-next-line no-console
+  // Sequential upserts (was Promise.all): the parallel version can spike
+  // the Neon pooler hard enough to trip free-tier connection limits and
+  // fail mid-seed. Wall-time hit is negligible for ~8 rows.
+  for (const c of categories) {
+    await prisma.jewelryCategory.upsert({
+      where: { slug: c.slug },
+      update: { name: c.name, order: c.order },
+      create: c,
+    });
+  }
   console.log(`✓ JewelryCategory: ${categories.length} ensured`);
 
   // ─── Anchor points ───
@@ -148,25 +145,24 @@ async function main() {
     cameraPresets: a.cameraPresets ?? [],
   }));
 
-  await Promise.all(
-    anchors.map((a) =>
-      prisma.anchorPoint.upsert({
-        where: { slug: a.slug },
-        // Always re-tune from the seed for now. When we move to a real GLB
-        // and admin tuning UI, this will switch back to "preserve admin edits".
-        update: {
-          name: a.name,
-          place: a.place,
-          side: a.side,
-          position: a.position,
-          rotation: a.rotation,
-          cameraPresets: a.cameraPresets,
-        },
-        create: a,
-      }),
-    ),
-  );
-  // eslint-disable-next-line no-console
+  // Sequential (was Promise.all over 29 anchors). See category note above —
+  // 29 parallel upserts reliably tripped Neon free-tier P1001 mid-seed.
+  for (const a of anchors) {
+    await prisma.anchorPoint.upsert({
+      where: { slug: a.slug },
+      // Always re-tune from the seed for now. When we move to a real GLB
+      // and admin tuning UI, this will switch back to "preserve admin edits".
+      update: {
+        name: a.name,
+        place: a.place,
+        side: a.side,
+        position: a.position,
+        rotation: a.rotation,
+        cameraPresets: a.cameraPresets,
+      },
+      create: a,
+    });
+  }
   console.log(`✓ AnchorPoint: ${anchors.length} ensured`);
 
   // ─── Jewelry (parametric Blender pipeline) ───
@@ -181,11 +177,21 @@ async function main() {
     | "rose-gold-585"
     | "black-pvd";
 
+  type JewelryTypeSeed =
+    | "STUD"
+    | "RING"
+    | "BARBELL"
+    | "CIRCULAR_BARBELL"
+    | "ORBITAL"
+    | "CHAIN_LADDER";
+
   interface JewelrySeed {
     slug: string;
     name: string;
     categorySlug: string;
     shape: string;
+    /** New in Phase B — drives the renderer math + admin form constraints. */
+    type: JewelryTypeSeed;
     /** Per-shape Blender params; not used by the seed. */
     params: Record<string, unknown>;
     material: string;
@@ -197,6 +203,16 @@ async function main() {
     price: number;
     inStock: number;
     featured: boolean;
+    /**
+     * For STUD/RING (1 attach point): list of anchors the piece is COMPATIBLE
+     * with — each becomes a JewelryAnchorBinding row with order=0, and the
+     * user picks one at equip-time.
+     *
+     * For BARBELL/CIRCULAR_BARBELL/ORBITAL/CHAIN_LADDER (multi attach): the
+     * ordered sequence of endpoints — each becomes a row with the matching
+     * order index (0=primary, 1=secondary, 2=…). Length must equal the
+     * type's expected attach count (validated below).
+     */
     anchorSlugs: string[];
   }
 
@@ -222,31 +238,61 @@ async function main() {
     "jewelry-uploads.json",
   );
 
-  const jewelryManifestRaw = await readFile(jewelryManifestPath, "utf-8");
-  const jewelryUploadsRaw = await readFile(jewelryUploadsPath, "utf-8");
+  const [jewelryManifestRaw, jewelryUploadsRaw] = await Promise.all([
+    readFile(jewelryManifestPath, "utf-8"),
+    readFile(jewelryUploadsPath, "utf-8"),
+  ]);
   const jewelryManifest: JewelrySeed[] = JSON.parse(jewelryManifestRaw);
   const jewelryUploads: Record<string, JewelryUpload> =
     JSON.parse(jewelryUploadsRaw);
 
   // Look up category + anchor ids in one pass each so the loop is O(N).
-  const categoryRows = await prisma.jewelryCategory.findMany({
-    select: { id: true, slug: true },
-  });
+  const [categoryRows, anchorRows] = await Promise.all([
+    prisma.jewelryCategory.findMany({
+      select: { id: true, slug: true },
+    }),
+    prisma.anchorPoint.findMany({
+      select: { id: true, slug: true },
+    }),
+  ]);
   const categoryIdBySlug = new Map(categoryRows.map((c) => [c.slug, c.id]));
-
-  const anchorRows = await prisma.anchorPoint.findMany({
-    select: { id: true, slug: true },
-  });
   const anchorIdBySlug = new Map(anchorRows.map((a) => [a.slug, a.id]));
+
+  // Expected attach-point count by JewelryType — validates the seed manifest
+  // catches mismatched bindings early (e.g. a BARBELL with 1 anchor).
+  const EXPECTED_ATTACH: Record<
+    JewelryTypeSeed,
+    { min: number; max: number; semantics: "compat-list" | "fixed" }
+  > = {
+    STUD: { min: 1, max: 99, semantics: "compat-list" },
+    RING: { min: 1, max: 99, semantics: "compat-list" },
+    BARBELL: { min: 2, max: 2, semantics: "fixed" },
+    CIRCULAR_BARBELL: { min: 2, max: 2, semantics: "fixed" },
+    ORBITAL: { min: 2, max: 2, semantics: "fixed" },
+    CHAIN_LADDER: { min: 2, max: 8, semantics: "fixed" },
+  };
 
   let jewelryCreated = 0;
   let jewelryUpdated = 0;
   for (const piece of jewelryManifest) {
     const categoryId = categoryIdBySlug.get(piece.categorySlug);
     if (!categoryId) {
-      // eslint-disable-next-line no-console
       console.warn(
         `! Jewelry "${piece.slug}": unknown categorySlug "${piece.categorySlug}", skipping`,
+      );
+      continue;
+    }
+
+    if (!piece.type) {
+      console.warn(
+        `! Jewelry "${piece.slug}": missing required field "type" (run scripts/jewelry/add-type-field.mjs)`,
+      );
+      continue;
+    }
+    const expected = EXPECTED_ATTACH[piece.type];
+    if (!expected) {
+      console.warn(
+        `! Jewelry "${piece.slug}": unknown type "${piece.type}", skipping`,
       );
       continue;
     }
@@ -255,7 +301,6 @@ async function main() {
       .map((s) => {
         const id = anchorIdBySlug.get(s);
         if (!id) {
-          // eslint-disable-next-line no-console
           console.warn(
             `! Jewelry "${piece.slug}": unknown anchorSlug "${s}", skipping that anchor`,
           );
@@ -263,6 +308,18 @@ async function main() {
         return id;
       })
       .filter((id): id is string => Boolean(id));
+
+    if (
+      anchorIds.length < expected.min ||
+      anchorIds.length > expected.max
+    ) {
+      console.warn(
+        `! Jewelry "${piece.slug}": type=${piece.type} expects ${expected.min}` +
+          (expected.max === expected.min ? "" : `..${expected.max}`) +
+          ` bindings (semantics="${expected.semantics}"), got ${anchorIds.length}, skipping`,
+      );
+      continue;
+    }
 
     const upload = jewelryUploads[piece.slug];
     const glbUrl = upload?.blobUrl ?? null;
@@ -279,6 +336,7 @@ async function main() {
     const data = {
       name: piece.name,
       categoryId,
+      type: piece.type,
       material: piece.material,
       gauge: piece.gauge,
       size: piece.size,
@@ -292,12 +350,25 @@ async function main() {
       status: status as "PUBLISHED" | "DRAFT",
     };
 
+    // For "compat-list" semantics: each anchor becomes a separate row with
+    // order=0 (interchangeable equipment options).
+    // For "fixed" semantics: the array is ordered, anchorSlugs[0]=primary,
+    // [1]=secondary, etc., each becomes a row with the matching order index.
+    const bindingsCreate =
+      expected.semantics === "compat-list"
+        ? anchorIds.map((anchorId) => ({ anchorId, order: 0 }))
+        : anchorIds.map((anchorId, i) => ({ anchorId, order: i }));
+
     if (existing) {
       await prisma.jewelry.update({
         where: { slug: piece.slug },
         data: {
           ...data,
-          anchors: { set: anchorIds.map((id) => ({ id })) },
+          // Replace ALL bindings on update to keep idempotent.
+          anchorBindings: {
+            deleteMany: {},
+            create: bindingsCreate,
+          },
         },
       });
       jewelryUpdated += 1;
@@ -307,13 +378,12 @@ async function main() {
           ...data,
           slug: piece.slug,
           photos: [],
-          anchors: { connect: anchorIds.map((id) => ({ id })) },
+          anchorBindings: { create: bindingsCreate },
         },
       });
       jewelryCreated += 1;
     }
   }
-  // eslint-disable-next-line no-console
   console.log(
     `✓ Jewelry: ${jewelryManifest.length} ensured (${jewelryCreated} created, ${jewelryUpdated} updated)`,
   );
@@ -321,7 +391,6 @@ async function main() {
 
 main()
   .catch((err) => {
-    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   })

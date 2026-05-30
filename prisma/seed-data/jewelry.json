@@ -3,8 +3,6 @@
     "slug": "seamless-hoop-titanium-6mm-16g",
     "name": "Безшовное кольцо 6 мм · 1.2",
     "categorySlug": "earrings",
-    "shape": "seamless_hoop",
-    "params": { "diameterMm": 6, "gaugeMm": 1.2 },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -15,17 +13,24 @@
     "inStock": 6,
     "featured": false,
     "anchorSlugs": [
-      "left-ear-lobe", "right-ear-lobe",
-      "left-helix", "right-helix",
-      "left-nostril", "right-nostril"
-    ]
+      "left-ear-lobe",
+      "right-ear-lobe",
+      "left-helix",
+      "right-helix",
+      "left-nostril",
+      "right-nostril"
+    ],
+    "shape": "seamless_hoop",
+    "type": "RING",
+    "params": {
+      "diameterMm": 6,
+      "gaugeMm": 1.2
+    }
   },
   {
     "slug": "seamless-hoop-titanium-8mm-16g",
     "name": "Безшовное кольцо 8 мм · 1.2",
     "categorySlug": "earrings",
-    "shape": "seamless_hoop",
-    "params": { "diameterMm": 8, "gaugeMm": 1.2 },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -36,16 +41,22 @@
     "inStock": 5,
     "featured": true,
     "anchorSlugs": [
-      "left-ear-lobe", "right-ear-lobe",
-      "left-helix", "right-helix"
-    ]
+      "left-ear-lobe",
+      "right-ear-lobe",
+      "left-helix",
+      "right-helix"
+    ],
+    "shape": "seamless_hoop",
+    "type": "RING",
+    "params": {
+      "diameterMm": 8,
+      "gaugeMm": 1.2
+    }
   },
   {
     "slug": "seamless-hoop-gold585-8mm-16g",
     "name": "Безшовное кольцо золото 585 · 8 мм · 1.2",
     "categorySlug": "earrings",
-    "shape": "seamless_hoop",
-    "params": { "diameterMm": 8, "gaugeMm": 1.2 },
     "material": "Золото 585",
     "materialColor": "gold-585",
     "gauge": 1.2,
@@ -56,22 +67,22 @@
     "inStock": 3,
     "featured": true,
     "anchorSlugs": [
-      "left-ear-lobe", "right-ear-lobe",
-      "left-helix", "right-helix"
-    ]
+      "left-ear-lobe",
+      "right-ear-lobe",
+      "left-helix",
+      "right-helix"
+    ],
+    "shape": "seamless_hoop",
+    "type": "RING",
+    "params": {
+      "diameterMm": 8,
+      "gaugeMm": 1.2
+    }
   },
   {
     "slug": "labret-titanium-ball-6mm-16g",
     "name": "Лабрет 6 мм · 1.2 с шариком",
     "categorySlug": "helix",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 6,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "ball",
-      "topSizeMm": 2.5
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -82,24 +93,27 @@
     "inStock": 8,
     "featured": false,
     "anchorSlugs": [
-      "left-helix", "right-helix",
-      "left-tragus", "right-tragus",
-      "left-conch", "right-conch"
-    ]
+      "left-helix",
+      "right-helix",
+      "left-tragus",
+      "right-tragus",
+      "left-conch",
+      "right-conch"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 6,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "ball",
+      "topSizeMm": 2.5
+    }
   },
   {
     "slug": "labret-titanium-clear-gem-6mm-16g",
     "name": "Лабрет 6 мм · 1.2 с прозрачным кристаллом",
     "categorySlug": "helix",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 6,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "gem",
-      "topSizeMm": 2.5,
-      "topGemColor": "clear"
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -110,23 +124,28 @@
     "inStock": 6,
     "featured": false,
     "anchorSlugs": [
-      "left-helix", "right-helix",
-      "left-tragus", "right-tragus",
-      "left-conch", "right-conch"
-    ]
+      "left-helix",
+      "right-helix",
+      "left-tragus",
+      "right-tragus",
+      "left-conch",
+      "right-conch"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 6,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "gem",
+      "topSizeMm": 2.5,
+      "topGemColor": "clear"
+    }
   },
   {
     "slug": "labret-rose-gold-585-ball-6mm-16g",
     "name": "Лабрет розовое золото 585 · 6 мм · 1.2",
     "categorySlug": "helix",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 6,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "ball",
-      "topSizeMm": 2.5
-    },
     "material": "Розовое золото 585",
     "materialColor": "rose-gold-585",
     "gauge": 1.2,
@@ -137,21 +156,25 @@
     "inStock": 2,
     "featured": false,
     "anchorSlugs": [
-      "left-helix", "right-helix",
-      "left-tragus", "right-tragus"
-    ]
+      "left-helix",
+      "right-helix",
+      "left-tragus",
+      "right-tragus"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 6,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "ball",
+      "topSizeMm": 2.5
+    }
   },
   {
     "slug": "horseshoe-titanium-8mm-16g",
     "name": "Подкова 8 мм · 1.2",
     "categorySlug": "septum",
-    "shape": "horseshoe",
-    "params": {
-      "diameterMm": 8,
-      "gaugeMm": 1.2,
-      "ballSizeMm": 2.5,
-      "gapDegrees": 90
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -161,19 +184,23 @@
     "price": 1900,
     "inStock": 5,
     "featured": false,
-    "anchorSlugs": ["septum", "lip-medusa"]
+    "anchorSlugs": [
+      "septum",
+      "lip-medusa"
+    ],
+    "shape": "horseshoe",
+    "type": "RING",
+    "params": {
+      "diameterMm": 8,
+      "gaugeMm": 1.2,
+      "ballSizeMm": 2.5,
+      "gapDegrees": 90
+    }
   },
   {
     "slug": "horseshoe-gold585-10mm-14g",
     "name": "Подкова золото 585 · 10 мм · 1.6",
     "categorySlug": "septum",
-    "shape": "horseshoe",
-    "params": {
-      "diameterMm": 10,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 3.0,
-      "gapDegrees": 90
-    },
     "material": "Золото 585",
     "materialColor": "gold-585",
     "gauge": 1.6,
@@ -183,14 +210,22 @@
     "price": 8400,
     "inStock": 2,
     "featured": false,
-    "anchorSlugs": ["septum"]
+    "anchorSlugs": [
+      "septum"
+    ],
+    "shape": "horseshoe",
+    "type": "RING",
+    "params": {
+      "diameterMm": 10,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 3,
+      "gapDegrees": 90
+    }
   },
   {
     "slug": "seamless-hoop-titanium-10mm-14g",
     "name": "Безшовное кольцо 10 мм · 1.6",
     "categorySlug": "septum",
-    "shape": "seamless_hoop",
-    "params": { "diameterMm": 10, "gaugeMm": 1.6 },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.6,
@@ -200,20 +235,22 @@
     "price": 1700,
     "inStock": 4,
     "featured": false,
-    "anchorSlugs": ["septum", "left-daith", "right-daith"]
+    "anchorSlugs": [
+      "septum",
+      "left-daith",
+      "right-daith"
+    ],
+    "shape": "seamless_hoop",
+    "type": "RING",
+    "params": {
+      "diameterMm": 10,
+      "gaugeMm": 1.6
+    }
   },
   {
     "slug": "labret-titanium-ball-8mm-16g",
     "name": "Лабрет 8 мм · 1.2 с шариком",
     "categorySlug": "labret",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 8,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "ball",
-      "topSizeMm": 3
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -223,21 +260,26 @@
     "price": 1800,
     "inStock": 7,
     "featured": false,
-    "anchorSlugs": ["lip-labret", "lip-medusa", "left-helix", "right-helix"]
+    "anchorSlugs": [
+      "lip-labret",
+      "lip-medusa",
+      "left-helix",
+      "right-helix"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 8,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "ball",
+      "topSizeMm": 3
+    }
   },
   {
     "slug": "labret-titanium-pink-gem-8mm-16g",
     "name": "Лабрет 8 мм · 1.2 с розовым кристаллом",
     "categorySlug": "labret",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 8,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "gem",
-      "topSizeMm": 3,
-      "topGemColor": "pink"
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -247,20 +289,25 @@
     "price": 2300,
     "inStock": 4,
     "featured": true,
-    "anchorSlugs": ["lip-labret", "lip-medusa"]
+    "anchorSlugs": [
+      "lip-labret",
+      "lip-medusa"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 8,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "gem",
+      "topSizeMm": 3,
+      "topGemColor": "pink"
+    }
   },
   {
     "slug": "labret-titanium-disc-8mm-16g",
     "name": "Лабрет 8 мм · 1.2 с диском",
     "categorySlug": "labret",
-    "shape": "labret_stud",
-    "params": {
-      "shaftLengthMm": 8,
-      "gaugeMm": 1.2,
-      "discDiameterMm": 3,
-      "topShape": "disc",
-      "topSizeMm": 3.5
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.2,
@@ -270,20 +317,24 @@
     "price": 1900,
     "inStock": 5,
     "featured": false,
-    "anchorSlugs": ["lip-labret", "lip-medusa"]
-  },
-  {
-    "slug": "labret-rose-gold-585-disc-8mm-16g",
-    "name": "Лабрет розовое золото 585 · 8 мм · 1.2",
-    "categorySlug": "labret",
+    "anchorSlugs": [
+      "lip-labret",
+      "lip-medusa"
+    ],
     "shape": "labret_stud",
+    "type": "STUD",
     "params": {
       "shaftLengthMm": 8,
       "gaugeMm": 1.2,
       "discDiameterMm": 3,
       "topShape": "disc",
       "topSizeMm": 3.5
-    },
+    }
+  },
+  {
+    "slug": "labret-rose-gold-585-disc-8mm-16g",
+    "name": "Лабрет розовое золото 585 · 8 мм · 1.2",
+    "categorySlug": "labret",
     "material": "Розовое золото 585",
     "materialColor": "rose-gold-585",
     "gauge": 1.2,
@@ -293,90 +344,107 @@
     "price": 7800,
     "inStock": 2,
     "featured": false,
-    "anchorSlugs": ["lip-labret", "lip-medusa"]
+    "anchorSlugs": [
+      "lip-labret",
+      "lip-medusa"
+    ],
+    "shape": "labret_stud",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 8,
+      "gaugeMm": 1.2,
+      "discDiameterMm": 3,
+      "topShape": "disc",
+      "topSizeMm": 3.5
+    }
   },
   {
     "slug": "nose-stud-l-titanium-ball-18g",
     "name": "Нострил-гвоздик с шариком 1.0",
     "categorySlug": "nostril",
-    "shape": "nose_stud_l",
-    "params": {
-      "visibleLengthMm": 3.0,
-      "insideLengthMm": 5.5,
-      "gaugeMm": 1.0,
-      "topShape": "ball",
-      "topSizeMm": 2.2
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
-    "gauge": 1.0,
+    "gauge": 1,
     "size": 3,
     "color": "Серебристый",
     "stones": null,
     "price": 1700,
     "inStock": 5,
     "featured": false,
-    "anchorSlugs": ["left-nostril", "right-nostril"]
+    "anchorSlugs": [
+      "left-nostril",
+      "right-nostril"
+    ],
+    "shape": "nose_stud_l",
+    "type": "STUD",
+    "params": {
+      "visibleLengthMm": 3,
+      "insideLengthMm": 5.5,
+      "gaugeMm": 1,
+      "topShape": "ball",
+      "topSizeMm": 2.2
+    }
   },
   {
     "slug": "nose-stud-l-titanium-blue-gem-18g",
     "name": "Нострил с синим кристаллом 1.0",
     "categorySlug": "nostril",
-    "shape": "nose_stud_l",
-    "params": {
-      "visibleLengthMm": 3.0,
-      "insideLengthMm": 5.5,
-      "gaugeMm": 1.0,
-      "topShape": "gem",
-      "topSizeMm": 2.2,
-      "topGemColor": "blue"
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
-    "gauge": 1.0,
+    "gauge": 1,
     "size": 3,
     "color": "Серебристый",
     "stones": "Циркон голубой",
     "price": 2200,
     "inStock": 4,
     "featured": false,
-    "anchorSlugs": ["left-nostril", "right-nostril"]
+    "anchorSlugs": [
+      "left-nostril",
+      "right-nostril"
+    ],
+    "shape": "nose_stud_l",
+    "type": "STUD",
+    "params": {
+      "visibleLengthMm": 3,
+      "insideLengthMm": 5.5,
+      "gaugeMm": 1,
+      "topShape": "gem",
+      "topSizeMm": 2.2,
+      "topGemColor": "blue"
+    }
   },
   {
     "slug": "nose-stud-l-gold585-opal-18g",
     "name": "Нострил золото 585 с опалом 1.0",
     "categorySlug": "nostril",
-    "shape": "nose_stud_l",
-    "params": {
-      "visibleLengthMm": 3.0,
-      "insideLengthMm": 5.5,
-      "gaugeMm": 1.0,
-      "topShape": "gem",
-      "topSizeMm": 2.2,
-      "topGemColor": "opal-white"
-    },
     "material": "Золото 585",
     "materialColor": "gold-585",
-    "gauge": 1.0,
+    "gauge": 1,
     "size": 3,
     "color": "Золотой",
     "stones": "Опал",
     "price": 4900,
     "inStock": 2,
     "featured": true,
-    "anchorSlugs": ["left-nostril", "right-nostril"]
+    "anchorSlugs": [
+      "left-nostril",
+      "right-nostril"
+    ],
+    "shape": "nose_stud_l",
+    "type": "STUD",
+    "params": {
+      "visibleLengthMm": 3,
+      "insideLengthMm": 5.5,
+      "gaugeMm": 1,
+      "topShape": "gem",
+      "topSizeMm": 2.2,
+      "topGemColor": "opal-white"
+    }
   },
   {
     "slug": "curved-barbell-titanium-10mm-14g",
     "name": "Штанга банан 10 мм · 1.6",
     "categorySlug": "eyebrow",
-    "shape": "curved_barbell",
-    "params": {
-      "shaftLengthMm": 10,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 3.5,
-      "bowDepthMm": 1.4
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.6,
@@ -386,19 +454,23 @@
     "price": 2200,
     "inStock": 5,
     "featured": false,
-    "anchorSlugs": ["left-eyebrow", "right-eyebrow"]
+    "anchorSlugs": [
+      "left-eyebrow",
+      "right-eyebrow"
+    ],
+    "shape": "curved_barbell",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 10,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 3.5,
+      "bowDepthMm": 1.4
+    }
   },
   {
     "slug": "curved-barbell-black-pvd-12mm-14g",
     "name": "Штанга банан чёрный PVD · 12 мм · 1.6",
     "categorySlug": "eyebrow",
-    "shape": "curved_barbell",
-    "params": {
-      "shaftLengthMm": 12,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 4,
-      "bowDepthMm": 1.6
-    },
     "material": "Титан с PVD-покрытием",
     "materialColor": "black-pvd",
     "gauge": 1.6,
@@ -408,19 +480,23 @@
     "price": 2600,
     "inStock": 3,
     "featured": false,
-    "anchorSlugs": ["left-eyebrow", "right-eyebrow"]
+    "anchorSlugs": [
+      "left-eyebrow",
+      "right-eyebrow"
+    ],
+    "shape": "curved_barbell",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 12,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 4,
+      "bowDepthMm": 1.6
+    }
   },
   {
     "slug": "curved-barbell-titanium-12mm-14g",
     "name": "Штанга банан 12 мм · 1.6",
     "categorySlug": "navel",
-    "shape": "curved_barbell",
-    "params": {
-      "shaftLengthMm": 12,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 4,
-      "bowDepthMm": 1.8
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.6,
@@ -430,19 +506,22 @@
     "price": 2400,
     "inStock": 6,
     "featured": false,
-    "anchorSlugs": ["navel"]
-  },
-  {
-    "slug": "curved-barbell-gold585-12mm-14g",
-    "name": "Штанга банан золото 585 · 12 мм · 1.6",
-    "categorySlug": "navel",
+    "anchorSlugs": [
+      "navel"
+    ],
     "shape": "curved_barbell",
+    "type": "STUD",
     "params": {
       "shaftLengthMm": 12,
       "gaugeMm": 1.6,
       "ballSizeMm": 4,
       "bowDepthMm": 1.8
-    },
+    }
+  },
+  {
+    "slug": "curved-barbell-gold585-12mm-14g",
+    "name": "Штанга банан золото 585 · 12 мм · 1.6",
+    "categorySlug": "navel",
     "material": "Золото 585",
     "materialColor": "gold-585",
     "gauge": 1.6,
@@ -452,18 +531,22 @@
     "price": 11800,
     "inStock": 1,
     "featured": false,
-    "anchorSlugs": ["navel"]
+    "anchorSlugs": [
+      "navel"
+    ],
+    "shape": "curved_barbell",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 12,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 4,
+      "bowDepthMm": 1.8
+    }
   },
   {
     "slug": "straight-barbell-titanium-14mm-14g",
     "name": "Штанга прямая 14 мм · 1.6",
     "categorySlug": "nipple",
-    "shape": "straight_barbell",
-    "params": {
-      "shaftLengthMm": 14,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 4
-    },
     "material": "Титан G23",
     "materialColor": "titanium",
     "gauge": 1.6,
@@ -473,18 +556,22 @@
     "price": 2200,
     "inStock": 4,
     "featured": false,
-    "anchorSlugs": ["left-nipple", "right-nipple"]
+    "anchorSlugs": [
+      "left-nipple",
+      "right-nipple"
+    ],
+    "shape": "straight_barbell",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 14,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 4
+    }
   },
   {
     "slug": "straight-barbell-gold585-16mm-14g",
     "name": "Штанга прямая золото 585 · 16 мм · 1.6",
     "categorySlug": "nipple",
-    "shape": "straight_barbell",
-    "params": {
-      "shaftLengthMm": 16,
-      "gaugeMm": 1.6,
-      "ballSizeMm": 4
-    },
     "material": "Золото 585",
     "materialColor": "gold-585",
     "gauge": 1.6,
@@ -494,6 +581,16 @@
     "price": 14200,
     "inStock": 1,
     "featured": false,
-    "anchorSlugs": ["left-nipple", "right-nipple"]
+    "anchorSlugs": [
+      "left-nipple",
+      "right-nipple"
+    ],
+    "shape": "straight_barbell",
+    "type": "STUD",
+    "params": {
+      "shaftLengthMm": 16,
+      "gaugeMm": 1.6,
+      "ballSizeMm": 4
+    }
   }
 ]
