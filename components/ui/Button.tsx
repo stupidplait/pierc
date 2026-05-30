@@ -4,8 +4,11 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
+// Radius is split out so callers can match a neighbouring surface vocabulary.
+// Defaults to the pill `rounded-full`; the redesigned pages pass `rounded-xl`
+// to match the header / auth button + card vocabulary.
 const base =
-  "inline-flex items-center justify-center font-medium rounded-full transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:opacity-50 disabled:pointer-events-none";
 
 const variants: Record<Variant, string> = {
   primary:
@@ -24,6 +27,7 @@ const sizes: Record<Size, string> = {
 interface CommonProps {
   variant?: Variant;
   size?: Size;
+  radius?: string;
   className?: string;
   children: ReactNode;
 }
@@ -42,10 +46,11 @@ export function Button(props: ButtonProps | LinkProps) {
   const {
     variant = "primary",
     size = "md",
+    radius = "rounded-full",
     className = "",
     children,
   } = props;
-  const cls = `${base} ${variants[variant]} ${sizes[size]} ${className}`.trim();
+  const cls = `${base} ${radius} ${variants[variant]} ${sizes[size]} ${className}`.trim();
 
   if ("href" in props && props.href) {
     return (
@@ -55,9 +60,10 @@ export function Button(props: ButtonProps | LinkProps) {
     );
   }
 
-  const { variant: _v, size: _s, className: _c, type, ...rest } = props as ButtonProps;
+  const { variant: _v, size: _s, radius: _r, className: _c, type, ...rest } = props as ButtonProps;
   void _v;
   void _s;
+  void _r;
   void _c;
   return (
     <button type={type ?? "button"} className={cls} {...rest}>

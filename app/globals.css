@@ -1,106 +1,98 @@
 @import "tailwindcss";
 
-/* ─── Theme tokens ─────────────────────────────────────────────
- * Light is the default. Dark applies automatically via
- * prefers-color-scheme. Manual overrides via .theme-light /
- * .theme-dark classes on <html> are pre-wired for a future
- * user-controlled toggle.
+/* ─── Steel Atelier theme ───────────────────────────────────────
+ * Dark, single-source theme based on the new-design hero. This
+ * replaces the previous light/dark dual theme — the studio's
+ * signature is the dark instrument-room aesthetic, applied across
+ * the entire site.
  *
- * Brand primary: #fe017e (kept identical across themes).
- * --warn / --error semantic tokens replace ad-hoc red-500 /
- * yellow-500 inline colors so dark mode reads correctly.
+ * Token groups
+ * ─────────────
+ *   Surfaces:   --bg, --bg-elev          (deepest → elevated)
+ *   Text:       --ink, --ink-muted       (primary → muted)
+ *   Lines:      --ink-line, --ink-line-strong, --rule
+ *   Grids:      --grid-minor, --grid-major  (used by FaceGrid + Ch2GridOverlay)
+ *   Accent:     --accent                 (single magenta used very sparingly)
+ *
+ * Legacy aliases (--page, --card, --mute, --line, --primary,
+ * --primary-soft, --on-primary) point at the new tokens so the
+ * existing pierc Tailwind utilities (`bg-page`, `text-ink`,
+ * `text-mute`, `text-primary`, `border-line`) keep resolving to
+ * the right colours without a project-wide rename.
  * ──────────────────────────────────────────────────────────── */
 
 :root {
-  color-scheme: light;
-
-  /* Light theme (default) */
-  --page:         #ffffff;
-  --card:         #f7f5f2;
-  --ink:          #0a0908;
-  --mute:         #6b6359;
-  --line:         #e6e1da;
-  --primary:      #fe017e;
-  --primary-soft: #d10268;
-  --on-primary:   #ffffff;
-
-  /* Semantic feedback colors. Tuned for AA contrast on --page in light. */
-  --warn:         #b45309;  /* amber-700 */
-  --warn-soft:    #fef3c7;  /* amber-100 */
-  --error:        #b91c1c;  /* red-700 */
-  --error-soft:   #fee2e2;  /* red-100 */
-  --success:      #047857;  /* emerald-700 */
-  --success-soft: #d1fae5;  /* emerald-100 */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-
-    --page:         #0a0908;
-    --card:         #14110f;
-    --ink:          #efe7d8;
-    --mute:         #a39d92;
-    --line:         #2a241e;
-    --primary:      #fe017e;
-    --primary-soft: #ff4ca0;
-    --on-primary:   #ffffff;
-
-    --warn:         #fbbf24;  /* amber-400 */
-    --warn-soft:    #422006;  /* amber-950 */
-    --error:        #f87171;  /* red-400 */
-    --error-soft:   #450a0a;  /* red-950 */
-    --success:      #34d399;  /* emerald-400 */
-    --success-soft: #022c22;  /* emerald-950 */
-  }
-}
-
-/* Manual overrides (used by a future <ThemeToggle>). */
-:root.theme-light {
-  color-scheme: light;
-
-  --page:         #ffffff;
-  --card:         #f7f5f2;
-  --ink:          #0a0908;
-  --mute:         #6b6359;
-  --line:         #e6e1da;
-  --primary:      #fe017e;
-  --primary-soft: #d10268;
-  --on-primary:   #ffffff;
-
-  --warn:         #b45309;
-  --warn-soft:    #fef3c7;
-  --error:        #b91c1c;
-  --error-soft:   #fee2e2;
-  --success:      #047857;
-  --success-soft: #d1fae5;
-}
-
-:root.theme-dark {
   color-scheme: dark;
 
-  --page:         #0a0908;
-  --card:         #14110f;
-  --ink:          #efe7d8;
-  --mute:         #a39d92;
-  --line:         #2a241e;
-  --primary:      #fe017e;
-  --primary-soft: #ff4ca0;
-  --on-primary:   #ffffff;
+  /* Steel Atelier — surfaces */
+  --bg:               #080808;
+  --bg-elev:          #111111;
 
-  --warn:         #fbbf24;
-  --warn-soft:    #422006;
-  --error:        #f87171;
-  --error-soft:   #450a0a;
-  --success:      #34d399;
-  --success-soft: #022c22;
+  /* Steel Atelier — text */
+  --ink:              #f0f0f0;
+  --ink-muted:        rgba(240, 240, 240, 0.72);
+
+  /* Steel Atelier — lines (solid pre-baked over --bg = #080808). The
+     previous rgba alphas (0.06 / 0.10 / 0.16 / 0.22) effectively
+     produced these greys against the dark surface; opaque versions
+     keep the visual identical while removing alpha-blend overhead in
+     the 3D wireframe room and avoiding the transparent render queue. */
+  --ink-line:         #212121;
+  --ink-line-strong:  #3e3e3e;
+  --rule:             #2d2d2d;
+
+  /* Steel Atelier — grids (consumed by 3D FaceGrid). Solid pre-baked
+     over --bg. Used to be rgba(255,255,255,0.06) and 0.22. */
+  --grid-minor:       #171717;
+  --grid-major:       #3e3e3e;
+
+  /* Steel Atelier — accent (the single magenta moment) */
+  --accent:           #f06ba0;
+
+  /* Steel Atelier — shadow tokens. Match the surface (#080808) instead
+     of pure black so layered surfaces don't read as harsh holes when
+     they appear over off-bg backgrounds. */
+  --shadow-soft:      rgba(8, 8, 8, 0.45);
+  --shadow-deep:      rgba(8, 8, 8, 0.70);
+
+  /* Legacy aliases for existing Tailwind utility classes */
+  --page:             var(--bg);
+  --card:             var(--bg-elev);
+  --mute:             var(--ink-muted);
+  --line:             var(--ink-line);
+  --primary:          var(--accent);
+  --primary-soft:     #d9477f;
+  --on-primary:       #ffffff;
+
+  /* Semantic feedback — tuned for AA contrast on the dark surface. */
+  --warn:             #fbbf24;  /* amber-400 */
+  --warn-soft:        rgba(251, 191, 36, 0.12);
+  --error:            #f87171;  /* red-400 */
+  --error-soft:       rgba(248, 113, 113, 0.12);
+  --success:          #34d399;  /* emerald-400 */
+  --success-soft:     rgba(52, 211, 153, 0.12);
 }
 
-/* Expose vars to Tailwind utilities (bg-page, text-ink, text-primary, ...) */
+/* Expose vars to Tailwind utilities. New Steel Atelier tokens are
+   first-class (bg-bg-elev, text-ink-muted, border-ink-line, …); the
+   legacy mappings remain so the rest of the site's existing utility
+   classes keep working unchanged. */
 @theme inline {
+  /* Steel Atelier first-class tokens */
+  --color-bg:           var(--bg);
+  --color-bg-elev:      var(--bg-elev);
+  --color-ink:          var(--ink);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-line:     var(--ink-line);
+  --color-ink-line-strong: var(--ink-line-strong);
+  --color-rule:         var(--rule);
+  --color-grid-minor:   var(--grid-minor);
+  --color-grid-major:   var(--grid-major);
+  --color-accent:       var(--accent);
+
+  /* Legacy aliases — same names that pierc utilities already use */
   --color-page:         var(--page);
   --color-card:         var(--card);
-  --color-ink:          var(--ink);
   --color-mute:         var(--mute);
   --color-line:         var(--line);
   --color-primary:      var(--primary);
@@ -116,13 +108,19 @@
 
   --font-sans:    var(--font-inter);
   --font-display: var(--font-onest);
+  --font-mono:    var(--font-jetbrains-mono);
 }
 
 html,
 body {
-  background: var(--page);
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Disable browser-synthesized faux-bold/italic — when a weight
+     is missing, fall back to the closest real cut instead of a
+     rendered fake. Improves legibility on Cyrillic where faux-bold
+     is especially poor. */
+  font-synthesis: none;
 }
 
 /* Smooth jumps to in-page anchors (landing chapters, /about#contact, etc).
@@ -134,6 +132,17 @@ body {
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 4.5rem;
+}
+
+/* Landing page disables smooth-scroll while mounted — the hero's
+   3D-camera-driven scroll choreography conflicts with browser
+   smooth interpolation (anchor jumps and per-frame scrollPhase
+   computations fight each other). The Hero component toggles
+   `html.landing-mounted` on mount/unmount so non-landing routes
+   keep their smooth scroll. Class-based override is declarative
+   and lint-friendly compared to imperative `style.scrollBehavior`. */
+html.landing-mounted {
+    scroll-behavior: auto;
 }
 
 /* Respect prefers-reduced-motion as a hard accessibility override.
@@ -155,14 +164,64 @@ html {
 }
 
 ::selection {
-  background: var(--primary);
+  background: var(--accent);
   color: var(--on-primary);
 }
 
-/* Native form-control styling. color-scheme on :root already lets the
- * browser switch to dark scrollbars + form controls, but we tighten the
- * placeholder color so it reads as muted in both themes. */
+/* Native form-control styling. color-scheme on :root tells the browser
+ * to use dark scrollbars + form controls; tighten the placeholder
+ * color so it reads as muted ink against the dark surface. */
 ::placeholder {
-  color: var(--mute);
+  color: var(--ink-muted);
   opacity: 0.7;
+}
+
+/* Preloader scroll-lock — used by app/new-design/Preloader.tsx, which
+   adds `html.preloader-active` for the duration of the intro animation.
+   Lives here (not in the page.module.css) because CSS Modules can't
+   host top-level non-pure selectors. */
+html.preloader-active {
+    overflow: hidden !important;
+}
+
+/* Preloader draw-in — strokes the bright outline along the text path
+   on top of the always-visible tinted base. Animates each text
+   element's stroke-dashoffset from `dasharray` (fully hidden) down
+   to 0 (fully drawn). */
+@keyframes preloaderDraw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Mobile menu fade-in — used by components/landing/LandingChrome.tsx
+   when the burger toggles the full-screen overlay open. */
+@keyframes landingChromeFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Lenis smooth-scroll (components/about/client/SmoothScroll.tsx). These rules
+   are inert until Lenis adds its `lenis*` classes to <html> — so only the
+   About page, where it's mounted, is affected; the landing keeps native scroll.
+   While active, Lenis owns scrolling, so CSS smooth-behavior is turned off. */
+html.lenis,
+html.lenis body {
+    height: auto;
+}
+.lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+    overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+    pointer-events: none;
 }

@@ -80,20 +80,72 @@ export const ru = {
       },
     },
     about: {
+      eyebrow: "Студия пирсинга",
       title: "О студии",
       lead: "Студия пирсинга, где украшения подбираются под вас, а каждое решение остаётся за вами.",
       stub: "Подробный текст о мастере и студии скоро появится здесь.",
+
+      // Подход — три принципа, показываются с моно-индексами 01 / 02 / 03.
+      // Текст пока зашит в код; позже можно вынести в админку.
+      valuesEyebrow: "Подход",
+      valuesHeading: "Как мы работаем",
+      valuesLead: "Три принципа, на которых держится студия.",
+      values: [
+        {
+          title: "Подбор под вас",
+          body: "Сначала анатомия и образ жизни, потом украшение. Никаких проколов «на потоке» — только то, что подходит именно вам и хорошо приживётся.",
+        },
+        {
+          title: "Стерильность по протоколу",
+          body: "Одноразовые иглы и расходники, автоклав для инструмента, вскрытие стерильных упаковок при вас. Безопасность не обсуждается.",
+        },
+        {
+          title: "Сопровождение заживления",
+          body: "Остаёмся на связи после процедуры: уход, контрольные осмотры и помощь со сменой украшения, когда придёт время.",
+        },
+      ],
+
+      // Материалы и стандарты — «приборные» показатели (моно-значение + подпись).
+      materialsEyebrow: "Стандарты",
+      materialsHeading: "Материалы и стандарты",
+      materialsLead:
+        "Только то, что разрешено для имплантации и ношения в свежем проколе.",
+      materials: [
+        { value: "ASTM F-136", label: "Имплантационный титан Ti-6Al-4V ELI" },
+        { value: "134 °C", label: "Автоклав: стерилизация каждого инструмента" },
+        { value: "Одноразовые", label: "Иглы и расходники — под одного клиента" },
+        { value: "0 % никеля", label: "Гипоаллергенные сплавы без аллергенов" },
+      ],
+
+      reviewsEyebrow: "Отзывы",
+
+      contactsEyebrow: "Контакты",
       contactsHeading: "Контакты",
       contactsLead: "Где нас найти и как связаться.",
       email: "Email",
       phone: "Телефон",
       address: "Адрес",
       hours: "Часы работы",
+      directions: "Проложить маршрут",
+
+      // Закрывающий призыв к действию.
+      ctaHeading: "Готовы записаться?",
+      ctaLead:
+        "Выберите удобное время — подтвердим запись и ответим на вопросы до визита.",
+      ctaLabel: "Записаться",
     },
     services: {
       title: "Услуги",
       lead: "Виды пирсинга и стоимость.",
       stub: "Полный список услуг со временем процедуры скоро появится здесь.",
+      book: "Записаться",
+      // Featured-service card (the flagship piece promoted above the grid)
+      featuredTag: "Популярное",
+      included: [
+        "Стерильное украшение в комплекте",
+        "Подбор размера и установка",
+        "Памятка и сопровождение заживления",
+      ],
     },
     catalog: {
       title: "Каталог",
@@ -116,6 +168,7 @@ export const ru = {
       stub: "Форма будет добавлена в одной из следующих задач.",
       steps: {
         purposeLabel: "Что бронируем?",
+        serviceLabel: "Выберите услугу",
         jewelryLabel: "Выберите украшения",
         slotLabel: "Выберите время",
         contactLabel: "Ваши контакты",
@@ -128,6 +181,12 @@ export const ru = {
         jewelryLead: "Резерв украшения без записи.",
         both: "И то, и другое",
         bothLead: "Запись + украшения для неё.",
+      },
+      serviceStep: {
+        heading: "Какая услуга?",
+        lead: "Выберите пирсинг, на который записываетесь.",
+        empty: "Услуги пока не добавлены — можно продолжить без выбора.",
+        durationMin: "{n} мин",
       },
       jewelryStep: {
         heading: "Какие украшения возьмём?",
@@ -142,24 +201,74 @@ export const ru = {
         heading: "Когда удобно?",
         lead: "Открытые окна на ближайшие даты. Если нужного времени нет — напишите нам.",
         empty: "Свободных окон пока нет. Попробуйте позже или напишите в Telegram.",
+        today: "Сегодня",
+        tomorrow: "Завтра",
+        emptyCta: "Написать в Telegram",
       },
       contactStep: {
         heading: "Как с вами связаться?",
         lead: "Эти данные нужны только мастеру для подтверждения. Оплата — на месте.",
         nameLabel: "Имя",
+        namePlaceholder: "Например: Анна",
         emailLabel: "Email",
+        emailPlaceholder: "you@example.com",
         phoneLabel: "Телефон",
+        phonePlaceholder: "+7 (___) ___-__-__",
         notesLabel: "Комментарий (необязательно)",
+        notesPlaceholder: "Пожелания или вопрос к мастеру",
         summaryHeading: "Итог",
+        summaryService: "Услуга",
         summaryJewelry: "Украшения",
         summarySlot: "Время",
+        summaryTotal: "Итого",
         summaryNothing: "Ничего не выбрано",
+        reassure: "Оплата на месте · мастер подтвердит время",
         submit: "Подтвердить бронирование",
         submitting: "Отправляем…",
       },
       nav: {
         back: "Назад",
         next: "Далее",
+        skip: "Пропустить",
+        confirm: "Подтвердить",
+      },
+      wizard: {
+        addJewelryHeading: "Добавить украшение к записи?",
+        addJewelryLead: "Необязательно — можно прийти и выбрать на месте.",
+        addJewelryToggle: "Добавить украшение",
+        optional: "необязательно",
+        selectedCount: "Выбрано: {n}",
+        noServices: "Услуги пока не добавлены — переходим к выбору времени.",
+      },
+      bookingDrawer: {
+        title: "Бронирование",
+        lookHeading: "Ваш образ",
+        emptyLook: "Сначала подберите украшения в шоуруме.",
+        addAppointmentLabel: "Добавить запись на пирсинг",
+        addAppointmentLead: "Мастер установит украшение на приёме.",
+        chooseTime: "Когда удобно?",
+        contactHeading: "Как с вами связаться?",
+        submitJewelry: "Забронировать",
+        submitBoth: "Записаться и забронировать",
+        submitting: "Отправляем…",
+        total: "Итого",
+      },
+      form: {
+        servicePlaceholder: "Выберите услугу",
+        serviceSearch: "Поиск услуги…",
+        serviceClear: "Сбросить услугу",
+        serviceEmpty: "Ничего не найдено",
+        jewelryHeading: "Украшения",
+        jewelryOptional: "необязательно",
+        jewelrySearch: "Поиск украшения…",
+        jewelryChosenEmpty: "Можно добавить украшения или прийти и выбрать на месте.",
+        jewelryRemove: "Убрать",
+        jewelryEmpty: "Ничего не найдено",
+        bookingAs: "Бронируем как {name}",
+        editContact: "изменить",
+        needService: "Выберите услугу",
+        needSlot: "Выберите время",
+        needContact: "Заполните контакты",
       },
       errors: {
         purposeRequired: "Выберите цель брони.",
@@ -202,12 +311,63 @@ export const ru = {
       logout: "Выйти",
       noJewelry: "Без украшения",
       noSlot: "Без слота",
+      appointmentGeneric: "Запись на услугу",
+      layoutLabel: "Макет",
+      nextHeading: "Следующая запись",
+      noUpcoming: "Нет предстоящих записей",
+      activityHeading: "Активность",
+      sectionPast: "История",
+      toCatalog: "В каталог",
+      today: "сегодня",
+      tomorrow: "завтра",
+      inDays: "через {n} дн.",
+      piecesAria: "украшений в записи",
+      standaloneHeading: "Украшения без записи",
+      cancel: "Отменить",
+      cancelAppointment: "Отменить запись",
+      cancelling: "Отменяем…",
+      expand: "Развернуть",
+      collapse: "Свернуть",
+      cancelConfirmTitleAppointment: "Отменить запись",
+      cancelConfirmTitleBooking: "Отменить бронь",
+      cancelConfirmBody: "Это действие нельзя отменить.",
+      cancelConfirmYes: "Да, отменить",
+      cancelConfirmNo: "Оставить",
+      pieceRemove: "Убрать",
+      contactHeading: "Контакты",
+      contactLead: "Чтобы мастер мог связаться и прислать подтверждение.",
+      phoneLabel: "Телефон",
+      phonePlaceholder: "+7 (___) ___-__-__",
+      telegramLabel: "Telegram",
+      telegramPlaceholder: "@username",
+      contactSave: "Сохранить",
+      contactSaving: "Сохраняем…",
+      contactSaved: "Сохранено",
+      contactError: "Не удалось сохранить. Попробуйте ещё раз.",
+      tgHeading: "Уведомления в Telegram",
+      tgLead: "Подключите Telegram, чтобы получать подтверждения и статусы записей.",
+      tgConnect: "Подключить",
+      tgConnected: "Telegram подключён",
+      tgConnectedShort: "подключён",
+      tgDisconnect: "Отключить",
+      tgDisconnectConfirm: "Отключить уведомления в Telegram?",
+      tgUnavailable: "Подключение к Telegram пока недоступно.",
+      editProfile: "Редактировать",
+      editProfileTitle: "Редактировать профиль",
+      nameLabel: "Имя",
+      namePlaceholder: "Например: Анна",
+      emailLabel: "Email",
+      emailPlaceholder: "you@example.com",
+      telegramLockedHint: "Подключён — меняется автоматически.",
+      close: "Закрыть",
     },
     signIn: {
       title: "Вход",
       lead: "Войдите, чтобы видеть историю ваших бронирований.",
       emailLabel: "Email",
+      emailPlaceholder: "you@example.com",
       passwordLabel: "Пароль",
+      passwordPlaceholder: "Ваш пароль",
       submit: "Войти",
       submitting: "Входим…",
       invalid: "Неверный email или пароль.",
@@ -219,9 +379,15 @@ export const ru = {
       title: "Регистрация",
       lead: "Создайте аккаунт, чтобы видеть свои брони и записи в одном месте.",
       nameLabel: "Имя",
+      namePlaceholder: "Например: Анна",
       emailLabel: "Email",
+      emailPlaceholder: "you@example.com",
       passwordLabel: "Пароль",
+      passwordPlaceholder: "Минимум 8 символов",
       passwordHint: "От 8 символов.",
+      phoneLabel: "Телефон (необязательно)",
+      phonePlaceholder: "+7 (___) ___-__-__",
+      phoneHint: "Чтобы мастер мог связаться по записи.",
       submit: "Создать аккаунт",
       submitting: "Создаём…",
       already: "Уже есть аккаунт?",
@@ -258,6 +424,7 @@ export const ru = {
       slots: "Слоты",
       bookings: "Бронирования",
       appointments: "Записи",
+      reviews: "Отзывы",
       content: "Контент",
       settings: "Настройки",
       signOut: "Выход",
@@ -286,6 +453,25 @@ export const ru = {
         lowStockTitle: "Заканчивается",
         lowStockLead: "Украшения с остатком ≤ 1.",
       },
+      // Short forms for the compact activity-feed rows.
+      cardsShort: {
+        pendingBookings: "Брони ждут подтверждения",
+        todayAppointments: "Записи сегодня",
+        pendingReview: "На модерации",
+        lowStock: "Низкий остаток",
+      },
+      activityHeading: "Требует внимания",
+      open: "Открыть",
+      allClear: "Всё под контролем — срочных задач нет.",
+      quickActionsHeading: "Быстрые действия",
+      quickActions: {
+        newJewelry: "Новое украшение",
+        slots: "Слоты",
+        bookings: "Бронирования",
+        appointments: "Записи",
+        content: "Контент",
+        settings: "Настройки",
+      },
     },
     content: {
       title: "Контент",
@@ -300,6 +486,7 @@ export const ru = {
         title: "О нас",
         lead: "Текст страницы «О нас». Используйте пустую строку для абзацев.",
         bodyLabel: "Текст страницы",
+        bodyPlaceholder: "Расскажите о студии. Пустая строка — новый абзац.",
         save: "Сохранить",
       },
       services: {
@@ -308,7 +495,9 @@ export const ru = {
         empty: "Услуг пока нет.",
         addHeading: "Добавить услугу",
         nameLabel: "Название",
+        namePlaceholder: "Например: Прокол мочки уха",
         descriptionLabel: "Описание",
+        descriptionPlaceholder: "Коротко опишите, что входит в услугу",
         priceLabel: "Цена, ₽",
         durationLabel: "Длительность, мин",
         orderLabel: "Порядок",
@@ -324,7 +513,11 @@ export const ru = {
         empty: "Вопросов пока нет.",
         addHeading: "Добавить вопрос",
         questionLabel: "Вопрос",
+        questionPlaceholder: "Например: Больно ли делать прокол?",
         answerLabel: "Ответ",
+        answerPlaceholder: "Развёрнутый ответ для клиента",
+        categoryLabel: "Раздел",
+        categoryNone: "— Без раздела —",
         orderLabel: "Порядок",
         publishedLabel: "Опубликовано",
         save: "Сохранить",
@@ -339,6 +532,7 @@ export const ru = {
         uploadHeading: "Загрузить фотографию",
         fileLabel: "Файл",
         captionLabel: "Подпись",
+        captionPlaceholder: "Необязательная подпись к фото",
         upload: "Загрузить",
         delete: "Удалить",
         confirmDelete: "Удалить фотографию?",
@@ -349,12 +543,20 @@ export const ru = {
     settings: {
       title: "Настройки",
       lead: "Контактная информация и интеграции.",
+      tabs: {
+        primary: "Основные",
+        experiments: "Эксперименты",
+      },
       contactsHeading: "Контакты",
+      contactsLead: "Email, телефон, адрес и часы — видны клиентам на сайте.",
       socialHeading: "Соцсети",
+      socialLead: "Ссылки на профили студии в соцсетях.",
       integrationsHeading: "Интеграции",
+      integrationsLead: "Технические идентификаторы для уведомлений.",
       contactEmailLabel: "Email",
       contactPhoneLabel: "Телефон",
       contactAddressLabel: "Адрес",
+      contactAddressPlaceholder: "Например: г. Москва, ул. Пример, 1",
       workingHoursLabel: "Часы работы",
       instagramUrlLabel: "Instagram URL",
       telegramUrlLabel: "Telegram URL",
@@ -374,6 +576,8 @@ export const ru = {
       saved: "Сохранено",
       saveError: "Не удалось сохранить",
       back: "Назад",
+      delete: "Удалить",
+      cancel: "Отмена",
     },
     bookings: {
       title: "Бронирования",
@@ -417,6 +621,8 @@ export const ru = {
       detail: {
         title: "Запись",
         clientHeading: "Клиент",
+        serviceHeading: "Услуга",
+        noService: "Услуга не выбрана",
         slotHeading: "Время",
         notesHeading: "Заметки администратора",
         notesPlaceholder: "Внутренний комментарий — клиент его не видит.",
@@ -445,11 +651,99 @@ export const ru = {
         CANCELLED: "Отменено",
         NO_SHOW: "Не явился",
       },
+      review: {
+        PENDING: "Ожидает проверки",
+        PUBLISHED: "Опубликован",
+        REJECTED: "Отклонён",
+      },
+    },
+    reviews: {
+      title: "Отзывы",
+      lead: "Модерируйте отзывы клиентов перед публикацией.",
+      addNew: "Новый отзыв",
+      newTitle: "Новый отзыв",
+      editTitle: "Редактировать отзыв",
+      empty: "Отзывов пока нет.",
+      backToList: "К списку",
+      filtersHeading: "Фильтры",
+      statusLabel: "Статус",
+      statusAny: "Любой",
+      featuredOnlyLabel: "Только избранные",
+      apply: "Применить",
+      reset: "Сбросить",
+      filter: {
+        all: "Все",
+        pending: "Ожидают",
+        published: "Опубликованы",
+        rejected: "Отклонены",
+      },
+      cols: {
+        rating: "Оценка",
+        author: "Имя",
+        text: "Текст",
+        jewelry: "Украшения",
+        status: "Статус",
+        verified: "Проверенный",
+        created: "Добавлен",
+        featured: "Избранный",
+      },
+      verifiedYes: "✓",
+      verifiedNo: "—",
+      featuredYes: "★",
+      featuredNo: "—",
+      fields: {
+        rating: "Оценка (1–5)",
+        text: "Текст отзыва",
+        textPlaceholder: "Что больше всего запомнилось клиенту?",
+        authorName: "Как представить клиента",
+        authorNamePlaceholder: "Например: Анна П.",
+        appointmentId: "ID записи (необязательно)",
+        appointmentHint:
+          "Связанная запись — будет показан значок «Проверенный клиент». Заполняется автоматически для отзывов через email.",
+        status: "Статус",
+        featured: "Показать на странице «О студии»",
+        moderatorNotes: "Заметки модератора (внутренние)",
+        moderatorNotesPlaceholder: "Видны только в админ-панели.",
+        jewelry: "Какие украшения упоминаются (необязательно)",
+        jewelryHint:
+          "Отзыв появится на страницах выбранных украшений. Можно отметить несколько.",
+      },
+      actions: {
+        save: "Сохранить",
+        create: "Создать",
+        delete: "Удалить отзыв",
+        confirmDelete: "Удалить отзыв? Действие нельзя отменить.",
+        approve: "Одобрить",
+        reject: "Отклонить",
+        unpublish: "Скрыть с сайта",
+        confirmReject: "Отклонить отзыв? Он перестанет показываться на сайте.",
+        confirmUnpublish:
+          "Скрыть отзыв? Клиенты перестанут его видеть на сайте.",
+      },
+      photo: {
+        heading: "Фотография отзыва",
+        lead: "Необязательная фотография клиента или украшения.",
+        present: "Фото загружено",
+        none: "Фото не добавлено.",
+        fileLabel: "Файл изображения (до 4 МБ)",
+        upload: "Загрузить",
+        delete: "Удалить фото",
+        confirmDelete: "Удалить фотографию из отзыва?",
+        viewExternal: "Открыть фото",
+      },
+      sections: {
+        attributes: "Содержание",
+        photo: "Фотография",
+        jewelry: "Украшения",
+        moderation: "Модерация",
+        danger: "Удалить",
+      },
     },
     slots: {
       title: "Слоты",
       lead: "Окна, в которые клиенты могут записаться на услугу.",
       empty: "Слотов пока нет. Создайте первое окно ниже.",
+      scheduleHeading: "Расписание",
       addHeading: "Новый слот",
       bulkHeading: "Создать на месяц",
       bulkLead:
@@ -459,7 +753,8 @@ export const ru = {
       bulkDaysLabel: "Дни недели",
       bulkHoursLabel: "Часы работы",
       bulkSlotMinLabel: "Длительность окна, мин",
-      bulkPreview: "Будет создано: {n} окон",
+      bulkPreviewLabel: "Будет создано",
+      windows: { one: "окно", few: "окна", many: "окон" },
       bulkSubmit: "Создать окна",
       bulkSubmitting: "Создаём…",
       bulkResult: "Создано: {created}. Уже было: {skipped}.",
@@ -473,6 +768,7 @@ export const ru = {
         sun: "Вс",
       },
       singleHeading: "Создать одно окно",
+      singleLead: "Разовое окно вне общего расписания.",
       dateLabel: "Дата",
       startLabel: "Начало",
       endLabel: "Окончание",
@@ -522,6 +818,11 @@ export const ru = {
         name: "Название",
         description: "Описание",
         category: "Категория",
+        type: "Тип украшения",
+        typeHintCompat:
+          "Тип «Пирсинг в одной точке». Можно отметить несколько анкеров — клиент сам выберет, куда надевать.",
+        typeHintFixed:
+          "Тип «Через несколько проколов». Анкеры — это фиксированные концы изделия (например, 2 точки для индастриала). Порядок имеет значение.",
         material: "Материал",
         gauge: "Калибр (gauge), мм",
         size: "Размер, мм",
@@ -535,9 +836,12 @@ export const ru = {
         featured: "Избранное (попадает на лендинг)",
       },
       placeholders: {
+        name: "Например: Кольцо-кликер с цирконом",
+        description: "Краткое описание для карточки в каталоге",
         material: "Например: Титан G23",
         color: "Например: Серебристый",
         stones: "Например: Циркон, Опал, Без камней",
+        glbThumbUrl: "https://…/preview.png",
       },
       photo: {
         addHeading: "Добавить фотографии",
@@ -554,6 +858,8 @@ export const ru = {
         autoHeading: "Автоматическая генерация",
         autoUnavailable:
           "Авто-генерация недоступна. Добавьте TRIPO3D_API_KEY в .env, чтобы включить.",
+        autoMultiAnchorBlocked:
+          "Авто-генерация доступна только для одноточечных украшений (гвоздик, кольцо). Для штанг, подков и орбит используйте параметрический пайплайн или загрузите .glb вручную.",
         autoStart: "Сгенерировать 3D",
         autoStartHint:
           "Использует первое фото украшения. Tripo3D обычно занимает 1–3 минуты и расходует кредиты.",
@@ -583,6 +889,35 @@ export const ru = {
         remove: "Удалить модель",
         confirmRemove: "Удалить .glb-модель?",
         viewExternal: "Открыть .glb",
+      },
+      sprite: {
+        heading: "Спрайт для примерки на фото",
+        lead:
+          "Прозрачный PNG — используется в режиме примерки на селфи на устройствах без 3D. Без спрайта украшение не появится в режиме фото, но останется в обычном каталоге.",
+        present: "Спрайт загружен",
+        none: "Спрайт ещё не загружен.",
+        tabAuto: "Авто",
+        tabManual: "Вручную",
+        autoLead:
+          "Загрузите обычное фото украшения — фон будет удалён прямо в браузере. Никакие данные не уходят на сервер.",
+        autoFileLabel: "Фото украшения (любой формат, до 10 МБ)",
+        autoStarting: "Загружаю модель…",
+        autoProcessing: "Удаляю фон…",
+        autoErrorTitle: "Не удалось обработать фото",
+        autoErrorHint:
+          "Попробуйте другое фото или переключитесь на ручную загрузку прозрачного PNG.",
+        autoPreviewLabel: "Предпросмотр (прозрачный фон)",
+        autoSave: "Сохранить",
+        autoPickAgain: "Выбрать другое фото",
+        autoSwitchManual: "Загрузить готовый PNG вручную →",
+        manualHeading: "Загрузить PNG вручную",
+        manualLead:
+          "Загрузите готовый PNG с прозрачным фоном (можно вырезать в Photoshop или онлайн-сервисе).",
+        fileLabel: "Файл PNG (до 4 МБ, прозрачный фон)",
+        upload: "Загрузить",
+        remove: "Удалить спрайт",
+        confirmRemove: "Удалить спрайт для режима фото?",
+        viewExternal: "Открыть PNG",
       },
       delete: "Удалить украшение",
       confirmDelete: "Удалить украшение и все его фотографии?",
@@ -637,6 +972,48 @@ export const catalogStrings = {
     sceneLoading: "Загружаем шоурум…",
     rotateHint: "Перетащите, чтобы повернуть",
     pieces: "укр.",
+    multiAnchorHint:
+      "Это украшение требует несколько проколов и надевается сразу на всю группу.",
+  },
+  liteMode: {
+    dropzone: {
+      title: "Примерка на своём фото",
+      lead:
+        "Загрузите селфи — украшения подставятся к носу, губам и бровям. Фото остаётся в вашем браузере и не загружается на сервер.",
+      cta: "Выбрать фото",
+      dropHint: "или перетащите сюда",
+      gridLink: "Простой каталог",
+    },
+    processing: "Анализирую фото…",
+    debugDotsLabel: "Точки для проверки разметки",
+    errors: {
+      noFace:
+        "Не удалось найти лицо на фото. Попробуйте снимок анфас при ровном свете.",
+      tooMany:
+        "На фото несколько лиц — выберите снимок только с одним человеком.",
+      load: "Не удалось загрузить фото. Попробуйте другой файл.",
+    },
+    banner: {
+      eligibility: "Доступно для примерки на фото: {x} из {y}",
+      allPiecesButton: "Все украшения",
+      backToTryOn: "← Вернуться к примерке",
+      gridIntro:
+        "В этом режиме показываем все украшения каталога — на фото примеряются только те, для которых готов 2D-спрайт.",
+    },
+    save: {
+      button: "Сохранить картинку",
+      hint: "Скачать ваш образ как PNG",
+    },
+    resetOffsets: "Сбросить смещения",
+    swapPhoto: "Загрузить другое фото",
+    privacy: "Фото остаётся в вашем браузере и не загружается на сервер.",
+    chapter2Fallback: {
+      title: "Откройте каталог, чтобы примерить на своём фото",
+      body:
+        "На этом устройстве 3D-сцена недоступна. Перейдите в каталог — там примерка работает на загруженной фотографии.",
+      primaryCta: "Примерить на своём фото →",
+      secondaryCta: "Сразу к записи",
+    },
   },
 } as const;
 
@@ -650,6 +1027,38 @@ export const jewelryStatusLabels: Record<
   PUBLISHED: "Опубликовано",
   REJECTED: "Отклонено",
 };
+
+// Display labels for JewelryType. Multi-anchor types include a count hint
+// in parens so the admin doesn't have to memorise the rules.
+export const jewelryTypeLabels: Record<
+  | "STUD"
+  | "RING"
+  | "BARBELL"
+  | "CIRCULAR_BARBELL"
+  | "ORBITAL"
+  | "CHAIN_LADDER",
+  string
+> = {
+  STUD: "Гвоздик / лабрет (1 прокол)",
+  RING: "Кольцо / хупа (1 прокол)",
+  BARBELL: "Штанга через 2 прокола (индастриал и др.)",
+  CIRCULAR_BARBELL: "Подкова через 2 прокола",
+  ORBITAL: "Орбита — кольцо через 2 прокола",
+  CHAIN_LADDER: "Корсет / лесенка (несколько проколов)",
+};
+
+// Pluralisation helper for piercing counts in RU UI:
+//   1  → "1 прокол"
+//   2,3,4 → "2 прокола"
+//   5+, 0 → "5 проколов"
+export function piercingCountLabel(n: number): string {
+  const tail = n % 100;
+  if (tail >= 11 && tail <= 14) return `${n} проколов`;
+  const last = n % 10;
+  if (last === 1) return `${n} прокол`;
+  if (last >= 2 && last <= 4) return `${n} прокола`;
+  return `${n} проколов`;
+}
 
 export const bodyPlaceLabels: Record<
   | "EAR"
@@ -706,6 +1115,105 @@ export const publicNavLinks = [
   { href: "/faq", label: ru.nav.faq },
 ] as const;
 
+// Per-page SEO strings — meta titles + descriptions used by
+// `lib/seo/metadata.ts` to populate OpenGraph / Twitter Cards / SERP
+// snippets. Russian; ~120-160 chars for descriptions. See docs/17-seo.md.
+export const seoStrings = {
+  home: {
+    title: "Пирсинг и 3D-примерочная",
+    description:
+      "Студия пирсинга с интерактивной 3D-примеркой украшений. Выбирайте серьги, лабреты и септумы онлайн и записывайтесь на приём за минуту.",
+  },
+  about: {
+    title: "О студии",
+    description:
+      "Кто стоит за студией, как мы работаем и какие материалы используем. Контакты, адрес и часы работы — на этой странице.",
+  },
+  services: {
+    title: "Услуги и цены",
+    description:
+      "Полный список услуг студии с актуальными ценами и продолжительностью. От прокола мочки до сложных проектов.",
+  },
+  catalog: {
+    title: "Каталог украшений",
+    description:
+      "Каталог украшений с интерактивной 3D-примеркой. Подбирайте кольца, лабреты и септумы и сразу проверяйте, как они смотрятся.",
+  },
+  catalogItem: {
+    descriptionFallback:
+      "Подробное описание украшения, материалы, размеры и интерактивная 3D-примерка. Можно забронировать прямо со страницы.",
+  },
+  gallery: {
+    title: "Галерея",
+    description:
+      "Реальные работы студии — пирсинг, заживление, готовые образы. Только настоящие фотографии наших клиентов.",
+  },
+  faq: {
+    title: "Частые вопросы",
+    description:
+      "Ответы на самые частые вопросы о пирсинге: подготовка, уход, заживление, безопасность и материалы.",
+  },
+  book: {
+    title: "Запись и бронирование",
+    description:
+      "Запишитесь на пирсинг и забронируйте украшения в одной форме. Оплата на месте, никаких предоплат.",
+  },
+  bookSuccess: {
+    title: "Бронирование оформлено",
+    description: "Спасибо! Мы получили вашу заявку и скоро свяжемся.",
+  },
+} as const;
+
+// Public-facing strings for customer reviews / testimonials.
+// See docs/16-reviews.md.
+export const reviewsStrings = {
+  about: {
+    heading: "Что говорят клиенты",
+    lead: "Реальные впечатления тех, кто уже был у нас.",
+  },
+  jewelry: {
+    heading: "Отзывы об этом украшении",
+    empty: "Отзывов об этом украшении пока нет.",
+  },
+  verifiedBadge: "Проверенный клиент",
+  ratingLabel: "Оценка",
+  photoAlt: "Фото из отзыва",
+  form: {
+    title: "Расскажите, как всё прошло",
+    lead:
+      "Ваш отзыв увидят будущие гости студии — ничего не публикуется автоматически, мы прочитаем перед тем, как добавить его на сайт.",
+    ratingLabel: "Ваша оценка",
+    textLabel: "Что запомнилось?",
+    textPlaceholder: "Поделитесь впечатлениями о приёме и о выборе украшения.",
+    authorLabel: "Как вас представить?",
+    authorPlaceholder: "Например: Анна П.",
+    authorHint: "Подойдёт имя и первая буква фамилии — без полных данных.",
+    jewelryLabel: "Украшения, о которых пишете",
+    jewelryHint: "Можно отметить несколько или ни одного.",
+    photoLabel: "Фотография (необязательно)",
+    photoHint:
+      "Можно прикрепить фото украшения или пирсинга. До 4 МБ, остаётся приватным до публикации.",
+    submit: "Отправить отзыв",
+  },
+  thanks: {
+    title: "Спасибо за отзыв!",
+    body:
+      "Мы прочитаем его в ближайшее время и опубликуем на сайте. Если хотите рассказать ещё что-то — напишите студии в Telegram или по почте.",
+    backToHome: "Вернуться на главную",
+  },
+  tokenError: {
+    expiredTitle: "Срок ссылки истёк",
+    expiredBody:
+      "Ссылка для отзыва была действительна 60 дней с момента приёма. Если хотите оставить отзыв, напишите студии — мы пришлём новую ссылку.",
+    invalidTitle: "Ссылка недействительна",
+    invalidBody:
+      "Похоже, ссылка повреждена. Попробуйте открыть её из исходного письма ещё раз.",
+    alreadyTitle: "Отзыв уже оставлен",
+    alreadyBody:
+      "По этой ссылке отзыв уже был отправлен. Спасибо! Если хотите дополнить — свяжитесь со студией напрямую.",
+  },
+} as const;
+
 // Admin sidebar nav. Only the dashboard is wired in Task 3;
 // later tasks will add real pages behind the other links.
 export const adminNavLinks = [
@@ -714,6 +1222,7 @@ export const adminNavLinks = [
   { href: "/admin/slots", label: ru.admin.nav.slots },
   { href: "/admin/bookings", label: ru.admin.nav.bookings },
   { href: "/admin/appointments", label: ru.admin.nav.appointments },
+  { href: "/admin/reviews", label: ru.admin.nav.reviews },
   { href: "/admin/content", label: ru.admin.nav.content },
   { href: "/admin/settings", label: ru.admin.nav.settings },
 ] as const;

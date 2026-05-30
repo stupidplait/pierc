@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Onest } from "next/font/google";
+import { Inter, Onest, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { ru } from "@/lib/i18n/ru";
 
@@ -17,8 +19,26 @@ const onest = Onest({
   display: "swap",
 });
 
+// Mono font: JetBrains Mono — used for spec-data (gauge, weight, price)
+// and any code-adjacent UI. Latin + Cyrillic for Russian copy.
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+});
+
+// `metadataBase` resolves all relative URLs in OpenGraph / Twitter Cards
+// to absolute URLs. Set it from APP_URL so every share preview points
+// at the real production deploy. Falls back to the dev origin so local
+// builds still work. See docs/17-seo.md.
+const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: ru.studio.name,
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: ru.studio.name,
+    template: `%s — ${ru.studio.name}`,
+  },
   description: ru.studio.tagline,
 };
 
@@ -50,10 +70,12 @@ export default function RootLayout({
     <html
       lang="ru"
       suppressHydrationWarning
-      className={`${inter.variable} ${onest.variable} h-full antialiased`}
+      className={`${inter.variable} ${onest.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-page text-ink">
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -20,7 +20,6 @@ export default function Error({
 }) {
   useEffect(() => {
     // Log to console in dev; production hooks (Sentry, etc.) go here later.
-    // eslint-disable-next-line no-console
     console.error("[error.tsx]", error);
   }, [error]);
 
