@@ -956,6 +956,7 @@ export const ru = {
         autoCompareNew: "Новая — на проверке",
         autoReviewSingle: "На проверке",
         previewUnavailable: "3D-просмотр недоступен в этом браузере",
+        previewLoadError: "Не удалось загрузить 3D-модель. Файл недоступен или повреждён.",
         statTriangles: "Полигоны",
         statVertices: "Вершины",
         statMeshes: "Меши",

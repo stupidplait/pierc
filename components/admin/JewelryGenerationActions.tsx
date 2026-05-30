@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { GlbPreview, type GlbStats } from "@/components/admin/GlbPreview";
 import { GlbInspector } from "@/components/admin/GlbInspector";
 import { JobAutoRefresh } from "@/components/admin/JobAutoRefresh";
+import { candidateGlbSrc, adminGlbSrc } from "@/lib/jewelry/glb-proxy";
 
 interface JewelryGenerationActionsProps {
   jewelryId: string;
@@ -114,7 +115,9 @@ export function JewelryGenerationActions({
     latestJob.resultGlbUrl &&
     latestJob.resultGlbUrl !== currentGlbUrl
   ) {
-    const candidateUrl = latestJob.resultGlbUrl;
+    // Load the candidate through the admin-only same-origin proxy — the raw
+    // blob URL (latestJob.resultGlbUrl) is blocked cross-origin in the browser.
+    const candidateUrl = candidateGlbSrc(latestJob.id);
 
     // Open + approve + reject — shared between the single-candidate inspector
     // (right column) and the compare layout (a row beneath the two tiles).
@@ -122,7 +125,7 @@ export function JewelryGenerationActions({
       <>
         <a
           href={candidateUrl}
-          download
+          download="model.glb"
           className="inline-flex h-9 items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
         >
           {t.autoPreview} ↓
@@ -155,7 +158,10 @@ export function JewelryGenerationActions({
         {currentGlbUrl ? (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
-              <PreviewCard label={t.autoCompareCurrent} url={currentGlbUrl} />
+              <PreviewCard
+                label={t.autoCompareCurrent}
+                url={adminGlbSrc(jewelryId, currentGlbUrl)}
+              />
               <PreviewCard
                 label={t.autoCompareNew}
                 url={candidateUrl}

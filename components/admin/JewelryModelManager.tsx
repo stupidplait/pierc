@@ -7,6 +7,7 @@ import { CARD } from "@/components/admin/form/styles";
 import { removeJewelryGlb } from "@/lib/admin/jewelry-actions";
 import { getProviderStatus } from "@/lib/three-gen";
 import { isSingleAnchorType, type JewelryType } from "@/lib/catalog/types";
+import { adminGlbSrc } from "@/lib/jewelry/glb-proxy";
 
 interface JewelryModelManagerProps {
   jewelryId: string;
@@ -73,7 +74,7 @@ export function JewelryModelManager({
   // owns the preview below. (glbUrl narrows to string inside this branch.)
   const modelActions = glbUrl ? (
     <>
-      <a href={glbUrl} download className={CHIP}>
+      <a href={adminGlbSrc(jewelryId, glbUrl)} download="model.glb" className={CHIP}>
         {t.viewExternal} ↓
       </a>
       <form>
@@ -107,7 +108,10 @@ export function JewelryModelManager({
             </div>
           ) : (
             <div className="mt-4">
-              <GlbInspector url={glbUrl} actions={modelActions} />
+              <GlbInspector
+                url={adminGlbSrc(jewelryId, glbUrl)}
+                actions={modelActions}
+              />
             </div>
           )
         ) : null}

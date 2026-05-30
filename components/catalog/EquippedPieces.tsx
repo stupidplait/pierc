@@ -8,6 +8,7 @@ import type {
   EquippedMap,
   JewelryWire,
 } from "@/lib/catalog/types";
+import { catalogGlbSrc } from "@/lib/jewelry/glb-proxy";
 
 interface EquippedPiecesProps {
   anchors: AnchorWire[];
@@ -171,7 +172,8 @@ interface JewelryGLBProps {
 
 function JewelryGLB({ piece }: JewelryGLBProps) {
   const { jewelry, anchors } = piece;
-  const url = jewelry.glbUrl!;
+  // Load via the same-origin proxy — the raw blob URL is blocked cross-origin.
+  const url = catalogGlbSrc(jewelry.id, jewelry.glbUrl);
   const gltf = useGLTF(url) as unknown as { scene: Group };
 
   // Per-instance clone - use shallow clone for performance, then deep clone only children

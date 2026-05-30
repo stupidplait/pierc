@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
 import { ru } from "@/lib/i18n/ru";
+import { GlbPreviewBoundary } from "./GlbPreviewBoundary";
 import type { GlbStats } from "./GlbPreviewScene";
 
 export type { GlbStats } from "./GlbPreviewScene";
@@ -44,7 +45,19 @@ export function GlbPreview({
           {ru.admin.jewelry.model.previewUnavailable}
         </div>
       ) : webgl2 ? (
-        <GlbPreviewScene url={url} onStats={onStats} />
+        // Keyed by url so a new model resets the boundary after a prior
+        // load failure (expired/403 link). Without this, one bad GLB would
+        // crash the whole edit page instead of just this preview box.
+        <GlbPreviewBoundary
+          key={url}
+          fallback={
+            <div className="flex h-full items-center justify-center px-4 text-center text-sm text-mute">
+              {ru.admin.jewelry.model.previewLoadError}
+            </div>
+          }
+        >
+          <GlbPreviewScene url={url} onStats={onStats} />
+        </GlbPreviewBoundary>
       ) : null}
     </div>
   );
