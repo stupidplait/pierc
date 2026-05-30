@@ -45,3 +45,26 @@ next-env.d.ts
 /art/
 *.blend
 *.blend1
+
+# Mobile (Expo) — Phase 2 work stream 5. See docs/19-mobile-app.md.
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+mobile/dist/
+mobile/web-build/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/.env*
+!mobile/.env.example
+# Play Store service-account key — never commit. Rename if you put
+# it elsewhere; this catches the recommended location from
+# mobile/eas.json.
+mobile/play-store-key.json
+
+# local agent/editor + runtime artifacts
+.claude/
+.recovery/
+dev.log
