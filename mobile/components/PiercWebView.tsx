@@ -41,6 +41,15 @@ export interface PiercWebViewHandle {
   reload: () => void;
 }
 
+/** Host (or the raw string, if unparseable) for compact display in errors. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 /**
  * The studio web app rendered inside a `react-native-webview`.
  *
@@ -63,6 +72,10 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
     const [currentUrl, setCurrentUrl] = useState<string>(source);
     const [canGoBack, setCanGoBack] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    // The URL that failed, shown in the error screen so it's obvious *which*
+    // page/host broke (a 404 on the live deploy reads very differently from a
+    // dead host or a Vercel challenge 403).
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
     // Inset web content below the status bar / notch. The site hides its own
     // header in app mode (detected via the `PiercApp` UA marker below), so its
     // top edge would otherwise sit under the notch.
@@ -134,6 +147,27 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
       [],
     );
 
+    // ── HTTP error handling ─────────────────────────────────────
+    // `onError` only fires for transport failures (DNS, TLS, no network);
+    // an HTTP *status* error (404 from the deploy, 403 from a Vercel
+    // challenge, 5xx) is otherwise rendered raw — the user just sees the
+    // server's own 404/checkpoint page with no way back. Surface those as the
+    // native retry screen instead. `onHttpError` can also fire for
+    // subresources (favicon, JS, CSS), so ignore anything that looks like a
+    // static asset and only react to the document load.
+    const handleHttpError = useCallback(
+      (e: { nativeEvent: { url?: string; statusCode?: number; description?: string } }) => {
+        const { url, statusCode, description } = e.nativeEvent;
+        if (!url || !statusCode || statusCode < 400) return;
+        if (/\.(ico|png|jpe?g|gif|webp|svg|css|js|mjs|map|json|woff2?|ttf|eot)(\?.*)?$/i.test(url)) {
+          return;
+        }
+        setErrorMessage(`Ошибка ${statusCode}${description ? ` · ${description}` : ""}`);
+        setFailedUrl(url);
+      },
+      [],
+    );
+
     // ── Share button ────────────────────────────────────────────
     const handleShare = useCallback(async () => {
       try {
@@ -158,10 +192,16 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
             />
             <Text style={styles.errorTitle}>Не удалось загрузить</Text>
             <Text style={styles.errorBody}>{errorMessage}</Text>
+            {failedUrl ? (
+              <Text style={styles.errorUrl} numberOfLines={1}>
+                {hostOf(failedUrl)}
+              </Text>
+            ) : null}
             <TouchableOpacity
               style={styles.retryBtn}
               onPress={() => {
                 setErrorMessage(null);
+                setFailedUrl(null);
                 webViewRef.current?.reload();
               }}
             >
@@ -183,7 +223,9 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
             onError={(e) => {
               const msg = e.nativeEvent?.description ?? "Сеть недоступна";
               setErrorMessage(msg);
+              setFailedUrl(e.nativeEvent?.url ?? null);
             }}
+            onHttpError={handleHttpError}
             startInLoadingState
             renderLoading={() => (
               <View style={styles.loadingBox}>
@@ -270,6 +312,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     color: theme.inkMuted,
+    textAlign: "center",
+  },
+  errorUrl: {
+    marginTop: 6,
+    fontSize: 12,
+    color: theme.inkMuted,
+    opacity: 0.7,
     textAlign: "center",
   },
   retryBtn: {

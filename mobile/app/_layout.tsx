@@ -30,9 +30,9 @@ export default function RootLayout() {
   // Handles both `pierc://...` (custom scheme) and Universal Links /
   // App Links pointing at the studio's domain. The mapping is:
   //
-  //   pierc://catalog/abc123          → catalog tab + WebView /catalog/abc123
-  //   https://piercing.studio/book    → book tab + WebView /book
-  //   https://piercing.studio/about   → home tab + WebView /about
+  //   pierc://catalog/abc123                → catalog tab + WebView /catalog/abc123
+  //   https://pierc-one.vercel.app/book     → book tab + WebView /book
+  //   https://pierc-one.vercel.app/about    → home tab + WebView /about
   //
   // For domain links, we extract just the pathname; the WebView loads
   // the live deploy at APP_URL anyway. For pierc:// links, the host
