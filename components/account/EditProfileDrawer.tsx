@@ -9,7 +9,7 @@ import { updateMyProfile } from "@/lib/user/profile-actions";
 const t = ru.pages.account;
 
 const FIELD =
-  "h-11 w-full rounded-xl border border-ink/15 bg-ink/[0.03] px-3 text-sm text-ink outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50";
+  "h-11 w-full rounded-xl border border-ink/15 bg-ink/[0.03] px-3 text-base text-ink outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50 md:text-sm";
 const ICON_BTN =
   "inline-flex size-9 items-center justify-center rounded-xl border border-ink/15 text-mute transition-colors duration-150 hover:border-ink hover:text-ink active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 const SAVE =

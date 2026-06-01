@@ -130,11 +130,23 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
   // Resolve initial selected anchor + equipped map from the URL.
   const slugToId = new Map(anchors.map((a) => [a.slug, a.id]));
-  const initialSelectedId = sp.anchor ? (slugToId.get(sp.anchor) ?? null) : null;
+
+  // Default the focus to an ear anchor so the catalog lands looking at an ear —
+  // the studio's signature spot — rather than the full-body shot. Falls back to
+  // any EAR anchor if the preferred slug isn't seeded.
+  const DEFAULT_ANCHOR_SLUG = "left-ear-lobe";
+  const defaultAnchorId =
+    slugToId.get(DEFAULT_ANCHOR_SLUG) ??
+    anchors.find((a) => a.place === "EAR")?.id ??
+    null;
+  const initialSelectedId = sp.anchor
+    ? (slugToId.get(sp.anchor) ?? null)
+    : defaultAnchorId;
+
   const initialEquipped: EquippedMap = parseEquippedFromUrl(sp.eq, slugToId);
 
   return (
-    <div className="lg:h-[calc(100vh-4.5rem)]">
+    <div className="lg:h-svh">
       <Showroom
         anchors={anchors}
         jewelry={jewelry}

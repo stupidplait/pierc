@@ -34,7 +34,7 @@ export function getTabWebView(tab: TabId): PiercWebViewHandle | null {
  *   /catalog, /catalog/<id>  → "catalog"
  *   /book, /book/success     → "book"
  *   /account                 → "account"
- *   everything else          → "home"
+ *   /home, / and everything  → "home"
  */
 export function tabForPath(pathname: string): TabId {
   const path = pathname.toLowerCase();

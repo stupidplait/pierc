@@ -7,6 +7,7 @@ import type { Metric, QuickAction } from "./types";
 import { container, item, pad, SURFACE, toneText } from "./shared";
 import { ActionIcon, ArrowIcon, PingDot, WarnGlyph } from "./icons";
 import { DashHeader } from "./DashHeader";
+import { AnimatedNumber } from "@/components/admin/form/AnimatedNumber";
 
 const t = ru.admin.dashboard;
 
@@ -49,7 +50,7 @@ export function StatusBoard({
               {t.quickActionsHeading}
             </h2>
             <span className="font-mono text-xs text-mute tabular-nums">
-              {quickActions.length}
+              <AnimatedNumber value={quickActions.length} countOnMount />
             </span>
           </div>
           <div className="mt-7 flex flex-col gap-2">
@@ -89,7 +90,7 @@ export function StatusBoard({
               {t.activityHeading}
             </h2>
             <span className="font-mono text-xs text-mute tabular-nums">
-              {urgentCount}
+              <AnimatedNumber value={urgentCount} countOnMount />
             </span>
           </div>
 
@@ -114,11 +115,12 @@ export function StatusBoard({
                   href={m.href}
                   className="group -mx-3 flex items-center gap-4 rounded-xl px-3 py-3 transition-colors duration-150 hover:bg-ink/3"
                 >
-                  <span
+                  <AnimatedNumber
+                    value={m.count}
+                    format={pad}
+                    countOnMount
                     className={`font-display text-3xl font-medium tabular-nums ${toneText(m.tone)}`}
-                  >
-                    {pad(m.count)}
-                  </span>
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium text-ink">
                       {m.titleShort}

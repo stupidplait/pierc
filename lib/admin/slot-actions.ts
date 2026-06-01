@@ -52,13 +52,17 @@ export async function createSlot(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
   }
   const { date, start, end, isOpen } = parsed.data;
-  await prisma.availabilitySlot.create({
-    data: {
-      startsAt: combineDate(date, start),
-      endsAt: combineDate(date, end),
-      isOpen,
-    },
+  const startsAt = combineDate(date, start);
+  const endsAt = combineDate(date, end);
+  // Reject overlap with any existing window.
+  const conflict = await prisma.availabilitySlot.findFirst({
+    where: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } },
+    select: { id: true },
   });
+  if (conflict) {
+    return { ok: false, error: "Окно пересекается с существующим" };
+  }
+  await prisma.availabilitySlot.create({ data: { startsAt, endsAt, isOpen } });
   revalidateForSlots();
   return { ok: true, message: "Слот создан" };
 }
@@ -82,6 +86,7 @@ const bulkSchema = z
     start: z.string().regex(HHMM, "Неверное время начала"),
     end: z.string().regex(HHMM, "Неверное время окончания"),
     slotMin: z.coerce.number().int().min(15, "Минимум 15 минут").max(480, "Максимум 8 часов"),
+    isOpen: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
   })
   .refine(
     (v) => combineDate(v.from, v.start) <= combineDate(v.to, v.start),
@@ -110,11 +115,12 @@ export async function bulkCreateSlots(
     start: formData.get("start"),
     end: formData.get("end"),
     slotMin: formData.get("slotMin"),
+    isOpen: formData.get("isOpen"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
   }
-  const { from, to, days, start, end, slotMin } = parsed.data;
+  const { from, to, days, start, end, slotMin, isOpen } = parsed.data;
 
   // Generate (startsAt, endsAt) tuples for every matching day in [from, to].
   const candidates: { startsAt: Date; endsAt: Date }[] = [];
@@ -156,15 +162,21 @@ export async function bulkCreateSlots(
     };
   }
 
-  // Dedupe against existing slots in the same range.
+  // Skip candidates that overlap an existing slot — windows must never
+  // intersect. Fetch every slot touching the candidate span, then filter by
+  // the half-open overlap test `existing.start < cand.end && existing.end >
+  // cand.start`. (Generated candidates are contiguous, so they never overlap
+  // each other.)
+  const spanStart = candidates[0].startsAt;
+  let spanEnd = candidates[0].endsAt;
+  for (const c of candidates) if (c.endsAt > spanEnd) spanEnd = c.endsAt;
   const existing = await prisma.availabilitySlot.findMany({
-    where: {
-      startsAt: { gte: candidates[0].startsAt, lte: candidates[candidates.length - 1].startsAt },
-    },
-    select: { startsAt: true },
+    where: { startsAt: { lt: spanEnd }, endsAt: { gt: spanStart } },
+    select: { startsAt: true, endsAt: true },
   });
-  const existingSet = new Set(existing.map((s) => s.startsAt.getTime()));
-  const fresh = candidates.filter((c) => !existingSet.has(c.startsAt.getTime()));
+  const fresh = candidates.filter(
+    (c) => !existing.some((e) => e.startsAt < c.endsAt && e.endsAt > c.startsAt),
+  );
 
   if (fresh.length === 0) {
     revalidateForSlots();
@@ -175,7 +187,7 @@ export async function bulkCreateSlots(
     data: fresh.map((c) => ({
       startsAt: c.startsAt,
       endsAt: c.endsAt,
-      isOpen: true,
+      isOpen,
     })),
   });
 
@@ -204,6 +216,44 @@ export async function toggleSlotOpen(formData: FormData): Promise<void> {
     where: { id },
     data: { isOpen: !slot.isOpen },
   });
+  revalidateForSlots();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bulk update — powers the per-day "⋯" menu (open all / close free / delete
+// free) and any future multi-select. `open`/`close` flip `isOpen`; `delete`
+// removes the given slots but refuses any that carry a live appointment (the
+// same guard `deleteSlot` enforces), so a stray booked id can never be dropped.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function bulkUpdateSlots(
+  ids: string[],
+  op: "open" | "close" | "delete",
+): Promise<void> {
+  await assertAdmin();
+  const clean = ids.filter((id) => typeof id === "string" && id.length > 0);
+  if (clean.length === 0) return;
+
+  if (op === "delete") {
+    // Only delete slots with no live (non-cancelled) appointment.
+    const deletable = await prisma.availabilitySlot.findMany({
+      where: {
+        id: { in: clean },
+        OR: [{ appointment: null }, { appointment: { status: "CANCELLED" } }],
+      },
+      select: { id: true },
+    });
+    if (deletable.length > 0) {
+      await prisma.availabilitySlot.deleteMany({
+        where: { id: { in: deletable.map((s) => s.id) } },
+      });
+    }
+  } else {
+    await prisma.availabilitySlot.updateMany({
+      where: { id: { in: clean } },
+      data: { isOpen: op === "open" },
+    });
+  }
   revalidateForSlots();
 }
 

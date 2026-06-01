@@ -18,8 +18,11 @@ export function Section({
   children,
 }: SectionProps) {
   return (
+    // `app-section` is a styling hook for app mode (see html[data-app] in
+    // globals.css): inside the native shell it collapses the header-reserved top
+    // padding and adds bottom safe-area. Inert in a normal browser.
     <Tag
-      className={`mx-auto w-full max-w-6xl px-6 py-12 sm:px-8 sm:py-20 ${className}`}
+      className={`app-section mx-auto w-full max-w-6xl px-6 py-12 sm:px-8 sm:py-20 ${className}`}
     >
       {children}
     </Tag>

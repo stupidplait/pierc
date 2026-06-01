@@ -18,11 +18,18 @@ import { ru } from "@/lib/i18n/ru";
 
 export function GalleryUploadForm({
   blobConfigured = true,
+  onUploaded,
 }: {
   blobConfigured?: boolean;
+  /** Fires after a successful upload — the gallery panel uses it to refresh. */
+  onUploaded?: () => void;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
-    uploadGalleryPhoto,
+    async (prev, formData) => {
+      const res = await uploadGalleryPhoto(prev, formData);
+      if (res?.ok) onUploaded?.();
+      return res;
+    },
     undefined,
   );
   const t = ru.admin.content.gallery;

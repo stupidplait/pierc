@@ -43,9 +43,11 @@ interface DrawerProps {
   /** Optional small text under the title. */
   subtitle?: string;
   children: ReactNode;
+  /** Optional sticky footer pinned to the bottom, outside the scroll area. */
+  footer?: ReactNode;
 }
 
-export function Drawer({ open, onClose, title, subtitle, children }: DrawerProps) {
+export function Drawer({ open, onClose, title, subtitle, children, footer }: DrawerProps) {
   const reduce = useReducedMotion();
   const isDesktop = useSyncExternalStore(
     subscribeDesktop,
@@ -151,9 +153,15 @@ export function Drawer({ open, onClose, title, subtitle, children }: DrawerProps
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               {children}
             </div>
+
+            {footer ? (
+              <div className="shrink-0 border-t border-line bg-page px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                {footer}
+              </div>
+            ) : null}
           </motion.div>
         </div>
       ) : null}

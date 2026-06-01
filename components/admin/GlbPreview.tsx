@@ -24,15 +24,28 @@ const GlbPreviewScene = dynamic(
  * notice — callers keep their "open .glb" link as the real fallback.
  *
  * `onStats` bubbles the loaded GLB's geometry tally up to the inspector.
+ *
+ * Orientation editing: pass `quaternion` to rotate the model in the preview and
+ * `lockCamera` to fix the camera face-on (so X/Y/Z controls map to consistent
+ * screen directions). `showAttach` draws the attach:primary marker.
  */
 export function GlbPreview({
   url,
   className = "",
   onStats,
+  quaternion,
+  showAttach = false,
+  lockCamera = false,
 }: {
   url: string;
   className?: string;
   onStats?: (stats: GlbStats) => void;
+  /** Live model orientation [x,y,z,w] applied in the preview (pre-save). */
+  quaternion?: [number, number, number, number];
+  /** Show a marker at the attach:primary point (where it meets the piercing). */
+  showAttach?: boolean;
+  /** Lock the camera face-on (orientation-editing mode). */
+  lockCamera?: boolean;
 }) {
   const webgl2 = useWebGL2Supported();
 
@@ -56,7 +69,13 @@ export function GlbPreview({
             </div>
           }
         >
-          <GlbPreviewScene url={url} onStats={onStats} />
+          <GlbPreviewScene
+            url={url}
+            onStats={onStats}
+            quaternion={quaternion}
+            showAttach={showAttach}
+            lockCamera={lockCamera}
+          />
         </GlbPreviewBoundary>
       ) : null}
     </div>

@@ -5,10 +5,11 @@ import { useDropzone, type FileRejection } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, X, Box } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SUBMIT } from "@/components/admin/form/styles";
+import { SUBMIT, GHOST } from "@/components/admin/form/styles";
 import { InlineStatus } from "@/components/admin/form/atelier";
 import { GlbPreview } from "@/components/admin/GlbPreview";
 import { uploadJewelryGlb, type ActionState } from "@/lib/admin/jewelry-actions";
+import { adminGlbSrc } from "@/lib/jewelry/glb-proxy";
 import { ru } from "@/lib/i18n/ru";
 
 // Mirrors GLB_MAX_BYTES in jewelry-actions — the server re-validates, this just
@@ -40,9 +41,13 @@ function formatBytes(bytes: number): string {
 export function GlbDropzone({
   jewelryId,
   blobConfigured,
+  currentGlbUrl,
 }: {
   jewelryId: string;
   blobConfigured: boolean;
+  /** The currently published model, if any — shown beside the picked file as a
+   *  before/after compare so the studio sees what it's replacing. */
+  currentGlbUrl?: string | null;
 }) {
   const t = ru.admin.jewelry.model;
   const d = t.dropzone;
@@ -179,28 +184,69 @@ export function GlbDropzone({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <div className="relative w-full sm:max-w-[16rem]">
-                <GlbPreview url={picked.url} />
-                <button
-                  type="button"
-                  onClick={clear}
-                  aria-label={`${d.clear}: ${picked.file.name}`}
-                  className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-bg/80 text-ink backdrop-blur-sm transition-colors hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-                >
-                  <X className="size-4" />
-                </button>
+            {currentGlbUrl ? (
+              // Compare the current published model against the picked file, so
+              // the studio sees what it's replacing before committing. Mirrors the
+              // auto-generation review's current-vs-new grid.
+              <div className="grid gap-3 sm:grid-cols-2">
+                <figure className="flex min-w-0 flex-col gap-1.5">
+                  <figcaption className="text-xs font-medium text-mute">
+                    {t.autoCompareCurrent}
+                  </figcaption>
+                  <GlbPreview url={adminGlbSrc(jewelryId, currentGlbUrl)} />
+                </figure>
+                <figure className="flex min-w-0 flex-col gap-1.5">
+                  <figcaption className="text-xs font-medium text-accent">
+                    Новая модель
+                  </figcaption>
+                  <div className="relative">
+                    <GlbPreview
+                      url={picked.url}
+                      className="ring-1 ring-accent/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={clear}
+                      aria-label={`${d.clear}: ${picked.file.name}`}
+                      className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-bg/80 text-ink backdrop-blur-sm transition-colors hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                  <figcaption className="flex min-w-0 items-center gap-2 text-xs text-mute">
+                    <Box className="size-4 shrink-0" aria-hidden />
+                    <span className="truncate text-ink">{picked.file.name}</span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatBytes(picked.file.size)}
+                    </span>
+                  </figcaption>
+                </figure>
               </div>
-              <div className="flex min-w-0 flex-col gap-1 pt-1">
-                <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                  <Box className="size-4 shrink-0 text-mute" aria-hidden />
-                  <span className="truncate">{picked.file.name}</span>
-                </span>
-                <span className="text-xs tabular-nums text-mute">
-                  {formatBytes(picked.file.size)}
-                </span>
+            ) : (
+              // First upload — nothing to compare against; single preview.
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div className="relative w-full sm:max-w-[16rem]">
+                  <GlbPreview url={picked.url} />
+                  <button
+                    type="button"
+                    onClick={clear}
+                    aria-label={`${d.clear}: ${picked.file.name}`}
+                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-bg/80 text-ink backdrop-blur-sm transition-colors hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <div className="flex min-w-0 flex-col gap-1 pt-1">
+                  <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <Box className="size-4 shrink-0 text-mute" aria-hidden />
+                    <span className="truncate">{picked.file.name}</span>
+                  </span>
+                  <span className="text-xs tabular-nums text-mute">
+                    {formatBytes(picked.file.size)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -211,16 +257,24 @@ export function GlbDropzone({
           type="button"
           onClick={submit}
           disabled={pending || !picked || !blobConfigured}
-          className={SUBMIT}
+          className={cn(SUBMIT, "gap-2")}
         >
-          {pending ? "…" : t.upload}
+          {pending ? (
+            "…"
+          ) : (
+            <>
+              <UploadCloud className="size-4" aria-hidden />
+              {t.upload}
+            </>
+          )}
         </button>
         {picked && !pending ? (
           <button
             type="button"
             onClick={clear}
-            className="text-sm text-mute transition-colors hover:text-ink"
+            className={cn(GHOST, "gap-2")}
           >
+            <X className="size-4" aria-hidden />
             {d.clear}
           </button>
         ) : null}

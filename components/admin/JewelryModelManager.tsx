@@ -1,9 +1,10 @@
+import { Download, Trash2 } from "lucide-react";
 import { ru } from "@/lib/i18n/ru";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 import { GlbDropzone } from "@/components/admin/GlbDropzone";
 import { JewelryGenerationActions } from "@/components/admin/JewelryGenerationActions";
 import { GlbInspector } from "@/components/admin/GlbInspector";
-import { CARD } from "@/components/admin/form/styles";
+import { CARD, GHOST, GHOST_DELETE } from "@/components/admin/form/styles";
 import { removeJewelryGlb } from "@/lib/admin/jewelry-actions";
 import { getProviderStatus } from "@/lib/three-gen";
 import { isSingleAnchorType, type JewelryType } from "@/lib/catalog/types";
@@ -13,6 +14,8 @@ interface JewelryModelManagerProps {
   jewelryId: string;
   jewelryType: JewelryType;
   glbUrl: string | null;
+  /** Per-piece render scale (Jewelry.glbScale) — shown + edited in the inspector. */
+  glbScale: number;
   hasPhotos: boolean;
   blobConfigured: boolean;
   latestJob: {
@@ -23,18 +26,6 @@ interface JewelryModelManagerProps {
     createdAt: Date;
   } | null;
 }
-
-// Hairline chip shared by the "download .glb" link — neutral by default, firms
-// its border + ink on hover, matching the Steel Atelier secondary vocabulary.
-const CHIP =
-  "inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40";
-
-// Same chip dimensions as CHIP, warmed to the error tone on hover — keeps the
-// delete trigger the exact size of the download link beside it. (GHOST_DELETE
-// can't be reused here: it bakes in h-11/px-5/rounded-xl and these class
-// strings aren't tailwind-merged, so its sizes would win over any override.)
-const CHIP_DELETE =
-  "inline-flex h-9 w-fit items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-error/50 hover:text-error";
 
 /**
  * Server component orchestrating the 3D-model panel on the jewelry edit page:
@@ -52,6 +43,7 @@ export function JewelryModelManager({
   jewelryId,
   jewelryType,
   glbUrl,
+  glbScale,
   hasPhotos,
   blobConfigured,
   latestJob,
@@ -74,16 +66,22 @@ export function JewelryModelManager({
   // owns the preview below. (glbUrl narrows to string inside this branch.)
   const modelActions = glbUrl ? (
     <>
-      <a href={adminGlbSrc(jewelryId, glbUrl)} download="model.glb" className={CHIP}>
-        {t.viewExternal} ↓
+      <a
+        href={adminGlbSrc(jewelryId, glbUrl)}
+        download="model.glb"
+        className={`${GHOST} gap-2`}
+      >
+        <Download className="size-4" aria-hidden />
+        {t.viewExternal}
       </a>
       <form>
         <input type="hidden" name="id" value={jewelryId} />
         <ConfirmDeleteButton
           formAction={removeJewelryGlb}
           confirmText={t.confirmRemove}
-          className={CHIP_DELETE}
+          className={`${GHOST_DELETE} gap-2`}
         >
+          <Trash2 className="size-4" aria-hidden />
           {t.remove}
         </ConfirmDeleteButton>
       </form>
@@ -108,8 +106,14 @@ export function JewelryModelManager({
             </div>
           ) : (
             <div className="mt-4">
+              {/* key by glbUrl so a re-saved (nudged) model remounts the inspector
+                  and resets its local rotation state to the freshly-baked pose. */}
               <GlbInspector
+                key={glbUrl}
                 url={adminGlbSrc(jewelryId, glbUrl)}
+                jewelryId={jewelryId}
+                scale={glbScale}
+                scaleJewelryId={jewelryId}
                 actions={modelActions}
               />
             </div>
@@ -125,6 +129,7 @@ export function JewelryModelManager({
             jewelryId={jewelryId}
             latestJob={latestJob}
             currentGlbUrl={glbUrl}
+            glbScale={glbScale}
             autoAvailable={providers.autoAvailable}
             dryRun={providers.dryRun}
             hasPhotos={hasPhotos}
@@ -140,7 +145,11 @@ export function JewelryModelManager({
       <div className="border-t border-line pt-6">
         <h3 className="mb-3 text-sm font-medium text-ink">{t.manualHeading}</h3>
         <p className="mb-4 max-w-prose text-sm text-mute">{t.manualLead}</p>
-        <GlbDropzone jewelryId={jewelryId} blobConfigured={blobConfigured} />
+        <GlbDropzone
+          jewelryId={jewelryId}
+          blobConfigured={blobConfigured}
+          currentGlbUrl={glbUrl}
+        />
       </div>
     </section>
   );

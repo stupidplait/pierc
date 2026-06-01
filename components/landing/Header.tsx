@@ -46,7 +46,7 @@ function isActive(href: string, pathname: string): boolean {
 const FOCUS_RING =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-sm";
 
-const NAV_LINK_CLASSES = `text-[12px] tracking-[0.04em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
+const NAV_LINK_CLASSES = `text-[12px] tracking-[0.04em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] ${FOCUS_RING}`;
 
 const MOBILE_LINK_CLASSES = `font-display text-[clamp(28px,6vw,40px)] font-bold tracking-[-0.01em] no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] ${FOCUS_RING}`;
 
@@ -54,18 +54,20 @@ const MOBILE_LINK_CLASSES = `font-display text-[clamp(28px,6vw,40px)] font-bold 
 // sign-in / sign-up button + card vocabulary.
 // Secondary pill ("Войти") — same shape as the "Записаться" CTA so the right
 // side reads as a consistent set of buttons.
-const BTN_PILL_SECONDARY = `inline-flex items-center justify-center rounded-xl border border-ink-line-strong bg-transparent px-[14px] py-[8px] text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:border-ink active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
+const BTN_PILL_SECONDARY = `inline-flex items-center justify-center rounded-xl border border-ink-line-strong bg-transparent px-[14px] py-[8px] text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:border-ink active:scale-[0.97] ${FOCUS_RING}`;
 // Account dropdown trigger (avatar + name + chevron) — borderless so the
 // account reads as a quiet control, distinct from the bordered CTA buttons.
-const CHIP = `inline-flex items-center gap-2 rounded-xl bg-transparent py-1 pl-1 pr-2 text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:bg-ink/5 active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`;
+const CHIP = `inline-flex items-center gap-2 rounded-xl bg-transparent py-1 pl-1 pr-2 text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:bg-ink/5 active:scale-[0.97] ${FOCUS_RING}`;
 // Avatar: rounded-lg so it sits concentrically inside the chip's rounded-xl.
 const AVATAR = "flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink text-[11px] font-semibold text-bg";
 const MENU_PANEL = "absolute right-0 top-[calc(100%+10px)] z-40 min-w-[180px] overflow-hidden rounded-xl border border-ink-line-strong bg-[rgba(8,8,8,0.94)] p-1.5 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl animate-[landingChromeFadeIn_150ms_ease-out_both]";
 const MENU_ITEM = `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-ink no-underline transition-colors hover:bg-ink/10 ${FOCUS_RING}`;
 
+
 export function Header({ user = null, admin = null }: HeaderProps) {
     const pathname = usePathname();
     const [hidden, setHidden] = useState(false);
+    const [inverted, setInverted] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const burgerRef = useRef<HTMLButtonElement | null>(null);
@@ -119,6 +121,33 @@ export function Header({ user = null, admin = null }: HeaderProps) {
         };
     }, []);
 
+    // Flip to the dark-on-light palette while the light blueprint paper is behind
+    // the header. That paper is a full-screen plane inside the <canvas>, so it
+    // can't be observed directly — instead we watch the DOM sections marked
+    // [data-surface="light"] (Chapter 2's scroll spacer) crossing a thin band at
+    // the very top of the viewport, where the header sits. On any page without
+    // such sections the observer never attaches, so the header stays default.
+    useEffect(() => {
+        const targets = document.querySelectorAll('[data-surface="light"]');
+        if (targets.length === 0) return;
+        const visible = new Set<Element>();
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) visible.add(entry.target);
+                    else visible.delete(entry.target);
+                }
+                setInverted(visible.size > 0);
+            },
+            // Collapse the root to ~the header's height at the top of the viewport
+            // so we invert once a light surface is actually under the chrome, not
+            // when it first peeks in at the bottom of the screen.
+            { rootMargin: "0px 0px -90% 0px", threshold: 0 },
+        );
+        targets.forEach((t) => observer.observe(t));
+        return () => observer.disconnect();
+    }, []);
+
     useEffect(() => {
         if (!mobileMenuOpen) return;
         const dialog = dialogRef.current;
@@ -168,6 +197,7 @@ export function Header({ user = null, admin = null }: HeaderProps) {
             <header
                 aria-label="Шапка сайта"
                 data-hidden={hidden ? "1" : "0"}
+                data-inverted={inverted ? "1" : "0"}
                 className={[
                     "fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-6",
                     "px-[clamp(20px,3vw,36px)] py-[clamp(20px,2.4vh,28px)]",
@@ -180,7 +210,7 @@ export function Header({ user = null, admin = null }: HeaderProps) {
                 <Link
                     href="/"
                     aria-label="PIERCERKZN"
-                    className={`inline-flex items-center gap-2 font-display font-bold tracking-[0.18em] text-[12px] text-ink no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] [text-shadow:0_0_20px_var(--bg),0_0_40px_var(--bg),0_1px_2px_rgba(0,0,0,0.8)] ${FOCUS_RING}`}
+                    className={`inline-flex items-center gap-2 font-display font-bold tracking-[0.18em] text-[12px] text-ink no-underline transition-colors duration-200 hover:text-accent active:scale-[0.97] ${FOCUS_RING}`}
                 >
                     <BrandMark className="size-5" />
                     {ru.studio.name}

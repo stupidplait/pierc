@@ -48,7 +48,7 @@ export async function updateAbout(
     create: { key: "about", content: { body: parsed.data.body } },
   });
 
-  revalidatePath("/admin/content/about");
+  revalidatePath("/admin/content");
   revalidatePath("/about");
   return { ok: true, message: "Сохранено" };
 }
@@ -94,7 +94,7 @@ export async function upsertService(
     await prisma.service.create({ data });
   }
 
-  revalidatePath("/admin/content/services");
+  revalidatePath("/admin/content");
   revalidatePath("/services");
   return { ok: true, message: "Сохранено" };
 }
@@ -104,7 +104,7 @@ export async function deleteService(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await prisma.service.delete({ where: { id } });
-  revalidatePath("/admin/content/services");
+  revalidatePath("/admin/content");
   revalidatePath("/services");
 }
 
@@ -150,7 +150,7 @@ export async function upsertFaq(
     await prisma.fAQItem.create({ data });
   }
 
-  revalidatePath("/admin/content/faq");
+  revalidatePath("/admin/content");
   revalidatePath("/faq");
   return { ok: true, message: "Сохранено" };
 }
@@ -160,7 +160,7 @@ export async function deleteFaq(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await prisma.fAQItem.delete({ where: { id } });
-  revalidatePath("/admin/content/faq");
+  revalidatePath("/admin/content");
   revalidatePath("/faq");
 }
 
@@ -218,7 +218,7 @@ export async function uploadGalleryPhoto(
     },
   });
 
-  revalidatePath("/admin/content/gallery");
+  revalidatePath("/admin/content");
   revalidatePath("/gallery");
   return { ok: true, message: "Загружено" };
 }
@@ -243,7 +243,7 @@ export async function deleteGalleryPhoto(formData: FormData): Promise<void> {
     }
   }
 
-  revalidatePath("/admin/content/gallery");
+  revalidatePath("/admin/content");
   revalidatePath("/gallery");
 }
 
@@ -270,7 +270,7 @@ export async function updateGalleryPhoto(formData: FormData): Promise<void> {
     data: { ...rest, caption: caption || null },
   });
 
-  revalidatePath("/admin/content/gallery");
+  revalidatePath("/admin/content");
   revalidatePath("/gallery");
 }
 

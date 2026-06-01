@@ -68,3 +68,7 @@ mobile/play-store-key.json
 .claude/
 .recovery/
 dev.log
+.playwright-mcp/
+
+# local backups of exported assets
+*.bak

@@ -6,12 +6,17 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "pierc",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0908",
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0a0908"
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0908"
     },
     "ios": {
       "supportsTablet": false,
@@ -29,7 +34,7 @@
       "package": "studio.pierc.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0a0908"
       },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -62,7 +67,17 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "861687ba-c4c0-4afa-a881-062e01928596"
       }
+    },
+    "owner": "plait",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/861687ba-c4c0-4afa-a881-062e01928596"
     }
   }
 }

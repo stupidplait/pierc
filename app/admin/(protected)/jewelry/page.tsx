@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import { Plus } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
-import { createDraftJewelry } from "@/lib/admin/jewelry-actions";
-import { SUBMIT } from "@/components/admin/form/styles";
 import { firstPhotoUrl, formatPrice } from "@/lib/jewelry/format";
-import {
-  JewelryFilters,
-  type JewelryStatus,
-} from "@/components/admin/jewelry/JewelryFilters";
-import {
-  JewelryBoard,
-  type JewelryRow,
-} from "@/components/admin/jewelry/JewelryBoard";
+import type { JewelryStatus } from "@/components/admin/jewelry/JewelryFilters";
+import type { JewelryRow } from "@/components/admin/jewelry/JewelryBoard";
+import { CatalogHeader } from "@/components/admin/jewelry/CatalogHeader";
+import { JewelryCatalog } from "@/components/admin/jewelry/JewelryCatalog";
 
 export const metadata: Metadata = {
   title: ru.admin.nav.jewelry,
@@ -45,9 +38,12 @@ export default async function AdminJewelryPage({
 }: AdminJewelryPageProps) {
   const sp = await searchParams;
   const q = sp.q?.trim() || "";
-  // The category Select uses an "all" sentinel for the no-filter option
-  // (Radix forbids an empty item value); treat it as unset.
-  const categoryId = sp.category && sp.category !== "all" ? sp.category : "";
+  // `category` is now a comma-joined list of ids (multi-select). "all" is the
+  // legacy single-select sentinel and maps to no filter.
+  const categoryIds = (sp.category ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s && s !== "all");
   const status = STATUSES.includes(sp.status as JewelryStatus)
     ? (sp.status as JewelryStatus)
     : "";
@@ -55,8 +51,9 @@ export default async function AdminJewelryPage({
   const lowStock = sp.lowStock === "1";
 
   // Filters shared by both the list query and the per-status counts. Hide
-  // never-saved drafts (createDraftJewelry rows the admin abandoned) — the form
-  // requires a name, so empty-name ⟺ untouched draft.
+  // never-saved drafts — empty-name ⟺ an abandoned legacy draft (pre-lazy-create;
+  // the editor requires a name). The cleanup-drafts cron reaps these, but keep
+  // the guard so any still-pending row never surfaces here in the meantime.
   const baseWhere: Prisma.JewelryWhereInput = {
     NOT: { status: "DRAFT", name: "" },
   };
@@ -66,7 +63,7 @@ export default async function AdminJewelryPage({
       { material: { contains: q, mode: "insensitive" } },
     ];
   }
-  if (categoryId) baseWhere.categoryId = categoryId;
+  if (categoryIds.length) baseWhere.categoryId = { in: categoryIds };
   if (featured) baseWhere.featured = true;
   if (lowStock) baseWhere.inStock = { lte: 1 };
 
@@ -122,38 +119,21 @@ export default async function AdminJewelryPage({
     inStock: j.inStock,
   }));
 
-  const t = ru.admin.jewelry;
-
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <header className="mb-10 flex flex-col gap-4 pt-2 sm:mb-12 sm:flex-row sm:items-end sm:justify-between sm:pt-4">
-        <div>
-          <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
-            {t.title}
-          </h1>
-          <p className="mt-3 text-base text-mute">{t.lead}</p>
-        </div>
-        <form action={createDraftJewelry} className="shrink-0">
-          <button type="submit" className={`${SUBMIT} gap-2 px-5`}>
-            <Plus className="size-4" />
-            {t.addShort}
-          </button>
-        </form>
-      </header>
+      <CatalogHeader />
 
-      <div className="flex flex-col gap-8">
-        <JewelryFilters
-          q={q}
-          categoryId={categoryId}
-          status={status}
-          featured={featured}
-          lowStock={lowStock}
-          categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-          counts={counts}
-          total={total}
-        />
-        <JewelryBoard rows={rows} />
-      </div>
+      <JewelryCatalog
+        q={q}
+        categoryIds={categoryIds}
+        status={status}
+        featured={featured}
+        lowStock={lowStock}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        counts={counts}
+        total={total}
+        rows={rows}
+      />
     </div>
   );
 }

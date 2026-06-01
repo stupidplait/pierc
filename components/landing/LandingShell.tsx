@@ -25,6 +25,9 @@ export function LandingShell() {
   const chapter1Ref = useRef<HTMLDivElement | null>(null);
   const ch2IntroRef = useRef<HTMLElement | null>(null);
   const chapter2Ref = useRef<HTMLElement | null>(null);
+  // Snap anchor at Chapter 2's midpoint (where its frame fully composes),
+  // used in place of the section top in the snap list below.
+  const chapter2SnapRef = useRef<HTMLDivElement | null>(null);
   const ch3IntroRef = useRef<HTMLElement | null>(null);
   const chapter3Ref = useRef<HTMLElement | null>(null);
 
@@ -107,10 +110,14 @@ export function LandingShell() {
 
   /* Section snap — wheel-hijacking smooth scroll loop with snap-to-
      nearest after 600 ms idle. Touch devices opt-out (native momentum
-     handles the same role). Section list reflects the four major
-     stop-points: page top → ChooseIntro → Chapter 1 → Ch2Intro. */
+     handles the same role). Stop-points, top to bottom: ChooseIntro
+     (ВЫБЕРИ) → Chapter 1 (showcase) → Ch2Intro (ПРИМЕРЬ) → Chapter 2
+     *midpoint* → Ch3Intro (ЗАБРОНИРУЙ) → Chapter 3. Chapter 2 uses its
+     midpoint anchor rather than chapter2Ref's top: the section is 200svh
+     and only fully composes halfway down, so snapping to its top would
+     leave the chapter on an empty transition frame. */
   useSectionSnap({
-    sectionRefs: [chooseIntroRef, chapter1Ref, ch2IntroRef, chapter2Ref, ch3IntroRef, chapter3Ref],
+    sectionRefs: [chooseIntroRef, chapter1Ref, ch2IntroRef, chapter2SnapRef, ch3IntroRef, chapter3Ref],
   });
 
   return (
@@ -133,7 +140,7 @@ export function LandingShell() {
         swapDirection={swapDirection}
       />
       <Ch2Intro ref={ch2IntroRef} />
-      <Chapter2 ref={chapter2Ref} />
+      <Chapter2 ref={chapter2Ref} snapAnchorRef={chapter2SnapRef} />
       <Ch3Intro ref={ch3IntroRef} />
       <Chapter3 ref={chapter3Ref} activeJewelry={activeJewelry} />
     </>

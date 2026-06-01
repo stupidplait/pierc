@@ -15,6 +15,7 @@ export default function SignUpPage() {
   return (
     <main
       className="
+        app-auth
         relative z-10 min-h-[100svh]
         flex items-center justify-center
         px-4 py-24 sm:px-8

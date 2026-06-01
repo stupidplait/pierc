@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
 
+  // Server-side GLB optimization (lib/admin/glb-pipeline.ts) pulls in native /
+  // WASM deps. Opt them out of Server Component bundling so they load via native
+  // `require` (sharp is auto-externalized by Next, but we list it for intent).
+  serverExternalPackages: ["sharp", "meshoptimizer"],
+
   // Throttle static-generation parallelism + add retries so the build is
   // robust against Neon free-tier connection bursts. With the default
   // (one worker per CPU minus one), 11 workers all open Prisma pools and

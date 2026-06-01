@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import type { JewelryType } from "@/lib/catalog/types";
+import { jewelryTypeLabels } from "@/lib/i18n/ru";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enums + per-type anchor rules
@@ -48,7 +49,7 @@ function anchorCountMessage(type: JewelryType, picked: number): string {
   const rule = ATTACH_RULES[type];
   const expected =
     rule.min === rule.max ? `${rule.min}` : `${rule.min}–${rule.max}`;
-  return `Тип «${type}» требует ${expected} якор(ей), выбрано ${picked}.`;
+  return `Тип «${jewelryTypeLabels[type]}» требует ${expected} якор(ей), выбрано ${picked}.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,19 +74,31 @@ export const jewelrySchema = z
     size: numberFromInput("Размер должен быть положительным числом"),
     color: z.string().trim().optional(),
     stones: z.string().trim().optional(),
-    price: z.coerce
-      .number({ error: "Укажите цену числом" })
-      .nonnegative("Цена не может быть отрицательной"),
-    inStock: z.coerce
-      .number({ error: "Укажите остаток числом" })
-      .int("Остаток должен быть целым числом")
-      .nonnegative("Остаток не может быть отрицательным"),
+    // Map an empty input to `undefined` BEFORE the number check so a blank field
+    // FAILS as required. `z.coerce.number()` alone turns "" into 0 (Number("")
+    // === 0), which silently saved a blank price as free / blank stock as 0.
+    price: z.preprocess(
+      (v) => (v === "" || v == null ? undefined : Number(v)),
+      z
+        .number({ error: "Укажите цену числом" })
+        .nonnegative("Цена не может быть отрицательной"),
+    ),
+    inStock: z.preprocess(
+      (v) => (v === "" || v == null ? undefined : Number(v)),
+      z
+        .number({ error: "Укажите остаток числом" })
+        .int("Остаток должен быть целым числом")
+        .nonnegative("Остаток не может быть отрицательным"),
+    ),
     status: z.enum(STATUSES, { error: "Выберите статус" }),
     featured: z.preprocess((v) => v === "on" || v === true, z.boolean()),
     anchorIds: z.array(z.string()).default([]),
   })
   .superRefine((v, ctx) => {
+    // `type` is the enum gate; if it failed, its own error already shows and the
+    // per-type anchor rule is undefined — skip the count check until it's chosen.
     const rule = ATTACH_RULES[v.type];
+    if (!rule) return;
     if (v.anchorIds.length < rule.min || v.anchorIds.length > rule.max) {
       ctx.addIssue({
         code: "custom",
@@ -124,7 +137,8 @@ export function parseJewelryFormData(formData: FormData) {
     name: formData.get("name"),
     description: emptyToUndef(formData.get("description")),
     categoryId: formData.get("categoryId"),
-    type: formData.get("type") ?? "STUD",
+    // No silent default — an unchosen type must fail validation, not become STUD.
+    type: formData.get("type") ?? undefined,
     material: formData.get("material"),
     gauge: formData.get("gauge"),
     size: formData.get("size"),
@@ -158,6 +172,25 @@ export function fieldErrorsFromZod(error: z.ZodError): FieldErrors {
     }
   }
   return out;
+}
+
+// Fields the schema treats as mandatory for a save to succeed (everything else
+// is `.optional()` or has a default). The form derives its `*` markers and the
+// publish-readiness checklist derives its rows from THIS set, so the two can
+// never drift from the schema. `anchorIds` is required-by-type (its count is
+// enforced in `superRefine` against ATTACH_RULES), so it isn't a flat member
+// here — callers that care read the per-type rule directly.
+export const REQUIRED_FIELDS: ReadonlySet<JewelryField> = new Set([
+  "name",
+  "categoryId",
+  "type",
+  "material",
+  "price",
+  "inStock",
+]);
+
+export function isRequiredField(field: JewelryField): boolean {
+  return REQUIRED_FIELDS.has(field);
 }
 
 export type JewelryTab = "attributes" | "anchors";

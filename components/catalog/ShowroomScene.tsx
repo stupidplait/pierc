@@ -19,6 +19,12 @@ interface ShowroomSceneProps {
   selectedId: string | null;
   equipped: EquippedMap;
   onSelectAnchor: (id: string) => void;
+  /**
+   * Show the built-in centered bottom hint pill. Layouts that own the
+   * bottom edge with their own chrome (the Console dock, the Focus tray)
+   * pass `false` so the pill doesn't collide with their controls.
+   */
+  showHint?: boolean;
 }
 
 export function ShowroomScene({
@@ -27,6 +33,7 @@ export function ShowroomScene({
   selectedId,
   equipped,
   onSelectAnchor,
+  showHint = true,
 }: ShowroomSceneProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const focusedAnchor = anchors.find((a) => a.id === selectedId) ?? null;
@@ -121,11 +128,13 @@ export function ShowroomScene({
       </Canvas>
 
       {/* Hint badge */}
-      <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-page/80 px-3 py-1 text-xs text-mute backdrop-blur">
-        {selectedId
-          ? anchors.find((a) => a.id === selectedId)?.name
-          : catalogStrings.showroom.listAnchorPrompt}
-      </p>
+      {showHint ? (
+        <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-page/80 px-3 py-1 text-xs text-mute backdrop-blur">
+          {selectedId
+            ? anchors.find((a) => a.id === selectedId)?.name
+            : catalogStrings.showroom.listAnchorPrompt}
+        </p>
+      ) : null}
     </div>
   );
 }

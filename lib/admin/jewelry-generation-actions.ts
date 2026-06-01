@@ -4,7 +4,7 @@ import { put, del } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
-import { firstPhotoUrl, asPhotos } from "@/lib/jewelry/format";
+import { firstPhotoUrl, asPhotos, genPhotoUrls } from "@/lib/jewelry/format";
 import {
   getProvider,
   pickAutoProvider,
@@ -30,11 +30,31 @@ function revalidateForJewelry(id: string) {
 }
 
 /** Re-host an external GLB on our Vercel Blob so Tripo URL expiration
- *  doesn't surprise us later. */
+ *  doesn't surprise us later. Optimizes the model on the way in (meshopt +
+ *  WebP textures) so the catalog never serves the raw multi-MB provider output;
+ *  optimization is best-effort and falls back to the original bytes on failure.
+ *  For STUD pieces, also auto-orients the model + injects attach:primary so it
+ *  seats correctly on the piercing (see `normalize`). See lib/admin/glb-pipeline.ts. */
 async function rehostGlb(
   externalUrl: string,
   jewelryId: string,
-): Promise<string> {
+  normalize?: {
+    type?: string | null;
+    gauge?: number | null;
+    size?: number | null;
+  },
+): Promise<{
+  url: string;
+  before: number;
+  after: number;
+  optimized: boolean;
+  placement?: {
+    applied: boolean;
+    confidence: number;
+    suggestedScale: number | null;
+    note: string;
+  };
+}> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
       "Vercel Blob не настроено. Установите BLOB_READ_WRITE_TOKEN в .env.",
@@ -48,13 +68,23 @@ async function rehostGlb(
     );
   }
   const buffer = await res.arrayBuffer();
+
+  const { optimizeGlb } = await import("@/lib/admin/glb-pipeline");
+  const opt = await optimizeGlb(buffer, normalize ? { normalize } : {});
+
   const key = `jewelry/${jewelryId}/models/${Date.now()}-auto.glb`;
-  const blob = await put(key, buffer, {
+  const blob = await put(key, Buffer.from(opt.bytes), {
     access: "public",
     addRandomSuffix: false,
     contentType: "model/gltf-binary",
   });
-  return blob.url;
+  return {
+    url: blob.url,
+    before: opt.before,
+    after: opt.after,
+    optimized: opt.optimized,
+    placement: opt.placement,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,25 +138,30 @@ export async function startJewelryGeneration(
     };
   }
 
-  const photoUrl = firstPhotoUrl(jewelry.photos);
-  if (!photoUrl) {
+  // Photos the studio flagged for 3D (falls back to the cover when none are
+  // flagged) — see lib/jewelry/format.ts → genPhotoUrls.
+  const photoUrls = genPhotoUrls(jewelry.photos);
+  if (photoUrls.length === 0) {
     return {
       ok: false,
       error: "Сначала загрузите хотя бы одну фотографию украшения.",
     };
   }
+  const inputPhotos = asPhotos(jewelry.photos).filter((p) =>
+    photoUrls.includes(p.url),
+  );
 
   // Walk the auto chain. If the primary provider can't even start (down,
   // 401, rate-limited), automatically try the next one.
   let chosen = provider;
-  let result = await chosen.start({ photoUrls: [photoUrl] });
+  let result = await chosen.start({ photoUrls });
   const errors: string[] = [];
   while (!result.ok) {
     errors.push(`${chosen.id}: ${result.error}`);
     const next = pickNextAutoProvider(chosen.id);
     if (!next) break;
     chosen = next;
-    result = await chosen.start({ photoUrls: [photoUrl] });
+    result = await chosen.start({ photoUrls });
   }
   if (!result.ok) {
     return {
@@ -142,7 +177,7 @@ export async function startJewelryGeneration(
       provider: chosen.id,
       providerJobId: result.providerJobId,
       status: "PROCESSING",
-      inputPhotos: jewelry.photos as object,
+      inputPhotos: inputPhotos as unknown as object,
       startedAt: new Date(),
     },
   });
@@ -272,12 +307,68 @@ export async function pollJewelryJob(
     };
   }
 
-  // SUCCEEDED — re-host the GLB on our blob, then surface for admin review.
+  // For STUD pieces, auto-orient + place during re-host (phase 1). RING and
+  // others are re-hosted/compressed only (manual placement for now).
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id: jewelryId },
+    select: { type: true, gauge: true, size: true, photos: true },
+  });
+  const normalize =
+    jewelry?.type === "STUD"
+      ? {
+          type: "STUD",
+          gauge: jewelry.gauge,
+          size: jewelry.size,
+          // Enables the AI roll tiebreaker for asymmetric studs (when GEMINI_API_KEY set).
+          photoUrl: firstPhotoUrl(jewelry.photos),
+        }
+      : jewelry?.type === "RING"
+        ? { type: "RING", gauge: jewelry.gauge, size: jewelry.size }
+        : undefined;
+
+  // SUCCEEDED — re-host (+optimize +place) the GLB on our blob, then surface for review.
   let blobUrl: string;
+  let sizeNote = "";
+  let placementNote = "";
+  let glbScaleUpdate: number | undefined;
   try {
-    blobUrl = await rehostGlb(result.resultGlbUrl, jewelryId);
+    const hosted = await rehostGlb(result.resultGlbUrl, jewelryId, normalize);
+    blobUrl = hosted.url;
+    if (hosted.optimized) {
+      const { formatOptimizeDelta } = await import("@/lib/admin/glb-pipeline");
+      sizeNote = ` Размер оптимизирован: ${formatOptimizeDelta(hosted)}.`;
+    }
+    if (hosted.placement) {
+      const p = hosted.placement;
+      if (p.applied) {
+        const pct = Math.round(p.confidence * 100);
+        if (p.suggestedScale && p.suggestedScale > 0) {
+          glbScaleUpdate = p.suggestedScale;
+        }
+        placementNote =
+          p.confidence >= 0.6
+            ? ` Ориентация и точка крепления определены автоматически (уверенность ${pct}%) — проверьте перед публикацией.`
+            : ` Ориентация определена приблизительно (уверенность ${pct}%) — проверьте и при необходимости поправьте.`;
+        // Surface whether the Gemini tiebreakers actually ran (head direction
+        // for any stud, roll for asymmetric ones) so the admin sees the AI worked.
+        if (p.note?.includes("AI flipped head")) {
+          placementNote +=
+            " Лицевая сторона определена по фото с помощью ИИ (Gemini).";
+        }
+        if (p.note?.includes("AI picked")) {
+          placementNote += " Поворот подобран по фото с помощью ИИ (Gemini).";
+        } else if (p.note?.includes("GEMINI_API_KEY not set")) {
+          placementNote +=
+            " (ИИ-подбор ориентации пропущен — не задан GEMINI_API_KEY.)";
+        }
+      } else {
+        placementNote =
+          " Автоматическое размещение не удалось — настройте ориентацию и масштаб вручную.";
+      }
+    }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Не удалось перенести модель";
+    const msg =
+      err instanceof Error ? err.message : "Не удалось перенести модель";
     await prisma.generationJob.update({
       where: { id: job.id },
       data: {
@@ -304,13 +395,16 @@ export async function pollJewelryJob(
   });
   await prisma.jewelry.update({
     where: { id: jewelryId },
-    data: { status: "PENDING_REVIEW" },
+    data: {
+      status: "PENDING_REVIEW",
+      ...(glbScaleUpdate ? { glbScale: glbScaleUpdate } : {}),
+    },
   });
 
   revalidateForJewelry(jewelryId);
   return {
     ok: true,
-    message: "Модель готова. Просмотрите и утвердите её ниже.",
+    message: `Модель готова. Просмотрите и утвердите её ниже.${sizeNote}${placementNote}`,
   };
 }
 
@@ -334,19 +428,10 @@ export async function approveJewelryJob(
     return { ok: false, error: "Задача не готова к утверждению." };
   }
 
-  // Replace any previous .glb (so we don't accumulate orphans).
-  if (
-    job.jewelry.glbUrl &&
-    job.jewelry.glbUrl !== job.resultGlbUrl &&
-    process.env.BLOB_READ_WRITE_TOKEN
-  ) {
-    try {
-      await del(job.jewelry.glbUrl);
-    } catch {
-      /* best-effort cleanup */
-    }
-  }
-
+  // Point the jewelry at the (already-hosted) result FIRST, then delete the old
+  // model. Deleting before the pointer update risks a dangling glbUrl → 404 in
+  // the catalog proxy if the delete or update is interrupted.
+  const previousUrl = job.jewelry.glbUrl;
   await prisma.jewelry.update({
     where: { id: job.jewelryId },
     data: {
@@ -354,6 +439,18 @@ export async function approveJewelryJob(
       status: "PUBLISHED",
     },
   });
+
+  if (
+    previousUrl &&
+    previousUrl !== job.resultGlbUrl &&
+    process.env.BLOB_READ_WRITE_TOKEN
+  ) {
+    try {
+      await del(previousUrl);
+    } catch {
+      /* best-effort cleanup — orphan is fine, dangling glbUrl is not */
+    }
+  }
 
   revalidateForJewelry(job.jewelryId);
   return { ok: true, message: "Модель опубликована в шоуруме." };

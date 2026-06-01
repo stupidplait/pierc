@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EditProfileDrawer } from "@/components/account/EditProfileDrawer";
 import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
 import { Section } from "@/components/ui/Section";
+import { useIsApp } from "@/lib/hooks/useIsApp";
 import {
   ENTRANCE_DURATION,
   ENTRANCE_HIDDEN,
@@ -41,6 +42,15 @@ interface AccountViewProps {
 }
 
 const t = ru.pages.account;
+
+// Secondary pages that the website header carries but the native shell hides.
+// Surfaced here (app mode only) so Профиль can reach them; see useIsApp().
+const APP_LINKS: { href: string; label: string }[] = [
+  { href: "/services", label: ru.nav.services },
+  { href: "/gallery", label: ru.nav.gallery },
+  { href: "/about", label: ru.nav.about },
+  { href: "/faq", label: ru.nav.faq },
+];
 
 // Card surface shared with the rest of the public family (services / faq): a
 // solid elevated panel with the same layered shadow as FeaturedServiceCard, so
@@ -81,6 +91,7 @@ export function AccountView({
   standaloneBookings,
   nextAppointment,
 }: AccountViewProps) {
+  const isApp = useIsApp();
   const empty = appointments.length === 0 && standaloneBookings.length === 0;
 
   const nextEntry = nextAppointment
@@ -207,6 +218,26 @@ export function AccountView({
                 {ru.nav.cta}
               </Link>
             </div>
+
+            {/* App shell hides the site header, so surface its secondary pages
+                here. Inert / hidden on the browser site. */}
+            {isApp ? (
+              <nav
+                aria-label="Разделы"
+                className="flex flex-col border-t border-ink/10 pt-4"
+              >
+                {APP_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    className="flex items-center justify-between rounded-lg px-1 py-2.5 text-sm text-mute no-underline transition-colors duration-150 hover:text-ink"
+                  >
+                    {l.label}
+                    <ChevronRightIcon />
+                  </Link>
+                ))}
+              </nav>
+            ) : null}
           </motion.aside>
 
           {/* ── Feed ── */}
@@ -319,6 +350,27 @@ function ExitIcon() {
         d="M10 11l3-3-3-3M13 8H6"
         stroke="currentColor"
         strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0 text-ink-line-strong"
+    >
+      <path
+        d="M6 4l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

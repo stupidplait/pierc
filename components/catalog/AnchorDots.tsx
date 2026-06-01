@@ -79,6 +79,12 @@ function Dot({ anchor, selected, hovered, dimmed, onSelect, onHover }: DotProps)
   const isOccludedRef = useRef(false);
   const lastHoveredRef = useRef(hovered);
 
+  // Occlusion only cares whether *something* blocks the dot, not which tri is
+  // nearest — so let the BVH bail at the first hit.
+  useEffect(() => {
+    raycasterRef.current.firstHitOnly = true;
+  }, []);
+
   // Find body meshes once on mount (only test occlusion against body, not jewelry/anchors)
   useEffect(() => {
     const bodyMeshes: THREE.Object3D[] = [];

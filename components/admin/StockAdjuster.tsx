@@ -5,14 +5,17 @@ import {
   adjustJewelryStock,
   type StockAdjustState,
 } from "@/lib/admin/jewelry-stock-action";
+import { AnimatedNumber } from "@/components/admin/form/AnimatedNumber";
 import { ru } from "@/lib/i18n/ru";
 
 interface Props {
   jewelryId: string;
   stock: number;
+  /** Tick the count up from 0 on first paint (the catalog's entrance). */
+  countOnMount?: boolean;
 }
 
-export function StockAdjuster({ jewelryId, stock }: Props) {
+export function StockAdjuster({ jewelryId, stock, countOnMount }: Props) {
   const [, action, pending] = useActionState<StockAdjustState, FormData>(
     adjustJewelryStock,
     undefined,
@@ -28,21 +31,23 @@ export function StockAdjuster({ jewelryId, stock }: Props) {
         value="-1"
         disabled={pending || stock <= 0}
         title={t.stockMinus}
-        className="inline-flex size-7 items-center justify-center rounded-full border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
+        className="inline-flex size-7 items-center justify-center rounded-lg border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
         onClick={(e) => e.stopPropagation()}
       >
         −
       </button>
-      <span className="min-w-[2.5rem] text-center text-sm font-medium text-ink tabular-nums">
-        {stock}
-      </span>
+      <AnimatedNumber
+        value={stock}
+        countOnMount={countOnMount}
+        className="min-w-10 text-center text-sm font-medium text-ink tabular-nums"
+      />
       <button
         type="submit"
         name="delta"
         value="1"
         disabled={pending}
         title={t.stockPlus}
-        className="inline-flex size-7 items-center justify-center rounded-full border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
+        className="inline-flex size-7 items-center justify-center rounded-lg border border-ink/15 text-xs font-semibold text-mute transition-colors hover:border-ink/40 hover:text-ink disabled:opacity-40"
         onClick={(e) => e.stopPropagation()}
       >
         +

@@ -25,6 +25,7 @@ const Ch3Intro = forwardRef<HTMLElement>(function Ch3Intro(_, ref) {
     return (
         <section
             ref={ref}
+            data-surface="light"
             aria-hidden="true"
             className="relative h-[100svh] w-full pointer-events-none"
         />

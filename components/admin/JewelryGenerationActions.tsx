@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Download, Check, X } from "lucide-react";
 import {
   startJewelryGeneration,
-  pollJewelryJob,
   approveJewelryJob,
   rejectJewelryJob,
   type ActionState,
@@ -12,7 +12,9 @@ import { ru } from "@/lib/i18n/ru";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { GlbPreview, type GlbStats } from "@/components/admin/GlbPreview";
 import { GlbInspector } from "@/components/admin/GlbInspector";
+import { ScaleField } from "@/components/admin/ScaleField";
 import { JobAutoRefresh } from "@/components/admin/JobAutoRefresh";
+import { GHOST, GHOST_DELETE } from "@/components/admin/form/styles";
 import { candidateGlbSrc, adminGlbSrc } from "@/lib/jewelry/glb-proxy";
 
 interface JewelryGenerationActionsProps {
@@ -28,6 +30,9 @@ interface JewelryGenerationActionsProps {
   /** The currently published model URL, if any — used to tell an unapproved
    *  candidate apart from an already-approved job (whose result == glbUrl). */
   currentGlbUrl: string | null;
+  /** Per-piece render scale (Jewelry.glbScale) — shown + edited in the
+   *  candidate-review preview, same as the published-model inspector. */
+  glbScale: number;
   /** Whether any auto-generation provider is configured. */
   autoAvailable: boolean;
   /** When true, real API calls are stubbed out — clicks are free. */
@@ -40,6 +45,7 @@ export function JewelryGenerationActions({
   jewelryId,
   latestJob,
   currentGlbUrl,
+  glbScale,
   autoAvailable,
   dryRun,
   hasPhotos,
@@ -50,11 +56,6 @@ export function JewelryGenerationActions({
     ActionState,
     FormData
   >(startJewelryGeneration, undefined);
-
-  const [pollState, pollAction, pollPending] = useActionState<
-    ActionState,
-    FormData
-  >(pollJewelryJob, undefined);
 
   const [approveState, approveAction, approvePending] = useActionState<
     ActionState,
@@ -83,10 +84,9 @@ export function JewelryGenerationActions({
   ) : null;
 
   // ── Active in-flight job: show "processing" badge + live auto-refresh. ──
-  // The external cron (docs/21-free-cron.md) advances the job server-side;
-  // JobAutoRefresh re-reads this page on a timer so the panel flips to
-  // "ready"/"failed" on its own. The button is now a manual force-advance
-  // escape hatch, not the primary path.
+  // The external cron (docs/21-free-cron.md) advances the job server-side and
+  // JobAutoRefresh re-reads this page on a timer, so the panel flips to
+  // "ready"/"failed" on its own — no manual "refresh status" button.
   if (latestJob && latestJob.status === "PROCESSING") {
     return (
       <div className="flex flex-col gap-3">
@@ -94,13 +94,6 @@ export function JewelryGenerationActions({
         <JobAutoRefresh />
         <Badge tone="info">{t.autoStatusProcessing}</Badge>
         <p className="text-xs text-mute">{t.autoLiveHint}</p>
-        <form action={pollAction} className="flex flex-col gap-2">
-          <input type="hidden" name="id" value={jewelryId} />
-          <SubmitButton variant="secondary" pending={pollPending}>
-            {t.autoPollNow}
-          </SubmitButton>
-          <FeedbackLine state={pollState} />
-        </form>
       </div>
     );
   }
@@ -123,16 +116,17 @@ export function JewelryGenerationActions({
     // (right column) and the compare layout (a row beneath the two tiles).
     const reviewActions = (
       <>
-        <a
-          href={candidateUrl}
-          download="model.glb"
-          className="inline-flex h-9 items-center rounded-lg border border-ink/15 px-3 text-xs font-medium text-ink transition-colors hover:border-ink/40"
-        >
-          {t.autoPreview} ↓
+        <a href={candidateUrl} download="model.glb" className={`${GHOST} gap-2`}>
+          <Download className="size-4" aria-hidden />
+          {t.autoPreview}
         </a>
         <form action={approveAction}>
           <input type="hidden" name="jobId" value={latestJob.id} />
-          <SubmitButton variant="primary" pending={approvePending}>
+          <SubmitButton
+            variant="primary"
+            pending={approvePending}
+            icon={<Check className="size-4" aria-hidden />}
+          >
             {t.autoApprove}
           </SubmitButton>
         </form>
@@ -140,8 +134,9 @@ export function JewelryGenerationActions({
           type="button"
           onClick={() => setRejectOpen(true)}
           disabled={rejectPending}
-          className="inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium text-mute transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
+          className={`${GHOST_DELETE} gap-2 disabled:pointer-events-none disabled:opacity-50`}
         >
+          <X className="size-4" aria-hidden />
           {rejectPending ? "…" : t.autoReject}
         </button>
       </>
@@ -168,6 +163,13 @@ export function JewelryGenerationActions({
                 highlight
               />
             </div>
+            {/* Scale control for the candidate — the compare tiles have no facts
+                column, so it sits under them. "Авто" measures THIS candidate. */}
+            <ScaleField
+              jewelryId={jewelryId}
+              currentScale={glbScale}
+              candidateJobId={latestJob.id}
+            />
             <div className="flex flex-wrap items-center gap-3">
               {reviewActions}
             </div>
@@ -177,6 +179,9 @@ export function JewelryGenerationActions({
             url={candidateUrl}
             label={t.autoReviewSingle}
             highlight
+            scale={glbScale}
+            scaleJewelryId={jewelryId}
+            candidateJobId={latestJob.id}
             actions={reviewActions}
           />
         )}
@@ -302,15 +307,17 @@ function SubmitButton({
   variant,
   pending,
   disabled,
+  icon,
   children,
 }: {
   variant: "primary" | "secondary" | "ghost";
   pending: boolean;
   disabled?: boolean;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const base =
-    "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
   const tone =
     variant === "primary"
       ? "bg-ink text-bg hover:bg-ink/90"
@@ -323,7 +330,14 @@ function SubmitButton({
       disabled={pending || disabled}
       className={`${base} ${tone}`}
     >
-      {pending ? "…" : children}
+      {pending ? (
+        "…"
+      ) : (
+        <>
+          {icon}
+          {children}
+        </>
+      )}
     </button>
   );
 }

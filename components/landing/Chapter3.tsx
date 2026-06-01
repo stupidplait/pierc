@@ -147,6 +147,7 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
     return (
         <section
             ref={localRef}
+            data-surface="light"
             aria-label="Глава 3 — Забронируй"
             className="relative h-[100svh] w-full pointer-events-none"
         >

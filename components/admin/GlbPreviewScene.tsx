@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
+import { Box3, Vector3 } from "three";
 import type { Group, Mesh } from "three";
 
 /** Geometry summary read off the loaded GLB — surfaced in the admin inspector
@@ -22,9 +23,15 @@ export interface GlbStats {
 function Piece({
   url,
   onStats,
+  quaternion,
+  showAttach = false,
 }: {
   url: string;
   onStats?: (stats: GlbStats) => void;
+  /** Live model orientation [x,y,z,w] — the admin's in-canvas nudge, pre-save. */
+  quaternion?: [number, number, number, number];
+  /** Render a marker at the `attach:primary` empty (where it meets the piercing). */
+  showAttach?: boolean;
 }) {
   const gltf = useGLTF(url) as unknown as { scene: Group };
   const cloned = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -59,9 +66,38 @@ function Piece({
     onStats?.(stats);
   }, [stats, onStats]);
 
+  // Locate attach:primary (the skin-contact point) and size a marker to the model.
+  const attach = useMemo(() => {
+    if (!showAttach) return null;
+    let pos: Vector3 | null = null;
+    cloned.traverse((o) => {
+      if (o.name === "attach:primary") pos = o.position.clone();
+    });
+    if (!pos) return null;
+    const diag = new Box3().setFromObject(cloned).getSize(new Vector3()).length();
+    return { pos: pos as Vector3, r: Math.max(diag * 0.05, 1e-4) };
+  }, [cloned, showAttach]);
+
   return (
     <Center>
-      <primitive object={cloned} />
+      <group quaternion={quaternion ?? [0, 0, 0, 1]}>
+        <primitive object={cloned} />
+        {attach ? (
+          // renderOrder + depthTest:false draws the marker ON TOP — the attach
+          // point sits at the neck/center, often buried inside the geometry, so
+          // a depth-tested marker would be invisible.
+          <mesh position={attach.pos} renderOrder={999}>
+            <sphereGeometry args={[attach.r, 16, 16]} />
+            <meshBasicMaterial
+              color="#fe017e"
+              toneMapped={false}
+              depthTest={false}
+              depthWrite={false}
+              transparent
+            />
+          </mesh>
+        ) : null}
+      </group>
     </Center>
   );
 }
@@ -82,9 +118,17 @@ function Piece({
 export function GlbPreviewScene({
   url,
   onStats,
+  quaternion,
+  showAttach = false,
+  lockCamera = false,
 }: {
   url: string;
   onStats?: (stats: GlbStats) => void;
+  quaternion?: [number, number, number, number];
+  showAttach?: boolean;
+  /** When editing orientation, lock the camera face-on so the only rotation is
+   *  the model's (driven by drag) — no orbit-camera-vs-model-rotate confusion. */
+  lockCamera?: boolean;
 }) {
   return (
     <Canvas
@@ -103,13 +147,23 @@ export function GlbPreviewScene({
       <directionalLight position={[0, 2, -3]} intensity={0.35} color="#fe017e" />
 
       <Suspense fallback={null}>
-        {/* Re-fit when the URL changes so a new model isn't framed by the old. */}
-        <Bounds key={url} fit clip observe margin={1.2}>
-          <Piece url={url} onStats={onStats} />
+        {/* Re-fit only when the URL changes (keyed) — NOT on every rotation, so an
+            in-canvas roll/flip doesn't make the framing jump. */}
+        <Bounds key={url} fit clip margin={1.2}>
+          <Piece
+            url={url}
+            onStats={onStats}
+            quaternion={quaternion}
+            showAttach={showAttach}
+          />
         </Bounds>
       </Suspense>
 
-      <OrbitControls makeDefault enablePan={false} minDistance={0.6} maxDistance={8} />
+      {/* While editing orientation the camera is locked face-on (drag rotates the
+          MODEL, not the camera); otherwise OrbitControls allows free inspection. */}
+      {lockCamera ? null : (
+        <OrbitControls makeDefault enablePan={false} minDistance={0.6} maxDistance={8} />
+      )}
     </Canvas>
   );
 }

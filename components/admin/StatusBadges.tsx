@@ -46,7 +46,7 @@ const JEWELRY: Record<
   PROCESSING: "border-primary/40 bg-primary/10 text-primary",
   PENDING_REVIEW: "border-warn/40 bg-warn-soft text-warn",
   PUBLISHED: "border-success/40 bg-success-soft text-success",
-  REJECTED: "border-mute/40 bg-card text-mute",
+  REJECTED: "border-error/40 bg-error-soft text-error",
 };
 
 export function BookingStatusBadge({

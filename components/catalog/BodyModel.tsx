@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { Object3D } from "three";
+import { buildBoundsTrees } from "@/lib/three/bvh";
 
 /**
  * Loads the real CC3 body.glb (A-pose mannequin, ~340 KB Draco-compressed)
@@ -47,6 +48,9 @@ function BodyMesh() {
         // No mesh on empties so no further hiding needed.
       }
     });
+    // Index the body geometry with a BVH so the per-anchor occlusion rays in
+    // <AnchorDots> are ~O(log n) instead of scanning every triangle each frame.
+    buildBoundsTrees(gltf.scene);
   }, [gltf.scene]);
 
   // Per-render clone is unnecessary — there's only one body in the scene.

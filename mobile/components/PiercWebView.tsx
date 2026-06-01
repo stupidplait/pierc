@@ -17,9 +17,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { WebView, type WebViewNavigation } from "react-native-webview";
 import { isExternalUrl } from "@/constants/config";
+import { theme } from "@/constants/theme";
 
 interface PiercWebViewProps {
   /** Initial URL to load. Tab screens pass their tab-specific URL. */
@@ -61,6 +63,10 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
     const [currentUrl, setCurrentUrl] = useState<string>(source);
     const [canGoBack, setCanGoBack] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    // Inset web content below the status bar / notch. The site hides its own
+    // header in app mode (detected via the `PiercApp` UA marker below), so its
+    // top edge would otherwise sit under the notch.
+    const insets = useSafeAreaInsets();
 
     useImperativeHandle(
       ref,
@@ -144,8 +150,12 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
     return (
       <View style={styles.root}>
         {errorMessage ? (
-          <View style={styles.errorBox}>
-            <Ionicons name="cloud-offline-outline" size={48} color="#fe017e" />
+          <View style={[styles.errorBox, { paddingTop: insets.top }]}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={48}
+              color={theme.accent}
+            />
             <Text style={styles.errorTitle}>Не удалось загрузить</Text>
             <Text style={styles.errorBody}>{errorMessage}</Text>
             <TouchableOpacity
@@ -162,7 +172,11 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
           <WebView
             ref={webViewRef}
             source={{ uri: source }}
-            style={styles.webView}
+            style={[styles.webView, { marginTop: insets.top }]}
+            // Marks every request's user-agent so the web app can switch to
+            // "app mode" (hide its header/footer, full-height forms, safe areas).
+            // Appended to the device UA, so responsive CSS is unaffected.
+            applicationNameForUserAgent="PiercApp"
             originWhitelist={["http://*", "https://*", "pierc://*"]}
             onNavigationStateChange={handleNavStateChange}
             onShouldStartLoadWithRequest={handleShouldStartLoad}
@@ -173,7 +187,7 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
             startInLoadingState
             renderLoading={() => (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="large" color="#fe017e" />
+                <ActivityIndicator size="large" color={theme.accent} />
               </View>
             )}
             cacheEnabled
@@ -190,12 +204,12 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
         )}
 
         <TouchableOpacity
-          style={styles.shareBtn}
+          style={[styles.shareBtn, { top: insets.top + 14 }]}
           onPress={handleShare}
           accessibilityLabel="Поделиться страницей"
           hitSlop={8}
         >
-          <Ionicons name="share-outline" size={22} color="#1a1a1a" />
+          <Ionicons name="share-outline" size={22} color={theme.ink} />
         </TouchableOpacity>
       </View>
     );
@@ -205,7 +219,7 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.bg,
   },
   webView: {
     flex: 1,
@@ -219,21 +233,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.bg,
   },
   shareBtn: {
     position: "absolute",
-    top: 14,
+    // `top` is set inline from the safe-area inset (see render).
     right: 14,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(10, 9, 8, 0.72)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.line,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -242,29 +258,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.bg,
   },
   errorTitle: {
     marginTop: 16,
     fontSize: 20,
     fontWeight: "600",
-    color: "#1a1a1a",
+    color: theme.ink,
   },
   errorBody: {
     marginTop: 8,
     fontSize: 14,
-    color: "#666666",
+    color: theme.inkMuted,
     textAlign: "center",
   },
   retryBtn: {
     marginTop: 20,
-    backgroundColor: "#fe017e",
+    backgroundColor: theme.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 9999,
   },
   retryText: {
-    color: "#ffffff",
+    color: theme.onAccent,
     fontWeight: "500",
   },
 });

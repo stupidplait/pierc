@@ -78,8 +78,22 @@ export function FeaturedChip() {
 /** Linked-jewelry tag rendered under a review card. */
 export function JewelryChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex max-w-full items-center truncate rounded-md border border-line bg-ink/3 px-2 py-0.5 text-[11px] text-mute">
+    <span className="inline-flex max-w-full items-center truncate rounded-full border border-line bg-ink/3 px-2 py-0.5 text-[11px] text-mute">
       {children}
+    </span>
+  );
+}
+
+/** Oversized opening quote mark — the editorial flourish behind a testimonial's
+ *  text on the reviews wall. Decorative (aria-hidden); sized by the caller via
+ *  `className` (font-size + colour). */
+export function QuoteGlyph({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none select-none font-display leading-none ${className}`}
+    >
+      &ldquo;
     </span>
   );
 }

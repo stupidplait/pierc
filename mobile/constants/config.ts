@@ -3,7 +3,7 @@
  * WebView loads. Override in dev via `EXPO_PUBLIC_APP_URL` (any
  * `EXPO_PUBLIC_*` env var is inlined into the JS bundle by Expo).
  */
-const PROD_URL = "https://piercing.studio";
+const PROD_URL = "https://pierc-one.vercel.app";
 
 export const APP_URL =
   (process.env.EXPO_PUBLIC_APP_URL as string | undefined)?.trim() || PROD_URL;
@@ -14,7 +14,9 @@ export const APP_URL =
  * to /catalog/<id>) and the tab still appears selected.
  */
 export const TABS = {
-  home: { path: "/", title: "Главная", icon: "home-outline" },
+  // The browser landing at "/" is a desktop scroll-driven WebGL experience that
+  // doesn't fit a phone; the Home tab loads the lightweight app home instead.
+  home: { path: "/home", title: "Главная", icon: "home-outline" },
   catalog: { path: "/catalog", title: "Каталог", icon: "diamond-outline" },
   book: { path: "/book", title: "Запись", icon: "calendar-outline" },
   account: { path: "/account", title: "Профиль", icon: "person-outline" },

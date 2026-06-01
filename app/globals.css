@@ -172,6 +172,33 @@ body {
      rendered fake. Improves legibility on Cyrillic where faux-bold
      is especially poor. */
   font-synthesis: none;
+  /* Stop iOS Safari from auto-inflating body text when the device
+     rotates to landscape — keep text at its authored size. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ─── Mobile base hardening ──────────────────────────────────────
+ * Small, theme-agnostic defaults so the site behaves naturally on
+ * phones. No tokens or layout touched. */
+body {
+  /* Remove the grey tap-flash overlay iOS/Android paint on tappable
+     elements; our own :active / focus styles convey the press. */
+  -webkit-tap-highlight-color: transparent;
+  /* Guard against accidental horizontal scroll from any element that
+     runs slightly wide on a narrow screen. `clip` (not `hidden`) so
+     overflow-y is NOT forced to `auto` — this preserves the sticky/
+     fixed header, scrollbar-gutter, and Lenis smooth scroll. */
+  overflow-x: clip;
+}
+
+/* Images never push the layout wider than the viewport. Deliberately
+   excludes <canvas> and <svg> so the full-bleed WebGL scenes (landing/
+   catalog) and sized icons are untouched. */
+img,
+video {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Smooth jumps to in-page anchors (landing chapters, /about#contact, etc).
@@ -183,6 +210,50 @@ body {
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 4.5rem;
+  /* Reserve the scrollbar track permanently so overlays that lock body scroll
+     (booking Drawer, ConfirmDialog, landing mobile menu, Radix Select via
+     react-remove-scroll) never widen the layout — and nudge content sideways —
+     for the frame they're open. On classic-scrollbar platforms (Windows/Linux)
+     the content width stays constant whether or not the scrollbar shows;
+     overlay-scrollbar platforms (macOS/iOS) reserve nothing and are unaffected. */
+  scrollbar-gutter: stable;
+  /* Thin themed scrollbar — Firefox (inherited, so it reaches every inner
+     scroller too). WebKit/Blink equivalent below. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-line-strong) transparent;
+}
+
+/* Thin themed scrollbar — WebKit/Blink. Covers the document scrollbar and every
+   inner scroller (Drawer body, Select dropdown, …). The transparent content-box
+   border insets the thumb so it reads as a slim, floating pill over a bare
+   track. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--ink-line-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--mute);
+}
+
+/* react-remove-scroll (Radix Select/Popover/Dialog) still measures the reserved
+   gutter as a removable "gap" and pads the body to compensate — which, with the
+   gutter already stable, would itself shift content the other way. Cancel that
+   compensation; the stable gutter alone keeps the page still. The leading `html`
+   outranks the library's own `body[data-scroll-locked]` rule regardless of
+   injection order. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* Landing page disables smooth-scroll while mounted — the hero's
@@ -288,4 +359,47 @@ html.lenis body {
 }
 .lenis.lenis-smooth iframe {
     pointer-events: none;
+}
+
+/* Header colour inversion — applied while the chrome sits over Chapter 2/3's
+   light blueprint paper (#e8e5dd, rendered in the WebGL scene). Overriding the
+   theme tokens on the <header> cascades dark-on-light to every link, icon,
+   border and the avatar (text-ink -> --color-ink -> --ink, etc.). The Header
+   toggles data-inverted via an IntersectionObserver over [data-surface=light]. */
+header[data-inverted="1"] {
+  --ink: #0a0a0a;
+  --ink-muted: rgba(10, 10, 10, 0.65);
+  --ink-line: #e5e5e5;
+  --ink-line-strong: #d4d4d4;
+  --bg: #ffffff;
+  --accent: #e91e63;
+}
+
+/* ─── Mobile app shell ("app mode") ──────────────────────────────
+ * Active only inside the native WebView shell (mobile/). The pre-paint script
+ * in app/layout.tsx sets html[data-app="1"] when the WebView's user-agent
+ * carries the `PiercApp` marker; a normal browser never gets the attribute, so
+ * the site below is wholly unaffected.
+ *
+ * The shell already provides a bottom tab bar + share button, so the site's own
+ * fixed header and footer are redundant. Pages also reserve generous top space
+ * (breathing room beneath that fixed header) which, with the header hidden,
+ * reads as a dead gap — so we collapse it. The native side insets the top
+ * (status bar / notch); here we add bottom safe-area so content clears the home
+ * indicator on the rare page that scrolls under it. Selectors are unlayered, so
+ * they win over Tailwind's layered utilities (e.g. sm:py-20). */
+html[data-app] header[aria-label="Шапка сайта"],
+html[data-app] body > footer {
+  display: none !important;
+}
+
+html[data-app] .app-section {
+  padding-top: 1.5rem;
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+
+html[data-app] .app-auth {
+  min-height: 100dvh;
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
 }

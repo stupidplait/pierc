@@ -39,6 +39,7 @@ export function MultiCombobox({
   allowCustom = true,
   addLabel = "Добавить",
   id,
+  onChange,
 }: {
   name: string;
   options: ComboboxOption[];
@@ -50,6 +51,8 @@ export function MultiCombobox({
   allowCustom?: boolean;
   addLabel?: string;
   id?: string;
+  /** Fired with the comma-joined value whenever the selection changes. */
+  onChange?: (value: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -60,6 +63,14 @@ export function MultiCombobox({
       .map((s) => s.trim())
       .filter(Boolean),
   );
+
+  // Commit a new selection to state AND notify the parent with the same
+  // comma-joined string the hidden input submits.
+  const commit = (next: string[]) => {
+    setSelected(next);
+    setQuery("");
+    onChange?.(next.join(SEP));
+  };
 
   const all = React.useMemo(() => {
     const base = [...options, ...extra];
@@ -76,14 +87,12 @@ export function MultiCombobox({
     !all.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
 
   function toggle(v: string) {
-    setSelected((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
-    setQuery("");
+    commit(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
   }
 
   function addCustom() {
     setExtra((p) => [...p, { value: trimmed, label: trimmed }]);
-    setSelected((p) => [...p, trimmed]);
-    setQuery("");
+    commit([...selected, trimmed]);
   }
 
   const labelFor = (v: string) => all.find((o) => o.value === v)?.label ?? v;

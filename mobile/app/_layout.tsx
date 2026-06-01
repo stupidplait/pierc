@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { urlFor } from "@/constants/config";
+import { theme } from "@/constants/theme";
 import { getTabWebView, tabForPath } from "@/lib/tab-registry";
 
 // Keep the native splash visible until we explicitly hide it (right
@@ -97,11 +98,29 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          // Dark scene background so route transitions never flash white
+          // before the WebView (or +not-found) paints.
+          contentStyle: { backgroundColor: theme.bg },
+        }}
+      >
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="+not-found" options={{ title: "Не найдено" }} />
+        <Stack.Screen
+          name="+not-found"
+          options={{
+            title: "Не найдено",
+            headerShown: true,
+            headerStyle: { backgroundColor: theme.bg },
+            headerTintColor: theme.ink,
+            headerShadowVisible: false,
+          }}
+        />
       </Stack>
-      <StatusBar style="auto" />
+      {/* Light status-bar content for the dark surface (matches the web
+          app's dark themeColor). */}
+      <StatusBar style="light" />
     </SafeAreaProvider>
   );
 }

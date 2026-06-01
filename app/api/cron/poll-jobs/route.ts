@@ -3,7 +3,7 @@ import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getProvider, pickNextAutoProvider } from "@/lib/three-gen";
 import type { ProviderId } from "@/lib/three-gen";
-import { asPhotos } from "@/lib/jewelry/format";
+import { asPhotos, firstPhotoUrl } from "@/lib/jewelry/format";
 
 // Vercel Cron — polls every in-flight GenerationJob, applies the same
 // state transitions as the admin "Обновить статус" button:
@@ -95,29 +95,67 @@ async function processJob(
     return await handleFailedPoll(job, pollResult.errorMessage);
   }
 
-  // SUCCEEDED — re-host the GLB on our blob storage.
-  let blobUrl: string;
+  // For STUD pieces, auto-orient + place during re-host (phase 1); RING/others
+  // are compressed only. Mirror the manual poll action in jewelry-generation-actions.
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id: job.jewelryId },
+    select: { type: true, gauge: true, size: true, photos: true },
+  });
+  const normalize =
+    jewelry?.type === "STUD"
+      ? {
+          type: "STUD",
+          gauge: jewelry.gauge,
+          size: jewelry.size,
+          photoUrl: firstPhotoUrl(jewelry.photos),
+        }
+      : jewelry?.type === "RING"
+        ? { type: "RING", gauge: jewelry.gauge, size: jewelry.size }
+        : undefined;
+
+  // SUCCEEDED — re-host (+optimize +place) the GLB on our blob storage.
+  let hosted: Awaited<ReturnType<typeof rehostGlb>>;
   try {
-    blobUrl = await rehostGlb(pollResult.resultGlbUrl, job.jewelryId);
+    hosted = await rehostGlb(pollResult.resultGlbUrl, job.jewelryId, normalize);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "rehost failed";
     await markJobFailed(job, msg);
     return { id: job.id, status: "rehost_failed", note: msg };
   }
 
+  const autoScale =
+    hosted.placement?.applied && hosted.placement.suggestedScale
+      ? hosted.placement.suggestedScale
+      : undefined;
+
   await prisma.generationJob.update({
     where: { id: job.id },
     data: {
       status: "SUCCEEDED",
-      resultGlbUrl: blobUrl,
+      resultGlbUrl: hosted.url,
       completedAt: new Date(),
     },
   });
   await prisma.jewelry.update({
     where: { id: job.jewelryId },
-    data: { status: "PENDING_REVIEW" },
+    data: {
+      status: "PENDING_REVIEW",
+      ...(autoScale ? { glbScale: autoScale } : {}),
+    },
   });
-  return { id: job.id, status: "succeeded" };
+  const placeNote = hosted.placement
+    ? hosted.placement.applied
+      ? ` placed(conf ${hosted.placement.confidence})`
+      : " place-failed"
+    : "";
+  return {
+    id: job.id,
+    status: "succeeded",
+    note:
+      (hosted.optimized
+        ? `optimized ${hosted.before}→${hosted.after} bytes`
+        : "stored as-is") + placeNote,
+  };
 }
 
 async function handleFailedPoll(
@@ -188,7 +226,19 @@ async function markJobFailed(job: JobRow, errorMessage: string): Promise<void> {
 async function rehostGlb(
   externalUrl: string,
   jewelryId: string,
-): Promise<string> {
+  normalize?: { type?: string | null; gauge?: number | null; size?: number | null },
+): Promise<{
+  url: string;
+  before: number;
+  after: number;
+  optimized: boolean;
+  placement?: {
+    applied: boolean;
+    confidence: number;
+    suggestedScale: number | null;
+    note: string;
+  };
+}> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("BLOB_READ_WRITE_TOKEN not configured");
   }
@@ -197,11 +247,24 @@ async function rehostGlb(
     throw new Error(`Failed to download GLB: HTTP ${res.status}`);
   }
   const buffer = await res.arrayBuffer();
+
+  // Optimize on the way in (meshopt + WebP textures) so the catalog never
+  // serves the raw multi-MB provider output, and auto-place STUD pieces.
+  // Best-effort — falls back to the original bytes on failure. See glb-pipeline.ts.
+  const { optimizeGlb } = await import("@/lib/admin/glb-pipeline");
+  const opt = await optimizeGlb(buffer, normalize ? { normalize } : {});
+
   const key = `jewelry/${jewelryId}/models/${Date.now()}-auto.glb`;
-  const blob = await put(key, buffer, {
+  const blob = await put(key, Buffer.from(opt.bytes), {
     access: "public",
     addRandomSuffix: false,
     contentType: "model/gltf-binary",
   });
-  return blob.url;
+  return {
+    url: blob.url,
+    before: opt.before,
+    after: opt.after,
+    optimized: opt.optimized,
+    placement: opt.placement,
+  };
 }

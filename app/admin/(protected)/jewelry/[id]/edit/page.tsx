@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -11,14 +9,9 @@ import { ru } from "@/lib/i18n/ru";
 import { JewelryForm } from "@/components/admin/JewelryForm";
 import { PhotoDropzone } from "@/components/admin/PhotoDropzone";
 import { JewelryModelManager } from "@/components/admin/JewelryModelManager";
-import { JewelryScaleAdjuster } from "@/components/admin/JewelryScaleAdjuster";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
-import { CARD, GHOST } from "@/components/admin/form/styles";
-import {
-  deleteJewelry,
-  removeJewelryPhoto,
-  setJewelryCoverPhoto,
-} from "@/lib/admin/jewelry-actions";
+import { CARD, GHOST_DELETE } from "@/components/admin/form/styles";
+import { deleteJewelry } from "@/lib/admin/jewelry-actions";
 import { asPhotos } from "@/lib/jewelry/format";
 
 interface AdminJewelryEditPageProps {
@@ -33,7 +26,7 @@ export async function generateMetadata({
     where: { id },
     select: { name: true },
   });
-  // Blank name ⟺ a fresh draft from createDraftJewelry; null ⟺ not found.
+  // Blank name ⟺ an abandoned legacy draft (pre-lazy-create); null ⟺ not found.
   const title = jewelry
     ? jewelry.name.trim() || ru.admin.jewelry.newTitle
     : ru.admin.jewelry.editTitle;
@@ -87,32 +80,29 @@ export default async function AdminJewelryEditPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <header className="mb-10 flex items-center justify-between gap-4 pt-2 sm:pt-4">
-        <h1 className="font-display text-4xl font-medium tracking-tight text-ink text-balance sm:text-5xl">
-          {jewelry.name.trim() || t.newTitle}
-        </h1>
-        <div className="flex shrink-0 items-center gap-2">
+      {/* Title + Back + Delete all live inside the form now (top section +
+          command bar), so the page shell is just the form. */}
+      <JewelryForm
+        categories={categories}
+        anchors={anchors}
+        title={jewelry.name.trim() || t.newTitle}
+        backHref="/admin/jewelry"
+        deleteSlot={
           <form>
             <input type="hidden" name="id" value={jewelry.id} />
             <ConfirmDeleteButton
               formAction={deleteJewelry}
               confirmText={t.confirmDelete}
-              className="inline-flex size-11 items-center justify-center rounded-xl border border-ink/15 text-mute transition-colors hover:border-error/50 hover:text-error active:scale-[0.98]"
+              className={`${GHOST_DELETE} gap-2`}
               ariaLabel={t.delete}
             >
-              <Trash2 className="size-5" aria-hidden />
+              <Trash2 className="size-4" aria-hidden />
+              <span className="hidden sm:inline">{ru.admin.common.delete}</span>
             </ConfirmDeleteButton>
           </form>
-          <Link href="/admin/jewelry" className={`${GHOST} gap-2`}>
-            <ArrowLeft className="size-4" />
-            {t.backToList}
-          </Link>
-        </div>
-      </header>
-
-      <JewelryForm
-        categories={categories}
-        anchors={anchors}
+        }
+        hasPhotos={photos.length > 0}
+        hasGlb={!!jewelry.glbUrl}
         initial={{
           id: jewelry.id,
           name: jewelry.name,
@@ -134,104 +124,37 @@ export default async function AdminJewelryEditPage({
           anchorIds: jewelry.anchorBindings.map((b) => b.anchorId),
         }}
         photosSlot={
-          <>
-            <div className={`${CARD} flex flex-col gap-5 p-6 sm:p-8`}>
-              <div>
-                <h2 className="font-display text-xl font-medium tracking-tight text-ink">
-                  {t.sections.photos}
-                </h2>
-                <p className="mt-1 max-w-prose text-sm text-mute">
-                  {t.photo.lead}
-                </p>
-              </div>
-
-              {!blobConfigured ? (
-                <p className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">
-                  {t.photo.blobNotConfigured}
-                </p>
-              ) : null}
-
-              <PhotoDropzone jewelryId={jewelry.id} />
+          <div className={`${CARD} flex flex-col gap-5 p-6 sm:p-8`}>
+            <div>
+              <h2 className="font-display text-xl font-medium tracking-tight text-ink">
+                {t.sections.photos}
+              </h2>
+              <p className="mt-1 max-w-prose text-sm text-mute">
+                {t.photo.lead}
+              </p>
             </div>
 
-            {photos.length === 0 ? (
-              <p className="text-sm text-mute">{t.photo.empty}</p>
-            ) : (
-              <ul className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2.5">
-                {photos.map((p, i) => (
-                  <li
-                    key={p.url}
-                    className="group relative aspect-square overflow-hidden rounded-xl border border-line bg-bg"
-                  >
-                    <Image
-                      src={p.url}
-                      alt={p.alt}
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                    {/* The first photo is the catalog cover + the 3D auto-gen
-                        source. Non-cover photos expose a "make cover" action on
-                        hover so the studio can promote any shot to the front. */}
-                    {i === 0 ? (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-ink/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bg backdrop-blur-sm">
-                        {t.photo.cover}
-                      </span>
-                    ) : (
-                      <form className="absolute inset-x-0 bottom-0">
-                        <input type="hidden" name="id" value={jewelry.id} />
-                        <input type="hidden" name="url" value={p.url} />
-                        <button
-                          type="submit"
-                          formAction={setJewelryCoverPhoto}
-                          title={t.photo.setCover}
-                          aria-label={
-                            p.alt
-                              ? `${t.photo.setCover}: ${p.alt}`
-                              : t.photo.setCover
-                          }
-                          className="w-full bg-ink/75 py-1 text-[10px] font-medium uppercase tracking-wide text-bg opacity-0 backdrop-blur-sm transition-opacity hover:bg-ink group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
-                        >
-                          {t.photo.cover}
-                        </button>
-                      </form>
-                    )}
-                    <form className="absolute right-1.5 top-1.5">
-                      <input type="hidden" name="id" value={jewelry.id} />
-                      <input type="hidden" name="url" value={p.url} />
-                      <ConfirmDeleteButton
-                        formAction={removeJewelryPhoto}
-                        confirmText={t.photo.confirmDelete}
-                        ariaLabel={p.alt ? `${t.photo.delete}: ${p.alt}` : t.photo.delete}
-                        className="flex size-7 items-center justify-center rounded-full bg-bg/80 text-ink opacity-0 backdrop-blur-sm transition-opacity hover:bg-bg group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-                      >
-                        <Trash2 className="size-4" />
-                      </ConfirmDeleteButton>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+            {!blobConfigured ? (
+              <p className="rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn">
+                {t.photo.blobNotConfigured}
+              </p>
+            ) : null}
+
+            {/* The dropzone owns the whole photo surface now: drop area +
+                already-uploaded shots (with cover/delete) + fresh picks. */}
+            <PhotoDropzone jewelryId={jewelry.id} photos={photos} />
+          </div>
         }
         modelSlot={
-          <>
-            <JewelryModelManager
-              jewelryId={jewelry.id}
-              jewelryType={jewelry.type}
-              glbUrl={jewelry.glbUrl}
-              hasPhotos={photos.length > 0}
-              blobConfigured={blobConfigured}
-              latestJob={latestJob}
-            />
-            <JewelryScaleAdjuster
-              jewelryId={jewelry.id}
-              currentScale={jewelry.glbScale}
-              hasGlb={!!jewelry.glbUrl}
-              gauge={jewelry.gauge}
-              size={jewelry.size}
-            />
-          </>
+          <JewelryModelManager
+            jewelryId={jewelry.id}
+            jewelryType={jewelry.type}
+            glbUrl={jewelry.glbUrl}
+            glbScale={jewelry.glbScale}
+            hasPhotos={photos.length > 0}
+            blobConfigured={blobConfigured}
+            latestJob={latestJob}
+          />
         }
       />
     </div>

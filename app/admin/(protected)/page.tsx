@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import type { Metric, QuickAction } from "@/components/admin/dashboard/types";
 import { StatusBoard } from "@/components/admin/dashboard/StatusBoard";
-import { createDraftJewelry } from "@/lib/admin/jewelry-actions";
 
 export const metadata: Metadata = {
   title: ru.admin.dashboard.title,
@@ -83,7 +82,9 @@ export default async function AdminDashboardPage() {
 
   const qa = ru.admin.dashboard.quickActions;
   const quickActions: QuickAction[] = [
-    { action: createDraftJewelry, label: qa.newJewelry, kind: "jewelry" },
+    // Lazy create — a plain link to the editor; the row is only persisted on the
+    // first save there (no more abandoned blank drafts from a stray click).
+    { href: "/admin/jewelry/new", label: qa.newJewelry, kind: "jewelry" },
     { href: "/admin/slots", label: qa.slots, kind: "slots" },
     { href: "/admin/bookings", label: qa.bookings, kind: "bookings" },
     { href: "/admin/appointments", label: qa.appointments, kind: "appointments" },
