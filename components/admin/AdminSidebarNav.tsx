@@ -28,7 +28,14 @@ const row: Variants = {
   },
 };
 
-export function AdminSidebarNav({ collapsed = false }: { collapsed?: boolean }) {
+export function AdminSidebarNav({
+  collapsed = false,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  /** Called when a link is tapped — lets the mobile drawer close on navigate. */
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -45,6 +52,7 @@ export function AdminSidebarNav({ collapsed = false }: { collapsed?: boolean }) 
           <motion.div key={link.href} variants={row}>
             <Link
               href={link.href}
+              onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               title={collapsed ? link.label : undefined}
               className={`group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${

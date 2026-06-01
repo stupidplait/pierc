@@ -2,6 +2,7 @@
 
 Origin: centre of ring.
 Outward axis: +Z (ring lies in the XY plane).
+attach:primary: top of the band (+Y) — where the hoop crosses the piercing.
 
 Params (all millimeters):
     diameterMm  — outer diameter of the ring (typical: 6, 8, 10, 12)
@@ -55,12 +56,13 @@ def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
 
-    # Attach point: ring center, post outward = +Z (the empty's local +Z
-    # points OUT of the ring face). For ORBITAL usage (one ring through 2
-    # piercings), an additional `attach:secondary` would be added at the
-    # opposite point of the torus; not yet supported.
+    # Attach point: TOP of the band (+Y, on the wire centerline), where a hoop
+    # crosses the piercing — so the renderer hangs the ring DOWN from the anchor.
+    # The empty's local +Z still points OUT of the ring face. For ORBITAL usage
+    # (one ring through 2 piercings), an additional `attach:secondary` would be
+    # added at the opposite point of the torus; not yet supported.
     attach_primary = add_attach_empty(
-        "attach:primary", location=(0.0, 0.0, 0.0)
+        "attach:primary", location=(0.0, major_r_mm / 1000.0, 0.0)
     )
 
     return obj, attach_primary

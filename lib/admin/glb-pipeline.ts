@@ -66,9 +66,9 @@ const MAX_TEXTURE_EDGE = 1024;
 
 export interface OptimizeOptions {
   /**
-   * When set for a single-anchor STUD, auto-orient the model into the canonical
-   * pose (+Z out), inject `attach:primary`, and suggest a scale from gauge/size.
-   * See lib/admin/glb-normalize.ts. Other types are left geometrically untouched.
+   * When set for a single-anchor STUD or RING, auto-orient the model into the
+   * canonical pose (+Z out), inject `attach:primary`, and suggest a scale from
+   * gauge/size. See lib/admin/glb-normalize.ts. Other types are left untouched.
    */
   normalize?: {
     type?: string | null;
@@ -76,7 +76,7 @@ export interface OptimizeOptions {
     size?: number | null;
     /**
      * Product photo URL. When set (and GEMINI_API_KEY is configured), enables the
-     * AI roll tiebreaker for asymmetric studs — see lib/admin/glb-roll-vision.ts.
+     * AI roll tiebreaker for asymmetric studs and hoops — see lib/admin/glb-roll-vision.ts.
      */
     photoUrl?: string | null;
   };
@@ -221,7 +221,23 @@ export async function optimizeGlb(
         suggestedScale: r.suggestedScale,
         note: r.note,
       };
-      if (r.ok) attachLocal = r.attachLocal;
+      if (r.ok) {
+        attachLocal = r.attachLocal; // [0, bandRadius, 0] — top of the band.
+        // Roll tiebreaker — only for an ASYMMETRIC hoop (charm/gem/gap), where which
+        // band point meets the skin is semantic. We bake the photo-matched roll into
+        // the geometry; attach:primary stays the fixed +Y top marker, so it ends up on
+        // whatever band point rotated to the top. No-ops (keeps the geometric baseline)
+        // when GEMINI_API_KEY / the photo is unavailable.
+        if (opts.normalize.photoUrl && r.rollAmbiguous) {
+          const { chooseRoll } = await import("./glb-roll-vision");
+          const choice = await chooseRoll({
+            vertices: collectMeshVertices(doc),
+            photoUrl: opts.normalize.photoUrl,
+          });
+          if (choice.ok) bakeRoll(doc, choice.angleRad);
+          placement = { ...placement, note: `${r.note}; roll: ${choice.note}` };
+        }
+      }
     }
 
     const triangles = countTriangles(doc);

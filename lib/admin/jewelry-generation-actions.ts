@@ -42,6 +42,8 @@ async function rehostGlb(
     type?: string | null;
     gauge?: number | null;
     size?: number | null;
+    /** Product photo for the Gemini roll tiebreaker (STUD + asymmetric RING). */
+    photoUrl?: string | null;
   },
 ): Promise<{
   url: string;
@@ -307,8 +309,9 @@ export async function pollJewelryJob(
     };
   }
 
-  // For STUD pieces, auto-orient + place during re-host (phase 1). RING and
-  // others are re-hosted/compressed only (manual placement for now).
+  // STUD and RING both auto-orient + place during re-host: attach:primary on the post
+  // neck (stud) or band top (hoop), with the Gemini tiebreaker resolving an asymmetric
+  // piece's orientation against the photo. Other types are re-hosted/compressed only.
   const jewelry = await prisma.jewelry.findUnique({
     where: { id: jewelryId },
     select: { type: true, gauge: true, size: true, photos: true },
@@ -323,7 +326,13 @@ export async function pollJewelryJob(
           photoUrl: firstPhotoUrl(jewelry.photos),
         }
       : jewelry?.type === "RING"
-        ? { type: "RING", gauge: jewelry.gauge, size: jewelry.size }
+        ? {
+            type: "RING",
+            gauge: jewelry.gauge,
+            size: jewelry.size,
+            // Enables the AI roll tiebreaker for asymmetric hoops (when GEMINI_API_KEY set).
+            photoUrl: firstPhotoUrl(jewelry.photos),
+          }
         : undefined;
 
   // SUCCEEDED — re-host (+optimize +place) the GLB on our blob, then surface for review.

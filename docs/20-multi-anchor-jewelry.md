@@ -133,7 +133,8 @@ attach:tertiary, attach:quaternary, …
 
 - Each empty's local `+Z` axis = body-outward direction at that attach point.
 - `attach:primary` should sit where the post enters the skin (or, for hoops,
-  where the ring center crosses the piercing).
+  on the band at the top — `(0, +majorR, 0)` — where the ring crosses the
+  piercing, so the hoop hangs down from the anchor).
 - Mesh origin should coincide with `attach:primary` whenever possible — that
   way the renderer's 1-anchor fallback (mesh at anchor.position with
   anchor.rotation) lines up with the more precise empty-based math.
@@ -157,7 +158,7 @@ Per shape:
 
 | Shape              | attach:primary               | attach:secondary           | attach:tertiary            |
 |--------------------|------------------------------|----------------------------|----------------------------|
-| `seamless_hoop`    | ring center (0,0,0)          | —                          | —                          |
+| `seamless_hoop`    | top of band (0, +majorR, 0)  | —                          | —                          |
 | `horseshoe`        | ring center (0,0,0)          | left ball-tip              | right ball-tip             |
 | `straight_barbell` | "in" ball (0,0,0)            | "out" ball (0,0,L)         | —                          |
 | `curved_barbell`   | "in" ball (0,0,0)            | "out" ball (0,0,L)         | —                          |

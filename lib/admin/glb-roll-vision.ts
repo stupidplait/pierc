@@ -24,9 +24,9 @@ const LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const DEFAULT_CANDIDATES_DEG = [0, 90, 180, 270];
 
 const ROLL_INSTRUCTION =
-  "The first image is a product PHOTO of a piece of body jewelry (a stud). " +
-  "The following labeled images are renders of a 3D model of the SAME piece, " +
-  "each at a different upright rotation, all viewed face-on. Pick the render " +
+  "The first image is a product PHOTO of a piece of body jewelry (a stud, hoop, " +
+  "or ring). The following labeled images are renders of a 3D model of the SAME " +
+  "piece, each at a different upright rotation, all viewed face-on. Pick the render " +
   "whose orientation best matches how the piece appears in the photo — i.e. " +
   "which way the design is 'up'. Reply with ONLY the single letter of the " +
   "best-matching render.";

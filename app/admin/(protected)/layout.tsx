@@ -6,6 +6,7 @@ import { ru } from "@/lib/i18n/ru";
 import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 import { AdminIdentity } from "@/components/admin/AdminIdentity";
 
 export default async function ProtectedAdminLayout({
@@ -36,13 +37,16 @@ export default async function ProtectedAdminLayout({
 
       <div className="relative z-10 flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line/70 bg-card/60 px-6 py-3 backdrop-blur-xl md:hidden">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-display text-lg font-medium text-ink"
-          >
-            <BrandMark className="size-5" />
-            {ru.studio.name}
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <AdminMobileNav name={name} email={email} />
+            <Link
+              href="/"
+              className="flex min-w-0 items-center gap-2 font-display text-lg font-medium text-ink"
+            >
+              <BrandMark className="size-5 shrink-0" />
+              <span className="truncate">{ru.studio.name}</span>
+            </Link>
+          </div>
           <AdminIdentity name={name} email={email} />
         </header>
 

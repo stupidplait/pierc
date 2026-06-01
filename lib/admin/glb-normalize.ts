@@ -486,13 +486,22 @@ function computePrincipalAxes(pts: number[][]): {
 /**
  * Analyze + reorient a RING (hoop) document in place. Per the parametric
  * convention (docs/20-multi-anchor-jewelry.md, shape_seamless_hoop.py): the ring
- * lies in the XY plane with its hole-axis along +Z (body-outward), centered at
- * `attach:primary` = (0,0,0). We recover that pose: the least-variance principal
- * axis is the ring normal (a torus is thin along its hole axis) → map it onto +Z,
- * center on the centroid. Confidence combines flatness (thin along normal),
- * roundness (isotropic in-plane) and hole presence (inner radius > 0) so a disc or
- * a sphere — which aren't rings — score low and route to manual review. Mutates
- * `doc`; the caller injects attach:primary at (0,0,0). Never throws.
+ * lies in the XY plane with its hole-axis along +Z (body-outward). We recover that
+ * pose: the least-variance principal axis is the ring normal (a torus is thin along
+ * its hole axis) → map it onto +Z, center on the centroid.
+ *
+ * `attach:primary` is placed on the BAND at the top (+Y), where a hoop crosses the
+ * piercing — NOT at the hole center — so the renderer hangs the ring DOWN from the
+ * anchor. For a clean round hoop every band point is equivalent, so +Y is exact. For
+ * an asymmetric hoop (charm / gem / gap) which band point meets the skin is semantic,
+ * not geometric: we flag `rollAmbiguous` (the pipeline then asks the Gemini roll
+ * tiebreaker) and set a baseline roll that drops the heaviest feature to −Y, leaving
+ * bare wire on top.
+ *
+ * Confidence combines flatness (thin along normal), roundness (isotropic in-plane)
+ * and hole presence (inner radius > 0) so a disc or a sphere — which aren't rings —
+ * score low and route to manual review. Mutates `doc`; the caller injects
+ * attach:primary at the returned `attachLocal`. Never throws.
  */
 export function normalizeRingDocument(
   doc: Document,
@@ -533,15 +542,64 @@ export function normalizeRingDocument(
     const flatness = values[2] > 1e-12 ? Math.sqrt(values[0] / values[2]) : 999;
     const roundness = values[0] > 1e-12 ? values[1] / values[0] : 0;
 
-    // Orient: ring normal → +Z, center → origin. attach:primary = center.
+    // Quaternion that takes the ring normal onto +Z.
     const q = new Quaternion().setFromUnitVectors(normal, new Vector3(0, 0, 1));
+
+    // ── In-plane angular profile → roll ambiguity + a baseline "feature down" roll.
+    // Project every vertex into the ring plane (apply q so the normal is +Z), bin by
+    // angle, and record the max planar radius per bin. A clean round hoop reads ~equal
+    // radius in every bin → no meaningful "up"; a charm/gem spikes a bin and a gap
+    // empties one → the roll becomes semantic.
+    const ANG_BINS = 36;
+    const binMaxR = new Array(ANG_BINS).fill(0);
+    const pv = new Vector3();
+    for (const p of pts) {
+      pv.set(p[0], p[1], p[2]).sub(centroid).applyQuaternion(q);
+      const pr = Math.hypot(pv.x, pv.y);
+      const a = Math.atan2(pv.y, pv.x); // −π..π
+      const b = Math.min(
+        ANG_BINS - 1,
+        Math.floor(((a + Math.PI) / (2 * Math.PI)) * ANG_BINS),
+      );
+      if (pr > binMaxR[b]) binMaxR[b] = pr;
+    }
+    const ringMaxR = Math.max(...binMaxR, 1e-9);
+    const meanBinR = binMaxR.reduce((s, r) => s + r, 0) / ANG_BINS;
+    const varBinR =
+      binMaxR.reduce((s, r) => s + (r - meanBinR) * (r - meanBinR), 0) / ANG_BINS;
+    // Lumpiness (charm/gem pokes past the band) OR a gap (some sectors empty) ⇒
+    // asymmetric. Thresholds are heuristic; round hoops sit well under both.
+    const cv = meanBinR > 1e-9 ? Math.sqrt(varBinR) / meanBinR : 0;
+    const gapFraction =
+      binMaxR.filter((r) => r < 0.3 * ringMaxR).length / ANG_BINS;
+    const rollAmbiguous = cv > 0.15 || gapFraction > 0.1;
+
+    // Baseline roll (only when asymmetric): rotate the heaviest-radius bin to −Y, so
+    // the bare wire — and thus attach:primary at +Y — is on top. Gemini may override
+    // this later against the photo; for a round hoop it stays 0 (any roll is identical).
+    let baselineRoll = 0;
+    if (rollAmbiguous) {
+      let maxBin = 0;
+      for (let b = 1; b < ANG_BINS; b++) {
+        if (binMaxR[b] > binMaxR[maxBin]) maxBin = b;
+      }
+      const featureAngle = ((maxBin + 0.5) / ANG_BINS) * 2 * Math.PI - Math.PI;
+      baselineRoll = -Math.PI / 2 - featureAngle; // feature → −π/2 (bottom)
+    }
+
+    // Orient: ring normal → +Z, centroid → origin, then the baseline roll about +Z.
     const M = new Matrix4()
-      .makeRotationFromQuaternion(q)
+      .makeRotationZ(baselineRoll)
+      .multiply(new Matrix4().makeRotationFromQuaternion(q))
       .multiply(new Matrix4().makeTranslation(-centroid.x, -centroid.y, -centroid.z));
     const m = [...M.elements] as unknown as Parameters<typeof transformMesh>[1];
     for (const mesh of doc.getRoot().listMeshes()) transformMesh(mesh, m);
 
-    const attachLocal: [number, number, number] = [0, 0, 0];
+    // attach:primary on the band at the top (+Y), on the wire centerline. A later roll
+    // bake (glb-pipeline.ts Gemini tiebreaker) rotates geometry beneath this fixed +Y
+    // marker, so it always lands on whatever band point ends up on top.
+    const bandRadius = (innerR + outerR) / 2;
+    const attachLocal: [number, number, number] = [0, bandRadius, 0];
 
     // `size` for a ring = outer diameter (mm); fall back to gauge vs tube diameter.
     let suggestedScale: number | null = null;
@@ -563,9 +621,10 @@ export function normalizeRingDocument(
     return {
       ok: true,
       confidence: Number(confidence.toFixed(2)),
-      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}`,
+      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}, roll-amb ${rollAmbiguous}`,
       suggestedScale,
       attachLocal,
+      rollAmbiguous,
     };
   } catch (err) {
     return {

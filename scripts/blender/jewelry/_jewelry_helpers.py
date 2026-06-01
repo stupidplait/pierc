@@ -17,7 +17,7 @@ anchor will sit correctly without per-piece tuning.
 The exact "where is the origin?" rule per shape lives in each
 `shape_*.py` docstring; the table below summarises:
 
-  seamless_hoop   → centre of ring; ring in XY plane                  (+Z axis)
+  seamless_hoop   → centre of ring; ring in XY plane (attach: band top +Y)  (+Z axis)
   horseshoe       → centre of arc midpoint, gap facing +Y             (+Z axis)
   curved_barbell  → "in" ball end; curve in YZ plane                  (+Z axis)
   straight_barbell→ "in" ball end; shaft along +Z                     (+Z axis)
