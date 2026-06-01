@@ -240,12 +240,27 @@ const ATTACH_NAMES = [
   "octonary",
 ] as const;
 
+/** The attach slug ("primary"/"secondary"/…) of a node, or null if it isn't an
+ *  attach empty. three's GLTFLoader runs every node name through
+ *  `sanitizeNodeName`, which STRIPS reserved chars including ':' — so our
+ *  `attach:primary` node is renamed to `attachprimary` at runtime. The ORIGINAL
+ *  name survives in `userData.name`, so prefer that; fall back to the sanitized
+ *  form ("attach" + slug, no colon) so the lookup is robust either way. */
+function attachSlug(obj: Object3D): string | null {
+  const raw = (obj.userData?.name as string | undefined) ?? obj.name;
+  if (raw.startsWith("attach:")) return raw.slice("attach:".length); // "attach:primary"
+  if (raw.startsWith("attach") && raw.length > "attach".length) {
+    return raw.slice("attach".length); // sanitized "attachprimary" → "primary"
+  }
+  return null;
+}
+
 function readAttachLocals(scene: Object3D): Vector3[] {
   // Build a name→local-position map so we can index by order.
   const found = new Map<string, Vector3>();
   scene.traverse((obj) => {
-    if (!obj.name.startsWith("attach:")) return;
-    const slug = obj.name.slice("attach:".length);
+    const slug = attachSlug(obj);
+    if (!slug) return;
     // Use world-relative-to-scene-root as "local" since attach empties live
     // directly under the GLB root in our parametric exports. If a complex
     // hierarchy is introduced later, swap to obj.matrixWorld decomposition.

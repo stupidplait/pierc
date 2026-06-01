@@ -71,7 +71,13 @@ function Piece({
     if (!showAttach) return null;
     let pos: Vector3 | null = null;
     cloned.traverse((o) => {
-      if (o.name === "attach:primary") pos = o.position.clone();
+      // three's GLTFLoader strips ':' from node names (sanitizeNodeName), so the
+      // live name is "attachprimary"; the original "attach:primary" survives in
+      // userData.name. Accept either form.
+      const raw = (o.userData?.name as string | undefined) ?? o.name;
+      if (raw === "attach:primary" || raw === "attachprimary") {
+        pos = o.position.clone();
+      }
     });
     if (!pos) return null;
     const diag = new Box3().setFromObject(cloned).getSize(new Vector3()).length();

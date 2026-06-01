@@ -80,10 +80,13 @@ export async function analyzeGlb(
     size: { x: size.x, y: size.y, z: size.z },
   };
 
-  // Check if attach:primary already exists
+  // Check if attach:primary already exists. three's GLTFLoader strips ':' from
+  // node names (sanitizeNodeName) → "attachprimary"; the original survives in
+  // userData.name. Accept either form.
   let existingAttach: THREE.Vector3 | null = null;
   gltf.traverse((obj) => {
-    if (obj.name === 'attach:primary') {
+    const raw = (obj.userData?.name as string | undefined) ?? obj.name;
+    if (raw === 'attach:primary' || raw === 'attachprimary') {
       existingAttach = obj.position.clone();
     }
   });
