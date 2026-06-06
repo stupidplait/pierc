@@ -1,11 +1,23 @@
 "use server";
 
 import { put, del } from "@vercel/blob";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
 import { isFaqCategoryKey } from "@/components/faq/faqData";
+import {
+  parseSettingsFormData,
+  settingsFieldErrors,
+  SETTINGS_VALIDATION_SUMMARY,
+} from "@/lib/admin/settings-schema";
+import {
+  parseServiceFormData,
+  serviceFieldErrors,
+  parseFaqFormData,
+  faqFieldErrors,
+  CONTENT_VALIDATION_SUMMARY,
+} from "@/lib/admin/content-schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -13,7 +25,7 @@ import { isFaqCategoryKey } from "@/components/faq/faqData";
 
 export type ActionState =
   | { ok: true; message?: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string> }
   | undefined;
 
 function revalidatePublic() {
@@ -57,46 +69,52 @@ export async function updateAbout(
 // Service
 // ─────────────────────────────────────────────────────────────────────────────
 
-const serviceSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, "Название обязательно"),
-  description: z.string().trim().optional().or(z.literal("")),
-  price: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
-  durationMin: z.coerce.number().int().positive("Длительность > 0"),
-  order: z.coerce.number().int().default(0),
-  published: z.preprocess((v) => v === "on" || v === true, z.boolean()),
-});
-
 export async function upsertService(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   await assertAdmin();
-  const parsed = serviceSchema.safeParse({
-    id: formData.get("id") || undefined,
-    name: formData.get("name"),
-    description: formData.get("description"),
-    price: formData.get("price"),
-    durationMin: formData.get("durationMin"),
-    order: formData.get("order") ?? 0,
-    published: formData.get("published"),
-  });
+  // The drawer runs this same schema client-side first; the server re-validates
+  // as the authority. Per-field errors flow back so the form can mark fields.
+  const parsed = parseServiceFormData(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
+    return {
+      ok: false,
+      error: CONTENT_VALIDATION_SUMMARY,
+      fieldErrors: serviceFieldErrors(parsed.error),
+    };
   }
 
   const { id, description, ...rest } = parsed.data;
   const data = { ...rest, description: description || null };
 
   if (id) {
+    // `order` is owned by drag-to-reorder, so an edit never resets it.
     await prisma.service.update({ where: { id }, data });
   } else {
-    await prisma.service.create({ data });
+    const last = await prisma.service.findFirst({
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+    await prisma.service.create({ data: { ...data, order: (last?.order ?? -1) + 1 } });
   }
 
   revalidatePath("/admin/content");
   revalidatePath("/services");
-  return { ok: true, message: "Сохранено" };
+  revalidateTag("services", { expire: 0 }); // drop getPublishedServices() cache now
+  return { ok: true, message: id ? "Услуга сохранена" : "Услуга добавлена" };
+}
+
+export async function reorderServices(ids: string[]): Promise<void> {
+  await assertAdmin();
+  await prisma.$transaction(
+    ids.map((id, i) =>
+      prisma.service.update({ where: { id }, data: { order: i } }),
+    ),
+  );
+  revalidatePath("/admin/content");
+  revalidatePath("/services");
+  revalidateTag("services", { expire: 0 }); // drop getPublishedServices() cache now
 }
 
 export async function deleteService(formData: FormData): Promise<void> {
@@ -106,34 +124,25 @@ export async function deleteService(formData: FormData): Promise<void> {
   await prisma.service.delete({ where: { id } });
   revalidatePath("/admin/content");
   revalidatePath("/services");
+  revalidateTag("services", { expire: 0 }); // drop getPublishedServices() cache now
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FAQItem
 // ─────────────────────────────────────────────────────────────────────────────
 
-const faqSchema = z.object({
-  id: z.string().optional(),
-  question: z.string().trim().min(1, "Вопрос обязателен"),
-  answer: z.string().trim().min(1, "Ответ обязателен"),
-  order: z.coerce.number().int().default(0),
-  published: z.preprocess((v) => v === "on" || v === true, z.boolean()),
-});
-
 export async function upsertFaq(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   await assertAdmin();
-  const parsed = faqSchema.safeParse({
-    id: formData.get("id") || undefined,
-    question: formData.get("question"),
-    answer: formData.get("answer"),
-    order: formData.get("order") ?? 0,
-    published: formData.get("published"),
-  });
+  const parsed = parseFaqFormData(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
+    return {
+      ok: false,
+      error: CONTENT_VALIDATION_SUMMARY,
+      fieldErrors: faqFieldErrors(parsed.error),
+    };
   }
 
   // Category arrives as a raw key; keep it only if it's a known bucket,
@@ -147,12 +156,27 @@ export async function upsertFaq(
   if (id) {
     await prisma.fAQItem.update({ where: { id }, data });
   } else {
-    await prisma.fAQItem.create({ data });
+    const last = await prisma.fAQItem.findFirst({
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+    await prisma.fAQItem.create({ data: { ...data, order: (last?.order ?? -1) + 1 } });
   }
 
   revalidatePath("/admin/content");
   revalidatePath("/faq");
-  return { ok: true, message: "Сохранено" };
+  return { ok: true, message: id ? "Вопрос сохранён" : "Вопрос добавлен" };
+}
+
+export async function reorderFaq(ids: string[]): Promise<void> {
+  await assertAdmin();
+  await prisma.$transaction(
+    ids.map((id, i) =>
+      prisma.fAQItem.update({ where: { id }, data: { order: i } }),
+    ),
+  );
+  revalidatePath("/admin/content");
+  revalidatePath("/faq");
 }
 
 export async function deleteFaq(formData: FormData): Promise<void> {
@@ -274,36 +298,90 @@ export async function updateGalleryPhoto(formData: FormData): Promise<void> {
   revalidatePath("/gallery");
 }
 
+export async function reorderGalleryPhotos(ids: string[]): Promise<void> {
+  await assertAdmin();
+  await prisma.$transaction(
+    ids.map((id, i) =>
+      prisma.galleryPhoto.update({ where: { id }, data: { order: i } }),
+    ),
+  );
+  revalidatePath("/admin/content");
+  revalidatePath("/gallery");
+}
+
+/**
+ * Swap a photo's image file while keeping its row (caption, order, published).
+ * Uploads the new blob, repoints the record, then best-effort deletes the old
+ * blob so it doesn't linger toward the storage quota.
+ */
+export async function replaceGalleryPhoto(
+  formData: FormData,
+): Promise<ActionState> {
+  await assertAdmin();
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return {
+      ok: false,
+      error:
+        "Хранилище Vercel Blob не настроено. Установите BLOB_READ_WRITE_TOKEN в .env.",
+    };
+  }
+
+  const id = String(formData.get("id") ?? "");
+  const file = formData.get("file");
+  if (!id) return { ok: false, error: "Фото не найдено" };
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Выберите файл" };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "Файл должен быть изображением" };
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    return { ok: false, error: "Размер файла > 8 МБ" };
+  }
+
+  const photo = await prisma.galleryPhoto.findUnique({ where: { id } });
+  if (!photo) return { ok: false, error: "Фото не найдено" };
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = `gallery/${Date.now()}-${safeName}`;
+  const blob = await put(key, file, { access: "public", addRandomSuffix: false });
+
+  const oldUrl = photo.url;
+  await prisma.galleryPhoto.update({ where: { id }, data: { url: blob.url } });
+
+  // Best-effort cleanup of the now-orphaned old blob (skip if it's the same key).
+  if (oldUrl !== blob.url) {
+    try {
+      await del(oldUrl);
+    } catch {
+      // ignore — the row already points at the new blob
+    }
+  }
+
+  revalidatePath("/admin/content");
+  revalidatePath("/gallery");
+  return { ok: true, message: "Фото заменено" };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings (singleton)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const settingsSchema = z.object({
-  contactEmail: z.string().trim().optional().or(z.literal("")),
-  contactPhone: z.string().trim().optional().or(z.literal("")),
-  contactAddress: z.string().trim().optional().or(z.literal("")),
-  instagramUrl: z.string().trim().optional().or(z.literal("")),
-  telegramUrl: z.string().trim().optional().or(z.literal("")),
-  telegramChatId: z.string().trim().optional().or(z.literal("")),
-  workingHoursHint: z.string().trim().optional().or(z.literal("")),
-});
 
 export async function updateSettings(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   await assertAdmin();
-  const parsed = settingsSchema.safeParse({
-    contactEmail: formData.get("contactEmail"),
-    contactPhone: formData.get("contactPhone"),
-    contactAddress: formData.get("contactAddress"),
-    instagramUrl: formData.get("instagramUrl"),
-    telegramUrl: formData.get("telegramUrl"),
-    telegramChatId: formData.get("telegramChatId"),
-    workingHoursHint: formData.get("workingHoursHint"),
-  });
+  // The client runs this same schema before submitting; the server re-validates
+  // as the authority (never trust the client). See lib/admin/settings-schema.ts.
+  const parsed = parseSettingsFormData(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Ошибка" };
+    return {
+      ok: false,
+      error: SETTINGS_VALIDATION_SUMMARY,
+      fieldErrors: settingsFieldErrors(parsed.error),
+    };
   }
 
   // Empty strings -> null so the public side renders placeholders cleanly.

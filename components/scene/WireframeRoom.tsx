@@ -1372,72 +1372,80 @@ type ParsedColors = {
     crossColor: THREE.Color;
     crossAlpha: number;
     luminous: THREE.Color;
+    accent: THREE.Color;
+    reflect: THREE.Color;
 };
 
 function useThemeColors(scopeRef: React.RefObject<HTMLElement | null>): ParsedColors {
+    // Defaults mirror the dark scene tokens in globals.css so the very first
+    // frame (before getComputedStyle resolves) is already correct in dark.
     const [raw, setRaw] = useState({
         bg: "#080808",
-        minor: "rgba(255,255,255,0.55)",
-        major: "rgba(255,255,255,0.95)",
+        minor: "#171717",
+        major: "#3e3e3e",
+        cross: "#686868",
+        ink: "#ffffff",
+        accent: "#f06ba0",
+        reflect: "#000000",
     });
 
     useEffect(() => {
-        const el = scopeRef.current;
-        if (!el) return;
+        const el = scopeRef.current ?? document.documentElement;
 
         const read = () => {
             const styles = getComputedStyle(el);
+            const get = (name: string, fb: string) =>
+                styles.getPropertyValue(name).trim() || fb;
             setRaw({
-                bg: styles.getPropertyValue("--bg").trim() || "#080808",
-                minor: styles.getPropertyValue("--grid-minor").trim() || "rgba(255,255,255,0.55)",
-                major: styles.getPropertyValue("--grid-major").trim() || "rgba(255,255,255,0.95)",
+                bg: get("--scene-bg", "#080808"),
+                minor: get("--scene-grid-minor", "#171717"),
+                major: get("--scene-grid-major", "#3e3e3e"),
+                cross: get("--scene-cross", "#686868"),
+                ink: get("--scene-ink", "#ffffff"),
+                accent: get("--scene-accent", "#f06ba0"),
+                reflect: get("--scene-reflect", "#000000"),
             });
         };
 
         read();
+        // The theme toggle swaps the `.theme-*` / `.lighthero-*` CLASS and the
+        // `data-theme` attribute on <html>; watch both so the scene re-reads
+        // its tokens on every theme AND light-hero change.
         const observer = new MutationObserver(read);
         observer.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ["data-theme"],
+            attributeFilter: ["class", "data-theme"],
         });
         return () => observer.disconnect();
     }, [scopeRef]);
 
     return useMemo(() => {
+        // Scene tokens are solid hex (pre-baked alpha over --scene-bg) so we
+        // use opacity 1.0 across the board. Materials render opaque and skip
+        // the transparent render queue, fixing the alpha-bleed where minor
+        // lines used to show through the major mesh.
         const bg = parseCssColor(raw.bg, { hex: "#080808", alpha: 1 }).color;
-        // Tokens are now solid hex (pre-baked alpha over --bg) so we
-        // use opacity 1.0 across the board. Materials render opaque
-        // and skip the transparent render queue, fixing the alpha-bleed
-        // where minor lines used to show through the major mesh.
-        const m = parseCssColor(raw.minor, {
-            hex: "#171717",
-            alpha: 1,
-        });
-        const M = parseCssColor(raw.major, {
-            hex: "#3e3e3e",
-            alpha: 1,
-        });
-        // Separate "luminous" colour for HDR-pushed text (PIERCERKZN,
-        // ВЫБЕРИ, ПРИМЕРЬ). The grid greys above are pre-baked over the
-        // dark surface — multiplying them by 1.6 stays dark grey, which
-        // killed the bloom-driven glow. Text needs pure white; the
-        // bloom pass + toneMapped=false handle the rest.
-        const luminous = new THREE.Color("#ffffff");
+        const m = parseCssColor(raw.minor, { hex: "#171717", alpha: 1 });
+        const M = parseCssColor(raw.major, { hex: "#3e3e3e", alpha: 1 });
+        const cross = parseCssColor(raw.cross, { hex: "#686868", alpha: 1 });
+        // "luminous" drives the HDR-pushed headline + chapter titles
+        // (PIERCERKZN, ВЫБЕРИ, ПРИМЕРЬ). White on the dark room (bloom glow);
+        // dark ink on the paper hero; accent on the white studio hero — all
+        // sourced from --scene-ink so a theme/variant swap retints the text.
+        const luminous = parseCssColor(raw.ink, { hex: "#ffffff", alpha: 1 }).color;
+        const accent = parseCssColor(raw.accent, { hex: "#f06ba0", alpha: 1 }).color;
+        const reflect = parseCssColor(raw.reflect, { hex: "#000000", alpha: 1 }).color;
         return {
             bg,
             minor: m.color,
             minorAlpha: 1,
             major: M.color,
             majorAlpha: 1,
-            // Cross marks pre-baked over --bg = #080808. Computed
-            // equivalent of the old "white at opacity 0.39" formula:
-            //   255 × 0.39 + 8 × 0.61 ≈ 104  → #686868
-            // Brighter than the major lines (#3e3e3e) so the
-            // intersections register as accents, not just thicker
-            // wireframe joints.
-            crossColor: new THREE.Color("#686868"),
+            crossColor: cross.color,
             crossAlpha: 1,
             luminous,
+            accent,
+            reflect,
         };
     }, [raw]);
 }
@@ -1960,6 +1968,7 @@ function ProximityBloom({
     maxIntensity = 0.8,
     transitionProgress,
     settlePulseRef,
+    isLight = false,
 }: {
     mouseRef: React.RefObject<{ x: number; y: number }>;
     baseIntensity?: number;
@@ -1969,6 +1978,10 @@ function ProximityBloom({
        bloom-intensity pulse (sin shape, ~250 ms). Reset to 0
        immediately on consume so the same fire is never replayed. */
     settlePulseRef?: React.RefObject<number>;
+    /* On the light "studio" room the white background (luminance 1.0)
+       would itself bloom and glare. Raise the threshold above white so
+       only the HDR ring highlights bloom, and ease the overall amount. */
+    isLight?: boolean;
 }) {
     const bloomRef = useRef<any>(null);
     const smoothIntensity = useRef(baseIntensity);
@@ -2002,10 +2015,22 @@ function ProximityBloom({
             ? Math.sin(pulseElapsed * Math.PI) * 0.6
             : 0;
 
-        const target =
+        const rawTarget =
             baseIntensity + proximity * (maxIntensity - baseIntensity) + swapBoost + settleBoost;
+        // Ease the bloom on the bright studio so the chrome ring sparkles
+        // without the whole white room glowing.
+        const target = isLight ? rawTarget * 0.5 : rawTarget;
         smoothIntensity.current = THREE.MathUtils.damp(smoothIntensity.current, target, 5, dt);
         bloomRef.current.intensity = smoothIntensity.current;
+
+        // Threshold is set IMPERATIVELY (not as a prop) because it's a
+        // BloomEffect constructor arg — changing it via props reconstructs the
+        // effect inside EffectComposer, which under React 19 dev crashes the
+        // canvas (circular-JSON while serializing the scene). Above pure-white
+        // on the light studio so the #ffffff room doesn't bloom into glare;
+        // only HDR highlights cross it. Lower on dark so the headline glows.
+        const lum = bloomRef.current.luminanceMaterial;
+        if (lum) lum.threshold = isLight ? 1.05 : 0.85;
     });
 
     return (
@@ -3420,13 +3445,23 @@ export default function WireframeRoom({
                 <directionalLight position={[0, 2, cameraZ + 3]} intensity={0.3} />
                 <ExhibitionLight z={cameraZ - 6} scrollPhase={scrollPhase} />
                 <PinkRimLight ch2Phase={ch2Phase} />
+                {/* NOT keyed on the theme: remounting <Environment> live re-bakes
+                    the PMREM cubemap, which makes drei serialize the scene
+                    (Texture.toJSON → circular-structure crash → WebGL context
+                    loss) on a theme toggle. The reflection fallback is near-black
+                    in both themes (dark #000 / studio #15131a), so the baked-once
+                    env is visually identical either way — no remount needed. The
+                    enclosing sphere's `color` prop still updates in place. */}
                 <Environment resolution={256}>
-                    {/* Fully enclosing bright sphere \u2014 any reflection ray
-                    that misses a lightformer hits this and gets bright
-                    white instead of black void. */}
+                    {/* Fully enclosing reflection sphere \u2014 any reflection ray
+                    that misses a lightformer hits this. Themed via
+                    --scene-reflect: a black void on the dark room (dramatic,
+                    high-contrast glass) \u2192 a light wash on the paper/studio hero
+                    so the glass ring reads as clean chrome instead of picking
+                    up dark smudges against the bright surface. */}
                     <mesh scale={100}>
                         <sphereGeometry args={[1, 32, 32]} />
-                        <meshBasicMaterial color="#000000" side={THREE.BackSide} />
+                        <meshBasicMaterial color={colors.reflect} side={THREE.BackSide} />
                     </mesh>
                     {/* Bright top hemisphere rim \u2014 cinematic exhibition key */}
                     <Lightformer
@@ -3525,6 +3560,7 @@ export default function WireframeRoom({
                     maxIntensity={0.8}
                     transitionProgress={transitionProgress}
                     settlePulseRef={settlePulseRef}
+                    isLight={colors.bg.r > 0.5}
                 />
             </EffectComposer>
         </Canvas>

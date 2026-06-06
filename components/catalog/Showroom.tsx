@@ -19,9 +19,11 @@ import {
 } from "@/lib/catalog/types";
 import type { BookingUser, WizardJewelry } from "@/lib/booking/wizard-types";
 import { serializeEquipped } from "@/lib/catalog/url-state";
+import { CATALOG_DESIGN } from "@/lib/catalog/lab-state";
 import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
 import type { CatalogViewProps } from "./views/parts";
-import { CatalogConsoleView } from "./views/CatalogConsoleView";
+import { CatalogShell } from "./CatalogShell";
+import { InspectOverlay } from "./inspect/InspectOverlay";
 
 interface ShowroomProps {
   anchors: AnchorWire[];
@@ -48,7 +50,7 @@ export function Showroom({
   hideGridLink = false,
   user = null,
 }: ShowroomProps) {
-  const { replace } = useRouter();
+  const { replace, push } = useRouter();
   const [, startTransition] = useTransition();
 
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -57,6 +59,12 @@ export function Showroom({
   const [equipped, setEquipped] = useState<EquippedMap>(initialEquipped);
   const [bookingOpen, setBookingOpen] = useState(false);
   const webgl2Supported = useWebGL2Supported();
+
+  // The catalog design is locked to a single combination — no variant lab, URL
+  // params, or switcher anymore. `inspectId` is the piece open in the inspect
+  // overlay: pure client state, not deep-linked.
+  const lab = CATALOG_DESIGN;
+  const [inspectId, setInspectId] = useState<string | null>(null);
 
   // Distinct jewelry pieces in the tray (a multi-anchor piece counts once),
   // shaped for the booking drawer.
@@ -89,7 +97,9 @@ export function Showroom({
   // Track previous query string to avoid unnecessary URL updates
   const prevQueryRef = useRef<string>("");
 
-  // Sync URL after state changes — runs after render, not during.
+  // Sync URL after state changes — runs after render, not during. Only the
+  // showroom's own try-on state (focused anchor + equipped tray) is deep-linked
+  // now; the design axes are constants and the inspect overlay is local.
   useEffect(() => {
     const params = new URLSearchParams();
 
@@ -131,6 +141,35 @@ export function Showroom({
     });
   }, []);
 
+  // Clicking a piece: in `page` mode navigate to the standalone detail route;
+  // otherwise open the in-catalog inspect overlay (deep-linked via ?inspect=).
+  const handleInspect = useCallback(
+    (jewelryId: string) => {
+      if (lab.detail === "page") push(`/catalog/${jewelryId}`);
+      else setInspectId(jewelryId);
+    },
+    [lab.detail, push],
+  );
+
+  // Equip-from-inspect: drop the piece on its primary anchor, focus there so the
+  // camera frames the try-on, then close the overlay.
+  const handleInspectEquip = useCallback(
+    (jewelryId: string) => {
+      const piece = jewelry.find((j) => j.id === jewelryId);
+      const anchorId = piece?.anchorBindings[0]?.anchorId;
+      if (anchorId) {
+        handleEquip(anchorId, jewelryId);
+        setSelectedId(anchorId);
+      }
+      setInspectId(null);
+    },
+    [jewelry, handleEquip],
+  );
+
+  const inspectPiece = inspectId
+    ? (jewelry.find((j) => j.id === inspectId) ?? null)
+    : null;
+
   // WebGL2 capability check — render lite mode (selfie + sprite overlay) when 3D
   // isn't available. `?view=grid` opt-in is handled at the page level.
   if (webgl2Supported === false) {
@@ -158,11 +197,40 @@ export function Showroom({
     onUnequip: handleUnequip,
     hideGridLink,
     cardVariant: "frame",
+    env: lab.env,
+    hud: lab.hud,
+    place: lab.place,
+    info: lab.info,
+    bg: lab.bg,
+    dots: lab.dots,
+    cardview: lab.cardview,
+    cardtx: lab.cardtx,
+    loader: lab.loader,
+    detail: lab.detail,
+    user,
+    onInspect: handleInspect,
+    inspectId,
+    onInspectClose: () => setInspectId(null),
+    onInspectEquip: handleInspectEquip,
   };
+
+  // The rail shows the detail INSIDE the panel; every other layout uses the
+  // centered overlay. `page` mode never opens an in-app detail (it navigates).
+  const railInlineDetail = lab.cards === "rail" && lab.detail !== "page";
 
   return (
     <>
-      <CatalogConsoleView {...viewProps} />
+      <CatalogShell {...viewProps} cards={lab.cards} />
+
+      <InspectOverlay
+        piece={railInlineDetail ? null : inspectPiece}
+        anchors={anchors}
+        user={user}
+        detail={lab.detail}
+        loader={lab.loader}
+        onClose={() => setInspectId(null)}
+        onEquip={handleInspectEquip}
+      />
 
       <JewelryBookingDrawer
         open={bookingOpen}

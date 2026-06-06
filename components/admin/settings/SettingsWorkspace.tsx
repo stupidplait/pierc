@@ -1,6 +1,16 @@
 "use client";
 
-import { motion, MotionConfig, type Variants } from "framer-motion";
+import { useActionState, useEffect, useState } from "react";
+import {
+  AnimatePresence,
+  LazyMotion,
+  domMax,
+  m,
+  MotionConfig,
+  type Variants,
+} from "framer-motion";
+import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import {
   ENTRANCE_DURATION,
   ENTRANCE_HIDDEN,
@@ -8,17 +18,33 @@ import {
   ENTRANCE_STAGGER,
   REVEAL_EASE,
 } from "@/components/services/entrance/config";
-import { InlineStatus } from "@/components/admin/form/atelier";
-import { NotificationTestButton } from "@/components/admin/NotificationTestButton";
+import { Toaster } from "@/components/admin/toast/Toaster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/shadcn/ui/card";
+import { Button } from "@/components/shadcn/ui/button";
+import { updateSettings, type ActionState } from "@/lib/admin/content-actions";
+import {
+  parseSettingsFormData,
+  settingsFieldErrors,
+  firstSettingsError,
+  SETTINGS_FIELD_ORDER,
+  SETTINGS_VALIDATION_SUMMARY,
+  type SettingsFieldErrors,
+} from "@/lib/admin/settings-schema";
 import { ru } from "@/lib/i18n/ru";
-import { SETTINGS_SECTIONS, type SettingsLike } from "./model";
-import { SettingsField, useSettingsAction } from "./fields";
+import { SETTINGS_SECTIONS, type SettingsLike, type FieldName } from "./model";
+import { SettingsField } from "./fields";
+import { SaveButton } from "./SaveButton";
 
 const t = ru.admin.settings;
 const FORM_ID = "admin-settings-form";
 
-// Stagger the section cards in on mount; the notifications card runs its own
-// entrance just after, so the page settles as one set.
+const MotionCard = m.create(Card);
+
 const container: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: ENTRANCE_STAGGER, delayChildren: 0.05 } },
@@ -32,87 +58,222 @@ const item: Variants = {
   },
 };
 
-/**
- * Settings workspace — a clean single column of elevated section cards. The
- * contact / social / integration groups post as one form behind a sticky save
- * bar that floats at the foot of the viewport while you edit; the notifications
- * self-test rides below as its own diagnostic card (its own form — HTML forms
- * can't nest).
- */
+function buildValues(s: SettingsLike): Record<FieldName, string> {
+  return {
+    contactEmail: s.contactEmail ?? "",
+    contactPhone: s.contactPhone ?? "",
+    contactAddress: s.contactAddress ?? "",
+    instagramUrl: s.instagramUrl ?? "",
+    telegramUrl: s.telegramUrl ?? "",
+    telegramChatId: s.telegramChatId ?? "",
+    workingHoursHint: s.workingHoursHint ?? "",
+  };
+}
+
 export function SettingsWorkspace({ initial }: { initial: SettingsLike }) {
-  const [state, action, pending] = useSettingsAction();
+  const [savedValues, setSavedValues] = useState(() => buildValues(initial));
+  const [values, setValues] = useState(() => buildValues(initial));
+  // Per-field remount counter. Bumping a field's nonce (only on discard, only
+  // for fields that changed) remounts that one input so it re-reads the
+  // baseline, and triggers its reset fade-in below.
+  const [fieldNonce, setFieldNonce] = useState<Partial<Record<FieldName, number>>>(
+    {},
+  );
+  const [cleared, setCleared] = useState<Set<FieldName>>(() => new Set());
+
+  // Derived during render (no effect): the form is dirty when any current value
+  // differs from the last persisted baseline. Saving advances the baseline;
+  // discarding rewinds the values to it.
+  const dirty = SETTINGS_FIELD_ORDER.some(
+    (name) => values[name] !== savedValues[name],
+  );
+
+  const focusFirstError = (errors: SettingsFieldErrors) => {
+    const first = firstSettingsError(errors);
+    if (first) document.getElementById(`settings-${first}`)?.focus();
+  };
+
+  const validatedAction = async (
+    _prev: ActionState,
+    formData: FormData,
+  ): Promise<ActionState> => {
+    setCleared(new Set());
+    const parsed = parseSettingsFormData(formData);
+    if (!parsed.success) {
+      const fieldErrors = settingsFieldErrors(parsed.error);
+      focusFirstError(fieldErrors);
+      toast.error(SETTINGS_VALIDATION_SUMMARY);
+      return { ok: false, error: SETTINGS_VALIDATION_SUMMARY, fieldErrors };
+    }
+    const result = await updateSettings(_prev, formData);
+    if (result?.ok) {
+      toast.success(result.message ?? ru.admin.common.saved);
+      setSavedValues(values);
+    } else if (result) {
+      toast.error(result.error || ru.admin.common.saveError);
+      if (!result.ok && result.fieldErrors) focusFirstError(result.fieldErrors);
+    }
+    return result;
+  };
+
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    validatedAction,
+    undefined,
+  );
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const fieldErrors = state && !state.ok ? state.fieldErrors : undefined;
+  const errorFor = (name: FieldName) =>
+    fieldErrors && !cleared.has(name) ? fieldErrors[name] : undefined;
+
+  const setFieldValue = (name: FieldName, value: string) => {
+    setValues((v) => ({ ...v, [name]: value }));
+    setCleared((prev) => {
+      if (prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.add(name);
+      return next;
+    });
+  };
+
+  const discard = () => {
+    // Only the fields that actually changed get a fresh nonce, so just those
+    // inputs remount (snapping the uncontrolled text/phone fields and the
+    // prefixed URL fields back to the baseline) and fade in, while untouched
+    // fields stay put without a flicker. Stale validation errors are hidden.
+    const changed = SETTINGS_FIELD_ORDER.filter(
+      (name) => values[name] !== savedValues[name],
+    );
+    setValues(savedValues);
+    setCleared(new Set<FieldName>(SETTINGS_FIELD_ORDER));
+    setFieldNonce((prev) => {
+      const next = { ...prev };
+      for (const name of changed) next[name] = (next[name] ?? 0) + 1;
+      return next;
+    });
+  };
 
   return (
-    <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        {/* Contact / social / integration groups — one form, one save. */}
-        <form id={FORM_ID} action={action}>
-          <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="flex flex-col gap-6"
-          >
-            {SETTINGS_SECTIONS.map((section) => (
-              <motion.div
-                key={section.key}
-                variants={item}
-                className="rounded-2xl border border-line bg-card p-6 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]"
-              >
-                <div className="mb-5">
-                  <h2 className="font-display text-lg font-medium tracking-tight text-ink">
-                    {section.heading}
-                  </h2>
-                  <p className="mt-1 text-sm text-mute">{section.lead}</p>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {section.fields.map((field) => (
-                    <SettingsField
-                      key={field.name}
-                      field={field}
-                      value={initial[field.name]}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            ))}
+    <LazyMotion features={domMax}>
+      <MotionConfig reducedMotion="user">
+        <div className="flex w-full flex-col gap-6">
+          <form id={FORM_ID} action={action} noValidate>
+            <m.div
+              variants={container}
+              initial="hidden"
+              animate="show"
+              className="flex flex-col gap-6"
+            >
+              {SETTINGS_SECTIONS.map((section) => {
+                const headingId = `settings-${section.key}-heading`;
+                return (
+                  <MotionCard
+                    key={section.key}
+                    variants={item}
+                    role="group"
+                    aria-labelledby={headingId}
+                  >
+                    <CardHeader>
+                      <h2
+                        id={headingId}
+                        className="font-display text-lg font-medium tracking-tight text-ink"
+                      >
+                        {section.heading}
+                      </h2>
+                      <CardDescription>{section.lead}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {section.fields.map((field) => {
+                          const nonce = fieldNonce[field.name] ?? 0;
+                          return (
+                            <m.div
+                              key={`${field.name}-${nonce}`}
+                              className={field.full ? "sm:col-span-2" : undefined}
+                              // Animate only the reset (nonce > 0); on first paint
+                              // the card's own entrance covers the fields.
+                              initial={
+                                nonce > 0
+                                  ? { opacity: 0, filter: "blur(4px)" }
+                                  : false
+                              }
+                              animate={{ opacity: 1, filter: "blur(0px)" }}
+                              transition={{ duration: 0.22, ease: REVEAL_EASE }}
+                            >
+                              <SettingsField
+                                field={field}
+                                value={values[field.name]}
+                                error={errorFor(field.name)}
+                                onValueChange={(v) => setFieldValue(field.name, v)}
+                              />
+                            </m.div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </MotionCard>
+                );
+              })}
 
-            {/* Sticky save bar — plain element (not a motion child) so its
-                `position: sticky` is pristine from first paint. */}
-            <div className="sticky bottom-4 z-20 mt-1">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-card/85 px-5 py-3.5 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_12px_30px_-12px_rgba(8,8,8,0.7)] backdrop-blur-xl">
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-ink px-6 text-sm font-medium text-bg transition-colors duration-150 hover:bg-ink/90 active:scale-[0.98] disabled:opacity-50"
+              <div className="sticky bottom-4 z-20 mt-1">
+                <m.div
+                  initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ duration: ENTRANCE_DURATION, ease: REVEAL_EASE, delay: 0.32 }}
                 >
-                  {pending ? "…" : t.save}
-                </button>
-                <InlineStatus state={state} />
-                <span className="ml-auto hidden text-xs text-mute sm:block">
-                  {t.saveHint}
-                </span>
+                  <div className="relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-card px-5 py-3.5 shadow-elev">
+                    <SaveButton
+                      pending={pending}
+                      disabled={pending || !dirty}
+                      label={t.save}
+                      pendingLabel={t.saving}
+                    />
+                    {/* Hidden while saving (popLayout) so the Save button's
+                        width-morph doesn't shove it sideways — you can't discard
+                        mid-save anyway. */}
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {dirty && !pending ? (
+                        <m.div
+                          key="discard"
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -8 }}
+                          transition={{ duration: 0.2, ease: REVEAL_EASE }}
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={discard}
+                            disabled={pending}
+                            className="whitespace-nowrap"
+                          >
+                            <RotateCcw className="size-4" aria-hidden />
+                            {t.discard}
+                          </Button>
+                        </m.div>
+                      ) : null}
+                    </AnimatePresence>
+                    <span className="ml-auto hidden text-xs text-mute sm:block">
+                      {t.saveHint}
+                    </span>
+                  </div>
+                </m.div>
               </div>
-            </div>
-          </motion.div>
-        </form>
+            </m.div>
+          </form>
+        </div>
 
-        {/* Notifications self-test — own form, sibling of the editor form. */}
-        <motion.div
-          initial={ENTRANCE_HIDDEN}
-          animate={ENTRANCE_SHOW}
-          transition={{ duration: ENTRANCE_DURATION, ease: REVEAL_EASE, delay: 0.28 }}
-          className="rounded-2xl border border-line bg-card p-6 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]"
-        >
-          <h2 className="font-display text-lg font-medium tracking-tight text-ink">
-            {t.notificationsHeading}
-          </h2>
-          <p className="mt-1 mb-4 max-w-prose text-sm text-mute">
-            {t.notificationsLead}
-          </p>
-          <NotificationTestButton />
-        </motion.div>
-      </div>
-    </MotionConfig>
+        <Toaster />
+      </MotionConfig>
+    </LazyMotion>
   );
 }

@@ -110,6 +110,12 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       glbScale: j.glbScale ?? 1,
       spriteUrl: j.spriteUrl ?? null,
       categoryName: j.category.name,
+      description: j.description,
+      material: j.material,
+      gauge: j.gauge,
+      size: j.size,
+      color: j.color,
+      stones: j.stones,
       type,
       anchorBindings: bindings,
       anchorIds: Array.from(anchorIdSet),
@@ -146,7 +152,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const initialEquipped: EquippedMap = parseEquippedFromUrl(sp.eq, slugToId);
 
   return (
-    <div className="lg:h-svh">
+    <div className="h-svh">
       <Showroom
         anchors={anchors}
         jewelry={jewelry}

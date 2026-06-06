@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { m, useReducedMotion, type Variants } from "framer-motion";
 import { scrollToSection } from "@/lib/scroll";
+import { blurRevealVariants } from "@/components/motion/BlurReveal";
 
 export interface TocItem {
   /** id of the <section> this entry tracks. */
@@ -10,18 +11,12 @@ export interface TocItem {
   label: string;
 }
 
-// Entry choreography — the rail's numbered entries stream in (fade + rise),
-// staggered, on mount. Matches the landing/about reveal easing.
-const EASE = [0.16, 1, 0.3, 1] as const;
-
+// Entry choreography — the rail's numbered entries play the house blur-focus
+// entrance (blurRevealVariants), staggered on mount, so they match the hero mark
+// and the section grids elsewhere on the page.
 const railList: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
-};
-
-const railItem: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
 };
 
 /**
@@ -83,7 +78,7 @@ export function StickyTocRail({
           </p>
         </div>
       ) : null}
-      <motion.ol
+      <m.ol
         className="space-y-3"
         variants={railList}
         initial={reduce ? false : "hidden"}
@@ -92,7 +87,7 @@ export function StickyTocRail({
         {items.map((it, i) => {
           const isActive = active === it.id;
           return (
-            <motion.li key={it.id} variants={railItem}>
+            <m.li key={it.id} variants={blurRevealVariants}>
               <a
                 href={`#${it.id}`}
                 aria-current={isActive ? "true" : undefined}
@@ -124,10 +119,10 @@ export function StickyTocRail({
                 />
                 {it.label}
               </a>
-            </motion.li>
+            </m.li>
           );
         })}
-      </motion.ol>
+      </m.ol>
     </nav>
   );
 }

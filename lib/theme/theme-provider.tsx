@@ -1,6 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useSyncExternalStore,
+} from "react";
 
 type Theme = "dark" | "light";
 
@@ -8,50 +13,72 @@ interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  /** Always true on the client; kept for call-sites that gate first paint. */
+  ready: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
+/**
+ * The <html> element is the single source of truth: the pre-paint script in
+ * app/layout.tsx stamps `.theme-*` + `data-theme` before hydration, and these
+ * helpers read/write it. Using useSyncExternalStore (per the project's strict
+ * react-hooks lint, which forbids set-state-in-effect) means the snapshot is
+ * always current with no flash and no hydration mismatch.
+ */
+function applyTheme(theme: Theme) {
+  const el = document.documentElement;
+  el.classList.remove("theme-light", "theme-dark");
+  el.classList.add(`theme-${theme}`);
+  el.setAttribute("data-theme", theme);
+}
 
-  // Hydration-safe initialization
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem("theme") as Theme | null;
-    if (stored === "light" || stored === "dark") {
-      setThemeState(stored);
-    } else {
-      // Default to dark (Steel Atelier)
-      setThemeState("dark");
-    }
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "data-theme"],
+  });
+  // Follow the OS while the visitor hasn't made an explicit choice. Updating
+  // the class (not React state) keeps this a plain external-system sync; the
+  // observer above then notifies React.
+  const mql = window.matchMedia("(prefers-color-scheme: light)");
+  const onSystem = () => {
+    if (localStorage.getItem("theme")) return;
+    applyTheme(mql.matches ? "light" : "dark");
+  };
+  mql.addEventListener("change", onSystem);
+  return () => {
+    observer.disconnect();
+    mql.removeEventListener("change", onSystem);
+  };
+}
+
+const getThemeSnapshot = (): Theme =>
+  document.documentElement.classList.contains("theme-light") ? "light" : "dark";
+// Server render has no DOM to read; the dark instrument-room is the default.
+const themeServerSnapshot = (): Theme => "dark";
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const theme = useSyncExternalStore(
+    subscribe,
+    getThemeSnapshot,
+    themeServerSnapshot,
+  );
+
+  const setTheme = useCallback((next: Theme) => {
+    localStorage.setItem("theme", next);
+    applyTheme(next);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    const root = document.documentElement;
-    root.classList.remove("theme-light", "theme-dark");
-    root.classList.add(`theme-${theme}`);
-    localStorage.setItem("theme", theme);
-  }, [theme, mounted]);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
-
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
-  };
-
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return <>{children}</>;
-  }
+  const toggleTheme = useCallback(() => {
+    const next = getThemeSnapshot() === "dark" ? "light" : "dark";
+    localStorage.setItem("theme", next);
+    applyTheme(next);
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, ready: true }}>
       {children}
     </ThemeContext.Provider>
   );

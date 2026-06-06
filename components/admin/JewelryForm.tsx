@@ -1227,7 +1227,7 @@ export function JewelryForm({
         <div className="sticky bottom-4 z-20 mt-1">
           <div className="relative">
             {floatingChecklist}
-            <div className="flex items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card/95 px-3 py-2.5 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)] backdrop-blur sm:px-4 sm:py-3">
+            <div className="flex items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card/95 px-3 py-2.5 shadow-elev backdrop-blur sm:px-4 sm:py-3">
               {deleteSlot ? <div className="shrink-0">{deleteSlot}</div> : null}
               {progressCompact}
               {saveStateZone}

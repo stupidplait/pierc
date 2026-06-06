@@ -31,6 +31,7 @@ export interface GalleryRow {
   url: string;
   caption: string | null;
   order: number;
+  published: boolean;
 }
 
 export interface ContentData {

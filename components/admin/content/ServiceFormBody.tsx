@@ -1,17 +1,30 @@
 "use client";
 
-import { useActionState, useId } from "react";
-import { Button, buttonVariants } from "@/components/shadcn/ui/button";
-import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
-import { InlineStatus } from "@/components/admin/form/atelier";
-import { NumberField, SwitchRow, TextAreaField, TextField } from "./fields";
+import { useActionState, useId, useState } from "react";
+import { toast } from "sonner";
+import { NumberField, TextAreaField, TextField } from "./fields";
+import { VariantSwitcher } from "./VariantSwitcher";
+import {
+  DrawerFormActions,
+  BodyPublishedToggle,
+  DRAWER_OPTIONS,
+  type DrawerVariant,
+  type ActionLabels,
+} from "./DrawerFormActions";
 import {
   upsertService,
   deleteService,
   type ActionState,
 } from "@/lib/admin/content-actions";
+import {
+  parseServiceFormData,
+  serviceFieldErrors,
+  firstServiceError,
+  CONTENT_VALIDATION_SUMMARY,
+  type ServiceFieldName,
+  type ServiceFieldErrors,
+} from "@/lib/admin/content-schema";
 import { ru } from "@/lib/i18n/ru";
-import { cn } from "@/lib/utils";
 
 export interface ServiceInitial {
   id?: string;
@@ -19,16 +32,18 @@ export interface ServiceInitial {
   description?: string | null;
   price?: string | null;
   durationMin?: number | null;
-  order?: number | null;
   published?: boolean;
 }
 
 /**
- * The bare Service editor `<form>` — fields + submit + delete/cancel + inline
- * status. The content manager opens it inside a side drawer.
+ * The bare Service editor `<form>` — fields + the sticky drawer action footer.
+ * The content manager opens it inside a side drawer; ordering is handled by
+ * drag-to-reorder on the list, not here.
  *
- * `onSaved` fires after a successful save or delete; the caller uses it to
- * `router.refresh()` and close the drawer.
+ * Validation mirrors the settings page: the shared schema runs client-side
+ * first, the server re-validates as the authority, and fields are controlled so
+ * a rejected submit keeps what was typed. Feedback is a sonner toast. `onSaved`
+ * fires after a successful save or delete; the caller refreshes + closes.
  */
 export function ServiceFormBody({
   initial,
@@ -41,44 +56,116 @@ export function ServiceFormBody({
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(
-    async (prev, formData) => {
-      const res = await upsertService(prev, formData);
-      if (res?.ok) onSaved?.();
-      return res;
-    },
-    undefined,
-  );
   const uid = useId();
   const t = ru.admin.content.services;
-  const published = initial?.published ?? true;
+
+  const [values, setValues] = useState<Record<ServiceFieldName, string>>(() => ({
+    name: initial?.name ?? "",
+    description: initial?.description ?? "",
+    price: initial?.price ?? "",
+    durationMin: initial?.durationMin != null ? String(initial.durationMin) : "",
+  }));
+  const [published, setPublished] = useState(initial?.published ?? true);
+  const [cleared, setCleared] = useState<Set<ServiceFieldName>>(() => new Set());
+  const [drawerVariant, setDrawerVariant] =
+    useState<DrawerVariant>("footer-toggle");
+
+  const focusFirstError = (errors: ServiceFieldErrors) => {
+    const first = firstServiceError(errors);
+    if (first) document.getElementById(`${uid}-${first}`)?.focus();
+  };
+
+  const validatedAction = async (
+    prev: ActionState,
+    formData: FormData,
+  ): Promise<ActionState> => {
+    setCleared(new Set());
+    const parsed = parseServiceFormData(formData);
+    if (!parsed.success) {
+      const fieldErrors = serviceFieldErrors(parsed.error);
+      focusFirstError(fieldErrors);
+      toast.error(CONTENT_VALIDATION_SUMMARY);
+      return { ok: false, error: CONTENT_VALIDATION_SUMMARY, fieldErrors };
+    }
+    const res = await upsertService(prev, formData);
+    if (res?.ok) {
+      toast.success(res.message ?? ru.admin.common.saved);
+      onSaved?.();
+    } else if (res) {
+      toast.error(res.error || ru.admin.common.saveError);
+      if (!res.ok && res.fieldErrors)
+        focusFirstError(res.fieldErrors as ServiceFieldErrors);
+    }
+    return res;
+  };
+
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    validatedAction,
+    undefined,
+  );
+
+  const fieldErrors = state && !state.ok ? state.fieldErrors : undefined;
+  const errorFor = (name: ServiceFieldName) =>
+    fieldErrors && !cleared.has(name) ? fieldErrors[name] : undefined;
+  const setFieldValue = (name: ServiceFieldName, value: string) => {
+    setValues((v) => ({ ...v, [name]: value }));
+    setCleared((prev) => {
+      if (prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.add(name);
+      return next;
+    });
+  };
 
   // Delete reuses the server action, then lets the caller refresh/close.
   const deleteAction = onSaved
     ? async (formData: FormData) => {
         await deleteService(formData);
+        toast.success(ru.admin.common.deleted);
         onSaved();
       }
     : deleteService;
 
+  const labels: ActionLabels = {
+    save: t.save,
+    add: t.add,
+    delete: t.delete,
+    confirmDelete: t.confirmDelete,
+    publishedLabel: t.publishedLabel,
+    draft: t.draft,
+  };
+
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <form action={action} noValidate className="grid gap-4 sm:grid-cols-2">
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
+
+      <div className="sm:col-span-2">
+        <VariantSwitcher
+          label="Низ ящика:"
+          value={drawerVariant}
+          options={DRAWER_OPTIONS}
+          onChange={setDrawerVariant}
+        />
+      </div>
 
       <TextField
         id={`${uid}-name`}
         name="name"
         label={t.nameLabel}
-        defaultValue={initial?.name}
+        value={values.name}
+        error={errorFor("name")}
+        onValueChange={(v) => setFieldValue("name", v)}
         placeholder={t.namePlaceholder}
         required
         full
       />
       <TextAreaField
-        id={`${uid}-desc`}
+        id={`${uid}-description`}
         name="description"
         label={t.descriptionLabel}
-        defaultValue={initial?.description}
+        value={values.description}
+        error={errorFor("description")}
+        onValueChange={(v) => setFieldValue("description", v)}
         placeholder={t.descriptionPlaceholder}
         rows={3}
         full
@@ -87,49 +174,45 @@ export function ServiceFormBody({
         id={`${uid}-price`}
         name="price"
         label={t.priceLabel}
-        defaultValue={initial?.price ?? ""}
+        value={values.price}
+        error={errorFor("price")}
+        onValueChange={(v) => setFieldValue("price", v)}
+        placeholder={t.pricePlaceholder}
         step="0.01"
         min={0}
       />
       <NumberField
-        id={`${uid}-dur`}
+        id={`${uid}-durationMin`}
         name="durationMin"
         label={t.durationLabel}
-        defaultValue={initial?.durationMin ?? ""}
+        value={values.durationMin}
+        error={errorFor("durationMin")}
+        onValueChange={(v) => setFieldValue("durationMin", v)}
+        placeholder={t.durationPlaceholder}
         min={1}
-      />
-      <NumberField
-        id={`${uid}-order`}
-        name="order"
-        label={t.orderLabel}
-        defaultValue={initial?.order ?? 0}
-      />
-      <SwitchRow
-        id={`${uid}-pub`}
-        name="published"
-        label={t.publishedLabel}
-        defaultChecked={published}
+        required
       />
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "…" : isNew ? t.add : t.save}
-        </Button>
-        {isNew ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            {ru.admin.common.cancel}
-          </Button>
-        ) : (
-          <ConfirmDeleteButton
-            formAction={deleteAction}
-            confirmText={t.confirmDelete}
-            className={cn(buttonVariants({ variant: "destructive" }))}
-          >
-            {t.delete}
-          </ConfirmDeleteButton>
-        )}
-        <InlineStatus state={state} />
-      </div>
+      {drawerVariant === "footer-actions" ? (
+        <BodyPublishedToggle
+          id={`${uid}-published`}
+          checked={published}
+          onChange={setPublished}
+          labels={labels}
+        />
+      ) : null}
+
+      <DrawerFormActions
+        variant={drawerVariant}
+        isNew={isNew}
+        pending={pending}
+        published={published}
+        onPublishedChange={setPublished}
+        toggleId={`${uid}-published`}
+        labels={labels}
+        onCancel={onCancel}
+        deleteAction={deleteAction}
+      />
     </form>
   );
 }

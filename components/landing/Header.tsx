@@ -60,7 +60,7 @@ const BTN_PILL_SECONDARY = `inline-flex items-center justify-center rounded-xl b
 const CHIP = `inline-flex items-center gap-2 rounded-xl bg-transparent py-1 pl-1 pr-2 text-[12px] font-medium tracking-[0.04em] text-ink no-underline transition-colors duration-200 hover:bg-ink/5 active:scale-[0.97] ${FOCUS_RING}`;
 // Avatar: rounded-lg so it sits concentrically inside the chip's rounded-xl.
 const AVATAR = "flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink text-[11px] font-semibold text-bg";
-const MENU_PANEL = "absolute right-0 top-[calc(100%+10px)] z-40 min-w-[180px] overflow-hidden rounded-xl border border-ink-line-strong bg-[rgba(8,8,8,0.94)] p-1.5 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl animate-[landingChromeFadeIn_150ms_ease-out_both]";
+const MENU_PANEL = "absolute right-0 top-[calc(100%+10px)] z-40 min-w-[180px] overflow-hidden rounded-xl border border-ink-line-strong bg-overlay p-1.5 shadow-[0_24px_60px_-24px_var(--shadow-deep)] backdrop-blur-xl animate-[landingChromeFadeIn_150ms_ease-out_both]";
 const MENU_ITEM = `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-ink no-underline transition-colors hover:bg-ink/10 ${FOCUS_RING}`;
 
 
@@ -368,7 +368,7 @@ export function Header({ user = null, admin = null }: HeaderProps) {
                     role="dialog"
                     aria-label="Навигация"
                     aria-modal="true"
-                    className="fixed inset-0 z-[29] flex flex-col items-center justify-center gap-7 bg-[rgba(8,8,8,0.94)] backdrop-blur-2xl animate-[landingChromeFadeIn_250ms_ease-out_both] overscroll-contain"
+                    className="fixed inset-0 z-[29] flex flex-col items-center justify-center gap-7 bg-overlay backdrop-blur-2xl animate-[landingChromeFadeIn_250ms_ease-out_both] overscroll-contain"
                 >
                     <nav
                         aria-label="Мобильная навигация"

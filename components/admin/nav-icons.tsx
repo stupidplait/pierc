@@ -29,12 +29,13 @@ function DashboardGlyph() {
   );
 }
 
-// jewelry catalogue — a faceted gem
-function GemGlyph() {
+// jewelry catalogue — a stack of item cards (a back tile peeking up-left behind
+// the front one), reading as a collection of products.
+function StackGlyph() {
   return (
     <svg {...common}>
-      <path d="M3.5 7 6 3.5h6L14.5 7 9 15.5 3.5 7Z" />
-      <path d="M3.5 7h11M6 3.5 9 7l3-3.5M9 7v8.5" />
+      <rect x="3" y="3" width="9" height="9" rx="1.6" />
+      <rect x="6" y="6" width="9" height="9" rx="1.6" />
     </svg>
   );
 }
@@ -88,19 +89,21 @@ function DocGlyph() {
   );
 }
 
-// settings — a gear
+// settings — a cog (canonical gear outline + center hole). Drawn on a 24-grid
+// so the toothed silhouette stays clean, then rendered at the same 18px box;
+// stroke nudged to 1.7 so its weight matches the 1.5/18-grid siblings.
 function GearGlyph() {
   return (
-    <svg {...common}>
-      <circle cx="9" cy="9" r="2.4" />
-      <path d="M9 1.7v2M9 14.3v2M16.3 9h-2M3.7 9h-2M14.16 3.84l-1.4 1.4M5.24 12.76l-1.4 1.4M14.16 14.16l-1.4-1.4M5.24 5.24l-1.4-1.4" />
+    <svg {...common} viewBox="0 0 24 24" strokeWidth={1.7}>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
 const BY_HREF: Record<string, () => ReactElement> = {
   "/admin": DashboardGlyph,
-  "/admin/jewelry": GemGlyph,
+  "/admin/jewelry": StackGlyph,
   "/admin/slots": CalendarGlyph,
   "/admin/bookings": TagGlyph,
   "/admin/appointments": ClockGlyph,

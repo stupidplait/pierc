@@ -100,7 +100,7 @@ const authDotStyles = `
 .auth-dot {
   position: absolute;
   border-radius: 9999px;
-  background: rgba(239, 231, 216, 0.6);
+  background: var(--backdrop-dot, rgba(239, 231, 216, 0.6));
   will-change: transform;
   animation-name: authDotFloat;
   animation-timing-function: ease-in-out;

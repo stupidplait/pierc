@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
-import { ru, catalogStrings } from "@/lib/i18n/ru";
+import { ru } from "@/lib/i18n/ru";
 import { asPhotos, formatPrice } from "@/lib/jewelry/format";
 import { getBookingPrefillUser } from "@/lib/public/queries";
+import { buildSpecs } from "@/lib/catalog/build-detail";
 import type { DetailPiece } from "@/components/catalog/detail/parts";
 import { DetailShowcase } from "@/components/catalog/detail/DetailShowcase";
 
@@ -45,8 +46,6 @@ export default async function CatalogItemPage({
   if (!j || j.status !== "PUBLISHED") notFound();
 
   const photos = asPhotos(j.photos);
-  const attrs = catalogStrings.attributes;
-  const units = catalogStrings.units;
   const out = j.inStock <= 0;
   const user = await getBookingPrefillUser();
 
@@ -68,18 +67,14 @@ export default async function CatalogItemPage({
     return Array.from(seen.values());
   })();
 
-  // Spec ledger — only rows that have a value.
-  const specs: DetailPiece["specs"] = [];
-  if (j.material) specs.push({ label: attrs.material, value: j.material });
-  if (j.gauge != null)
-    specs.push({ label: attrs.gauge, value: `${j.gauge} ${units.mm}` });
-  if (j.size != null)
-    specs.push({ label: attrs.size, value: `${j.size} ${units.mm}` });
-  if (j.color) specs.push({ label: attrs.color, value: j.color });
-  if (j.stones) specs.push({ label: attrs.stones, value: j.stones });
-  specs.push({
-    label: attrs.inStock,
-    value: out ? catalogStrings.outOfStock : `${j.inStock} ${units.pcs}`,
+  // Spec ledger — shared with the in-catalog inspect overlay.
+  const specs = buildSpecs({
+    material: j.material,
+    gauge: j.gauge,
+    size: j.size,
+    color: j.color,
+    stones: j.stones,
+    inStock: j.inStock,
   });
 
   const piece: DetailPiece = {

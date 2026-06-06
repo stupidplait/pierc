@@ -56,7 +56,7 @@ const APP_LINKS: { href: string; label: string }[] = [
 // solid elevated panel with the same layered shadow as FeaturedServiceCard, so
 // /account reads as one of the same set rather than a one-off glass dashboard.
 const SURFACE =
-  "rounded-2xl border border-line bg-card shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]";
+  "rounded-2xl border border-line bg-card shadow-elev";
 const PILL =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-medium text-bg transition-colors duration-150 hover:bg-ink/90 active:scale-[0.98]";
 const ICON_BTN =

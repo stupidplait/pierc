@@ -17,6 +17,9 @@ const badgeVariants = cva(
         secondary: "border-ink/12 bg-ink/8 text-ink",
         accent: "border-accent/25 bg-accent/12 text-accent",
         outline: "border-ink/20 text-ink",
+        // Quiet outline pill — `border-line` over no fill with muted text, the
+        // public catalog/service "duration" chip vocabulary.
+        quiet: "border-line text-mute",
       },
     },
     defaultVariants: { variant: "secondary" },

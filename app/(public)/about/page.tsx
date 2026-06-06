@@ -87,7 +87,9 @@ export default async function AboutPage() {
       {localBusiness ? (
         <script
           type="application/ld+json"
-          // Server-rendered, trusted JSON we built ourselves.
+          // Trusted, server-built JSON-LD; jsonLdScript escapes `<`/`>`/`&` so
+          // admin-entered settings can't break out of the <script>.
+          // react-doctor-disable-next-line react-doctor/no-danger
           dangerouslySetInnerHTML={{ __html: jsonLdScript(localBusiness) }}
         />
       ) : null}

@@ -64,6 +64,17 @@ export interface JewelryWire {
   spriteUrl: string | null;
   categoryName: string;
   /**
+   * Detail-sheet attributes, carried on the wire so the in-catalog inspect
+   * overlay can render specs/description without a second fetch. `material` is
+   * required in the DB; the rest are optional. See lib/catalog/build-detail.ts.
+   */
+  description: string | null;
+  material: string | null;
+  gauge: number | null;
+  size: number | null;
+  color: string | null;
+  stones: string | null;
+  /**
    * Drives renderer math + UX. See docs/20-multi-anchor-jewelry.md.
    * STUD/RING are 1-anchor (pickable from `anchorBindings` as a compat
    * list); the others are multi-anchor with fixed bindings.

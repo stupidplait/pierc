@@ -28,7 +28,7 @@ interface CatalogFloatingHUDProps {
 export function CatalogFloatingHUD(props: CatalogFloatingHUDProps) {
   return (
     <div className="pointer-events-none absolute inset-0 hidden lg:block">
-      <div className="pointer-events-auto absolute right-6 top-6 flex h-[calc(100vh-8rem)] w-[360px] flex-col overflow-hidden rounded-2xl border border-line bg-bg-elev/70 p-5 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)] backdrop-blur-xl">
+      <div className="pointer-events-auto absolute right-6 top-6 flex h-[calc(100vh-8rem)] w-[360px] flex-col overflow-hidden rounded-2xl border border-line bg-bg-elev/70 p-5 shadow-elev backdrop-blur-xl">
         <CatalogControls {...props} />
       </div>
     </div>

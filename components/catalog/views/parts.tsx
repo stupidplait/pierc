@@ -16,6 +16,19 @@ import {
 } from "@/lib/i18n/ru";
 import { Badge } from "@/components/shadcn/ui/badge";
 import { Button } from "@/components/shadcn/ui/button";
+import type {
+  EnvVariant,
+  HudVariant,
+  PlaceVariant,
+  InfoVariant,
+  BgVariant,
+  DotsVariant,
+  DetailVariant,
+  CardviewVariant,
+  CardtxVariant,
+  LoaderVariant,
+} from "@/lib/catalog/lab-state";
+import type { BookingUser } from "@/lib/booking/wizard-types";
 import { cn } from "@/lib/utils";
 
 /** Showroom i18n bundle, re-exported so views import one symbol. */
@@ -42,6 +55,36 @@ export interface CatalogViewProps {
   hideGridLink?: boolean;
   /** Which filmstrip card design to render (Console). Defaults to "classic". */
   cardVariant?: CardVariant;
+  /** Design-lab scene environment (drives <CatalogStage>). */
+  env?: EnvVariant;
+  /** Design-lab HUD / postprocessing level (drives <CatalogStage>). */
+  hud?: HudVariant;
+  /** Where piercing-place selection lives (rail layout). */
+  place?: PlaceVariant;
+  /** Where the data readouts live — de-duplicates the HUD vs the rail. */
+  info?: InfoVariant;
+  /** Backdrop behind the dais figure. */
+  bg?: BgVariant;
+  /** Anchor-dot marker style. */
+  dots?: DotsVariant;
+  /** In-rail card-page layout. */
+  cardview?: CardviewVariant;
+  /** Grid ↔ card-page transition. */
+  cardtx?: CardtxVariant;
+  /** Loader/spinner style (scene cover + GLB viewers). */
+  loader?: LoaderVariant;
+  /** What clicking a piece does (overlay / both / page). */
+  detail?: DetailVariant;
+  /** Signed-in user, for the inline booking button in the detail view. */
+  user?: BookingUser | null;
+  /** Open a piece in the inspect overlay (set by card click when detail≠page). */
+  onInspect?: (jewelryId: string) => void;
+  /** Id of the piece open in the in-rail detail view (rail layout), or null. */
+  inspectId?: string | null;
+  /** Collapse the in-rail detail back to the grid. */
+  onInspectClose?: () => void;
+  /** Equip the inspected piece at its primary anchor + focus there. */
+  onInspectEquip?: (jewelryId: string) => void;
 }
 
 /**

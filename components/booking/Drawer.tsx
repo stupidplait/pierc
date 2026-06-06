@@ -2,7 +2,7 @@
 
 import {
   AnimatePresence,
-  motion,
+  m,
   useReducedMotion,
 } from "framer-motion";
 import {
@@ -99,14 +99,14 @@ export function Drawer({ open, onClose, title, subtitle, children, footer }: Dra
 
   const offscreen = isDesktop ? { x: "100%" } : { y: "100%" };
   const panelCls = isDesktop
-    ? "absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-line bg-page shadow-[0_24px_70px_-20px_rgba(8,8,8,0.8)]"
-    : "absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-3xl border-t border-line bg-page shadow-[0_-24px_70px_-20px_rgba(8,8,8,0.8)]";
+    ? "absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-line bg-page shadow-elev-overlay"
+    : "absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-3xl border-t border-line bg-page shadow-elev-overlay-up";
 
   return createPortal(
     <AnimatePresence>
       {open ? (
         <div className="fixed inset-0 z-50">
-          <motion.div
+          <m.div
             className="absolute inset-0 bg-[rgba(8,8,8,0.62)] backdrop-blur-sm"
             onClick={onClose}
             initial={{ opacity: 0 }}
@@ -114,7 +114,7 @@ export function Drawer({ open, onClose, title, subtitle, children, footer }: Dra
             exit={{ opacity: 0 }}
             transition={{ duration: reduce ? 0 : 0.2 }}
           />
-          <motion.div
+          <m.div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
@@ -162,7 +162,7 @@ export function Drawer({ open, onClose, title, subtitle, children, footer }: Dra
                 {footer}
               </div>
             ) : null}
-          </motion.div>
+          </m.div>
         </div>
       ) : null}
     </AnimatePresence>,

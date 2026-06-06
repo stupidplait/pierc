@@ -72,7 +72,8 @@ export function TitleBlock({
   className,
 }: {
   piece: DetailPiece;
-  size?: "lg" | "xl";
+  /** `sm` is for the compact in-rail detail; `lg`/`xl` for the full page. */
+  size?: "sm" | "lg" | "xl";
   className?: string;
 }) {
   return (
@@ -85,12 +86,19 @@ export function TitleBlock({
           "font-display font-medium text-ink",
           size === "xl"
             ? "text-5xl sm:text-6xl"
-            : "text-4xl sm:text-5xl",
+            : size === "sm"
+              ? "text-2xl"
+              : "text-4xl sm:text-5xl",
         )}
       >
         {piece.name}
       </h1>
-      <p className="mt-4 font-mono text-2xl font-medium text-accent">
+      <p
+        className={cn(
+          "font-mono font-medium text-accent",
+          size === "sm" ? "mt-2 text-lg" : "mt-4 text-2xl",
+        )}
+      >
         {piece.priceLabel}
       </p>
     </div>

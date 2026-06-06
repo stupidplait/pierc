@@ -204,7 +204,7 @@ export function SlotPicker({
                 key={`island-${activeGroup.key}`}
                 layoutId={skipMorph ? undefined : `${uid}-tile-${activeGroup.key}`}
                 transition={morph}
-                className="absolute inset-0 z-10 flex flex-col rounded-xl border border-line bg-card p-3 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_18px_44px_-16px_rgba(8,8,8,0.75)]"
+                className="absolute inset-0 z-10 flex flex-col rounded-xl border border-line bg-card p-3 shadow-elev-overlay"
               >
                 <button
                   type="button"

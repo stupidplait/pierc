@@ -4,6 +4,8 @@
    theme tokens, so the Steel Atelier palette below is untouched. */
 @import "tw-animate-css";
 
+/* Theme tokens + the `shadow-elev*` elevation utilities are defined below. */
+
 /* ─── Steel Atelier theme ───────────────────────────────────────
  * Dark, single-source theme based on the new-design hero. This
  * replaces the previous light/dark dual theme — the studio's
@@ -76,6 +78,54 @@
   --error-soft:       rgba(248, 113, 113, 0.12);
   --success:          #34d399;  /* emerald-400 */
   --success-soft:     rgba(52, 211, 153, 0.12);
+
+  /* Elevated overlay surface (header dropdowns, mobile menu, popovers) —
+     a near-opaque wash that backdrop-blur sits behind. Themed so the
+     same chrome reads correctly in both modes instead of a baked
+     rgba(8,8,8,…). */
+  --overlay:          rgba(8, 8, 8, 0.94);
+
+  /* ─── 3D scene tokens ───────────────────────────────────────────
+     Consumed by the WebGL scenes (landing WireframeRoom + catalog
+     environments). Kept SEPARATE from the page surfaces above so the
+     light "studio" look below can re-skin the 3D stage without
+     disturbing the rest of the light theme. Defaults here are the
+     dark instrument-room. */
+  --scene-bg:          #080808;  /* room background / canvas clear color */
+  --scene-grid-minor:  #171717;  /* fine wireframe lines */
+  --scene-grid-major:  #3e3e3e;  /* heavy wireframe lines */
+  --scene-cross:       #686868;  /* + intersection marks */
+  --scene-ink:         #ffffff;  /* luminous headline + chapter titles */
+  --scene-accent:      #f06ba0;  /* ring rim / bloom accent */
+  --scene-reflect:     #000000;  /* glass reflection-env fallback color */
+  --scene-fog:         #070709;  /* catalog volumetric fog */
+  --scene-dais:        #0d0d10;  /* catalog reflective podium disc */
+  --scene-grid-cell:   #1c1c20;  /* catalog ground-grid cell line */
+  --scene-grid-section:#3a2230;  /* catalog ground-grid section line */
+
+  /* Shadow ink — the COLOUR every elevation shadow is built from. Themed
+     once here (near-black on dark) and re-tinted on light below, so every
+     surface's shadow softens on the light page instead of staying a harsh
+     near-black drop. The --elev* recipes below reference these and are
+     therefore theme-agnostic (defined once). */
+  --shadow-1: rgba(8, 8, 8, 0.5);  /* tight contact layer */
+  --shadow-2: rgba(8, 8, 8, 0.6);  /* main soft layer */
+  --shadow-3: rgba(8, 8, 8, 0.8);  /* deep overlay layer */
+
+  /* Elevation recipes → exposed as `shadow-elev*` utilities. Defined once
+     (here) using the themed --shadow-* inks above, so they auto-soften on
+     light. Dark values are byte-identical to the old hard-coded strings. */
+  --elev:            0 1px 2px var(--shadow-1), 0 10px 28px -10px var(--shadow-2);
+  --elev-hover:      0 14px 34px -16px var(--shadow-2);
+  --elev-overlay:    0 24px 70px -20px var(--shadow-3);
+  --elev-overlay-up: 0 -24px 70px -20px var(--shadow-3);
+  --elev-up:         0 -1px 2px var(--shadow-1), 0 -12px 40px -12px var(--shadow-2);
+
+  /* 2D page backdrop (AuthBackdrop grid + floating dots). Pale cream over
+     the dark void; retinted to faint ink on light below so it stays visible
+     on white. */
+  --backdrop-grid: rgba(239, 231, 216, 0.08);
+  --backdrop-dot:  rgba(239, 231, 216, 0.6);
 }
 
 /* Light theme variant */
@@ -122,6 +172,38 @@
   --error-soft:       rgba(239, 68, 68, 0.1);
   --success:          #10b981;
   --success-soft:     rgba(16, 185, 129, 0.1);
+
+  /* Light overlay — frosted white wash for dropdowns / mobile menu. */
+  --overlay:          rgba(255, 255, 255, 0.92);
+
+  /* Soft shadow ink for light — a faint lift, not the heavy near-black drop
+     the dark inks read as on white. The --elev* recipes (defined once in the
+     base block) pick these up automatically. */
+  --shadow-1: rgba(17, 17, 17, 0.05);
+  --shadow-2: rgba(17, 17, 17, 0.10);
+  --shadow-3: rgba(17, 17, 17, 0.18);
+
+  /* 2D page backdrop — faint ink so the grid + dots stay visible on white. */
+  --backdrop-grid: rgba(10, 10, 10, 0.05);
+  --backdrop-dot:  rgba(10, 10, 10, 0.32);
+
+  /* ─── 3D scene tokens — light "studio" ──────────────────────────
+     A clean high-key white studio: pale-grey wireframe, BLACK ink for the
+     headline + chapter titles (not the accent), and a dark reflection env so
+     the glass ring reads as polished chrome against the white instead of
+     dissolving into it. Lighting/bloom are eased back in the scene code so
+     the white room doesn't glare. */
+  --scene-bg:          #ffffff;
+  --scene-grid-minor:  #ececec;  /* faint wireframe hairline */
+  --scene-grid-major:  #d6d6d6;  /* heavier rule */
+  --scene-cross:       #c4c4c4;  /* + intersection marks */
+  --scene-ink:         #0a0a0a;  /* BLACK headline + chapter titles */
+  --scene-accent:      #e91e63;
+  --scene-reflect:     #15131a;  /* dark env → chrome ring contrast on white */
+  --scene-fog:         #ffffff;  /* catalog fog fades body into the white page */
+  --scene-dais:        #e4e4e4;  /* catalog podium reads as pale polished stone */
+  --scene-grid-cell:   #ededed;
+  --scene-grid-section:#dcdcdc;
 }
 
 /* Expose vars to Tailwind utilities. New Steel Atelier tokens are
@@ -156,6 +238,17 @@
   --color-error-soft:   var(--error-soft);
   --color-success:      var(--success);
   --color-success-soft: var(--success-soft);
+
+  --color-overlay:      var(--overlay);
+  --color-scene-bg:     var(--scene-bg);
+
+  /* Themed elevation shadows → `shadow-elev*` utilities (soft on light,
+     deep on dark). */
+  --shadow-elev:            var(--elev);
+  --shadow-elev-hover:      var(--elev-hover);
+  --shadow-elev-overlay:    var(--elev-overlay);
+  --shadow-elev-overlay-up: var(--elev-overlay-up);
+  --shadow-elev-up:         var(--elev-up);
 
   --font-sans:    var(--font-inter);
   --font-display: var(--font-onest);
@@ -243,6 +336,40 @@ html {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--mute);
+}
+
+/* Opt-out: hide the scrollbar entirely while keeping the element scrollable.
+   Used by floating catalog surfaces (inventory rail, zone popovers) where a
+   visible track would clutter the gaming chrome. Pair with `data-lenis-prevent`
+   so the wheel scrolls the element instead of the Lenis-driven page. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  /* The JS smooth-wheel hook drives scrollTop per rAF frame — keep the native
+     scroll instant so CSS smooth-scroll doesn't fight it. */
+  scroll-behavior: auto;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* WebKit/Blink */
+}
+
+/* Equalizer bars for the catalog loader (?loader=bars). */
+@keyframes loaderbar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.loader-bar {
+  transform-origin: bottom;
+  animation: loaderbar 0.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loader-bar {
+    animation: none;
+  }
 }
 
 /* react-remove-scroll (Radix Select/Popover/Dialog) still measures the reserved
@@ -340,6 +467,34 @@ html.preloader-active {
     }
 }
 
+/* Gallery coverflow "deal" entrance (components/gallery/BalenciagaPortfolio.tsx).
+   Cards fade + scale in bunched behind the centre, then slide out in unison to
+   their resting ring positions. The --bal-* custom properties are set inline
+   per-card (the geometry differs per card); this keyframe only interpolates
+   between the stacked and resting states. It lives here — not a CSS Module — so
+   the gallery is styled entirely with Tailwind utilities plus this one shared
+   keyframe. KEEP the 1350ms duration in sync with ENTER_TOTAL_MS in the
+   component. `backwards` fill applies the 0% state on the first painted frame so
+   there's no flash of the (inline) resting style before the animation starts. */
+@keyframes balDeal {
+    0% {
+        transform: translate(-50%, -50%) translateX(var(--bal-stack-x, 0))
+            scale(calc(var(--bal-stack-scale, 1) * 0.85));
+        opacity: 0;
+    }
+    46%,
+    56% {
+        transform: translate(-50%, -50%) translateX(var(--bal-stack-x, 0))
+            scale(var(--bal-stack-scale, 1));
+        opacity: var(--bal-stack-opacity, 1);
+    }
+    100% {
+        transform: translate(-50%, -50%) translateX(var(--bal-final-x, 0))
+            scale(var(--bal-final-scale, 1));
+        opacity: var(--bal-final-opacity, 1);
+    }
+}
+
 /* Lenis smooth-scroll (components/about/client/SmoothScroll.tsx). These rules
    are inert until Lenis adds its `lenis*` classes to <html> — so only the
    About page, where it's mounted, is affected; the landing keeps native scroll.
@@ -365,8 +520,11 @@ html.lenis body {
    light blueprint paper (#e8e5dd, rendered in the WebGL scene). Overriding the
    theme tokens on the <header> cascades dark-on-light to every link, icon,
    border and the avatar (text-ink -> --color-ink -> --ink, etc.). The Header
-   toggles data-inverted via an IntersectionObserver over [data-surface=light]. */
-header[data-inverted="1"] {
+   toggles data-inverted via an IntersectionObserver over [data-surface=light].
+   Scoped to the DARK theme only: in light theme the header is already
+   dark-on-light, so inverting again over the (still-light) paper would make it
+   light-on-light and vanish. */
+:root.theme-dark header[data-inverted="1"] {
   --ink: #0a0a0a;
   --ink-muted: rgba(10, 10, 10, 0.65);
   --ink-line: #e5e5e5;
@@ -402,4 +560,12 @@ html[data-app] .app-auth {
   min-height: 100dvh;
   padding-top: max(1.25rem, env(safe-area-inset-top));
   padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+}
+
+/* Sonner toaster above the booking/content Drawer (z-50). The Toaster is also
+   portaled to <body> (see components/admin/toast/Toaster.tsx) so it escapes the
+   admin layout's `relative z-10` stacking context — without that, no z-index
+   could lift a toast out from behind the drawer's backdrop blur. */
+[data-sonner-toaster] {
+  z-index: 200 !important;
 }

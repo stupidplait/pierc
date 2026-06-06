@@ -65,7 +65,7 @@ export function Hero({ activeJewelry, transitionProgress, swapDirection, ch2Titl
       <div
         ref={stageRef}
         data-revealed={revealed ? "1" : "0"}
-        className="fixed inset-0 z-[1] overflow-hidden bg-bg opacity-0 transition-opacity duration-150 ease-out data-[revealed=1]:opacity-100"
+        className="fixed inset-0 z-[1] overflow-hidden bg-scene-bg opacity-0 transition-opacity duration-150 ease-out data-[revealed=1]:opacity-100"
       >
         <WireframeRoom
           scopeRef={stageRef}

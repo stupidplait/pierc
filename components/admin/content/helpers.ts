@@ -31,7 +31,6 @@ export function toServiceInitial(s: ServiceRow): ServiceInitial {
     description: s.description,
     price: s.price,
     durationMin: s.durationMin,
-    order: s.order,
     published: s.published,
   };
 }
@@ -46,7 +45,6 @@ export function toFaqInitial(q: FaqRow): FaqInitial {
     question: q.question,
     answer: q.answer,
     category: q.category,
-    order: q.order,
     published: q.published,
   };
 }

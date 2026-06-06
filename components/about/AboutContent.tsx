@@ -1,22 +1,36 @@
+import { ArrowUpRight, CalendarPlus } from "lucide-react";
 import { Section } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/landing/Reveal";
 import { BrandMark } from "@/components/ui/BrandMark";
-import { TestimonialCard } from "@/components/public/TestimonialCard";
+import { BlurReveal } from "@/components/motion/BlurReveal";
 import { ru } from "@/lib/i18n/ru";
 import { AboutSectionHeading } from "./AboutSectionHeading";
 import { ValuesRail } from "./ValuesRail";
 import { SpecSheet } from "./SpecSheet";
 import { ContactsBlock } from "./ContactsBlock";
+import { AboutReviews } from "./AboutReviews";
 import { StickyTocRail, type TocItem } from "./client/StickyTocRail";
 import { WordReveal } from "./client/WordReveal";
 import type { AboutData } from "./types";
 
-// All section reveals share one viewport trigger (~60% in view) so the page
-// reveals as a consistent set. WordReveal headings/prose default to the same
-// 0.6.
+// The section blocks (story columns, spec sheet, contacts) share one viewport
+// trigger (~60% in view) so the page reveals as a consistent set; WordReveal
+// headings/prose default to the same 0.6. The grids (values, reviews) fire
+// earlier, on their own low ENTRANCE_VIEWPORT, so their stagger plays as the
+// grid's top edge appears.
 const IN_VIEW = 0.6;
-const IN_VIEW_TALL = 0.6;
+
+// Stable, index-free key for the static story paragraphs (split from one text
+// blob, never reordered) — a small djb2 hash keeps React keys content-derived
+// instead of leaning on the array index.
+function paragraphKey(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
 
 /**
  * The About page — an "Instrument Dossier": magazine asymmetry instead of a
@@ -45,7 +59,13 @@ export function AboutContent({ data }: { data: AboutData }) {
       {/* Hero — oversized statement, brand mark (X-in-ring) set into the
           upper-right where it reads as a quiet watermark on the void. */}
       <div className="relative mb-16 sm:mb-24">
-        <BrandMark className="pointer-events-none absolute right-0 top-1/2 hidden h-[clamp(240px,28vw,420px)] w-auto -translate-y-1/2 md:block" />
+        {/* Watermark brand mark — positioned on the static wrapper so the
+            entrance's transform (scale) never fights the -translate-y-1/2. */}
+        <div className="pointer-events-none absolute right-0 top-1/2 hidden h-[clamp(280px,32vw,500px)] w-auto -translate-y-1/2 md:block">
+          <BlurReveal as="div" trigger="mount" delay={0.2} className="h-full">
+            <BrandMark className="h-full w-auto" />
+          </BlurReveal>
+        </div>
         <div className="relative z-10 flex min-h-[50svh] max-w-3xl flex-col justify-center lg:min-h-[56svh]">
           <WordReveal
             as="h1"
@@ -59,23 +79,29 @@ export function AboutContent({ data }: { data: AboutData }) {
             delay={0.05}
             className="mt-6 max-w-xl text-lg text-mute text-balance"
           />
-          <Reveal
-            amount={IN_VIEW}
-            delay={0.45}
-            className="mt-8 flex flex-wrap items-center gap-3"
-          >
-            <Button href="/book" size="lg" radius="rounded-xl">
-              {t.ctaLabel}
-            </Button>
-            <Button
-              href="/services"
-              variant="secondary"
-              size="lg"
-              radius="rounded-xl"
-            >
-              {ru.nav.services}
-            </Button>
-          </Reveal>
+          <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <BlurReveal as="div" trigger="mount" delay={0.45} index={0} className="max-sm:w-full">
+              <Button href="/book" size="lg" radius="rounded-xl" className="gap-2 max-sm:w-full">
+                <CalendarPlus className="size-5" aria-hidden />
+                {t.ctaLabel}
+              </Button>
+            </BlurReveal>
+            <BlurReveal as="div" trigger="mount" delay={0.45} index={1} className="max-sm:w-full">
+              <Button
+                href="/services"
+                variant="secondary"
+                size="lg"
+                radius="rounded-xl"
+                className="group gap-2 max-sm:w-full"
+              >
+                {ru.nav.services}
+                <ArrowUpRight
+                  className="size-5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                  aria-hidden
+                />
+              </Button>
+            </BlurReveal>
+          </div>
         </div>
       </div>
 
@@ -94,20 +120,29 @@ export function AboutContent({ data }: { data: AboutData }) {
             <p className="text-mute">{t.stub}</p>
           ) : (
             <div>
-              <WordReveal
-                as="blockquote"
-                text={paragraphs[0]}
-                stagger={0.03}
-                className="border-l-2 border-primary pl-6 font-display text-2xl font-medium leading-snug text-ink text-balance sm:text-3xl"
-              />
+              <div className="relative">
+                {/* The accent rule beside the pull-quote — its own element so it
+                    can play the house blur entrance as the quote streams in. */}
+                <BlurReveal
+                  as="span"
+                  trigger="in-view"
+                  className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
+                />
+                <WordReveal
+                  as="blockquote"
+                  text={paragraphs[0]}
+                  stagger={0.03}
+                  className="pl-6 font-display text-2xl font-medium leading-snug text-ink text-balance sm:text-3xl"
+                />
+              </div>
               {paragraphs.length > 1 ? (
                 <Reveal
                   amount={IN_VIEW}
                   delay={0.1}
                   className="mt-8 grid gap-5 text-mute sm:grid-cols-2 sm:gap-8"
                 >
-                  {paragraphs.slice(1).map((p, i) => (
-                    <p key={`${i}-${p.slice(0, 24)}`}>{p}</p>
+                  {paragraphs.slice(1).map((p) => (
+                    <p key={paragraphKey(p)}>{p}</p>
                   ))}
                 </Reveal>
               ) : null}
@@ -144,15 +179,7 @@ export function AboutContent({ data }: { data: AboutData }) {
                 title={data.reviewsHeading}
                 lead={data.reviewsLead}
               />
-              <Reveal amount={IN_VIEW_TALL} delay={0.15}>
-                <ul className="grid gap-4 sm:grid-cols-2">
-                  {testimonials.map((r) => (
-                    <li key={r.id}>
-                      <TestimonialCard review={r} />
-                    </li>
-                  ))}
-                </ul>
-              </Reveal>
+              <AboutReviews testimonials={testimonials} />
             </section>
           ) : null}
 

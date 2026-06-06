@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { ServiceCard } from "../ServiceCard";
 import {
   ENTRANCE_DURATION,
@@ -30,7 +30,7 @@ export function StaggerGrid({
   const reduce = useReducedMotion();
 
   return (
-    <motion.ul
+    <m.ul
       className={className}
       initial="hidden"
       whileInView="show"
@@ -46,7 +46,7 @@ export function StaggerGrid({
       }}
     >
       {services.map((s) => (
-        <motion.li
+        <m.li
           key={s.id}
           variants={{
             hidden: ENTRANCE_HIDDEN,
@@ -60,8 +60,8 @@ export function StaggerGrid({
           }}
         >
           <ServiceCard service={s} user={user} bookLabel={bookLabel} />
-        </motion.li>
+        </m.li>
       ))}
-    </motion.ul>
+    </m.ul>
   );
 }

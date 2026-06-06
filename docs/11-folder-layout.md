@@ -101,7 +101,7 @@ lib/
     booking-actions.ts
     content-actions.ts
     slot-actions.ts
-    notification-test-action.ts
+    telegram-test-action.ts
     auth-helpers.ts
   booking/actions.ts, url-state.ts
   user/auth-actions.ts

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ru } from "@/lib/i18n/ru";
 import { loadContent } from "@/lib/admin/content-view-data";
 import { ContentManager } from "@/components/admin/content/ContentManager";
+import { ContentHeader } from "@/components/admin/content/ContentHeader";
 
 export const metadata: Metadata = {
   title: ru.admin.content.title,
@@ -16,13 +17,7 @@ export default async function AdminContentPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <header className="mb-8 pt-2 sm:mb-10 sm:pt-4">
-        <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
-          {ru.admin.content.title}
-        </h1>
-        <p className="mt-3 text-base text-mute">{ru.admin.content.lead}</p>
-      </header>
-
+      <ContentHeader />
       <ContentManager data={data} blobConfigured={blobConfigured} />
     </div>
   );

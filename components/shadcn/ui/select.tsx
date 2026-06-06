@@ -180,7 +180,7 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
  *  element onto an inner panel so framer's scale transform can't collide with
  *  Popper's translate. */
 const SELECT_PANEL =
-  "flex flex-col max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-xl border border-line bg-card text-ink shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]";
+  "flex flex-col max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-xl border border-line bg-card text-ink shadow-elev";
 
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,

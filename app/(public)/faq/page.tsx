@@ -57,7 +57,9 @@ export default async function FaqPage() {
         {rows.length > 0 ? (
           <script
             type="application/ld+json"
-            // Server-rendered, trusted JSON we built ourselves.
+            // Trusted, server-built JSON-LD; jsonLdScript escapes `<`/`>`/`&` so
+            // admin-entered answers can't break out of the <script>.
+            // react-doctor-disable-next-line react-doctor/no-danger
             dangerouslySetInnerHTML={{
               __html: jsonLdScript(buildFaqJsonLd(rows)),
             }}
@@ -67,7 +69,7 @@ export default async function FaqPage() {
         {/* Hero — title + subtitle stream in word-by-word (WordReveal), the
             same entry choreography as the /about hero. The heading lands a beat
             after the subtitle (larger delay). */}
-        <header className="mb-12 sm:mb-16">
+        <header className="mt-8 mb-12 sm:mt-12 sm:mb-16">
           <WordReveal
             as="h1"
             text={ru.pages.faq.title}

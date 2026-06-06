@@ -32,7 +32,7 @@ const SECONDARY: { href: string; label: string }[] = [
 
 const CARD =
   "group relative flex flex-col gap-2 rounded-2xl border border-line bg-card p-6 no-underline " +
-  "shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-12px_rgba(8,8,8,0.6)] " +
+  "shadow-elev " +
   "transition-colors duration-200 hover:border-ink-line-strong active:scale-[0.99] " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 

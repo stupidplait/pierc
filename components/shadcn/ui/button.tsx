@@ -16,8 +16,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-ink text-bg hover:bg-ink/90",
+        accent: "bg-accent text-on-primary hover:bg-primary-soft active:scale-[0.99]",
         outline:
-          "border border-ink/15 bg-ink/3 text-ink hover:border-ink/35 data-[placeholder=true]:text-mute/60",
+          "border border-ink/15 bg-ink/3 text-ink hover:border-ink/35 active:scale-[0.99] data-[placeholder=true]:text-mute/60",
         ghost: "text-mute hover:bg-ink/5 hover:text-ink",
         destructive:
           "border border-error/30 bg-error/10 text-error hover:bg-error/15 hover:border-error/50",
@@ -25,6 +26,7 @@ const buttonVariants = cva(
       size: {
         default: "h-11 px-4",
         sm: "h-9 px-3",
+        lg: "h-12 px-6",
         icon: "size-9",
       },
     },

@@ -52,6 +52,7 @@ export async function loadContent(): Promise<ContentData> {
       url: p.url,
       caption: p.caption,
       order: p.order,
+      published: p.published,
     })),
   };
 }

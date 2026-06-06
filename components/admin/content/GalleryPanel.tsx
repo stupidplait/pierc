@@ -1,11 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { GalleryUploadForm } from "@/components/admin/GalleryUploadForm";
-import { GalleryGrid } from "./GalleryGrid";
 import type { GalleryRow } from "@/lib/admin/content-view";
+import { GalleryBoard } from "./gallery/GalleryBoard";
 
-/** Upload form + grid for the gallery section. Both refresh the snapshot. */
+/**
+ * Gallery section of the content manager: one grid with a "+" add tile, inline
+ * captioned "pending" cards that morph in on pick, and drag-reorderable live
+ * photos that open a detail editor on click. See `gallery/GalleryBoard`.
+ */
 export function GalleryPanel({
   photos,
   blobConfigured,
@@ -13,14 +15,5 @@ export function GalleryPanel({
   photos: GalleryRow[];
   blobConfigured: boolean;
 }) {
-  const router = useRouter();
-  return (
-    <section className="flex flex-col gap-6">
-      <GalleryUploadForm
-        blobConfigured={blobConfigured}
-        onUploaded={() => router.refresh()}
-      />
-      <GalleryGrid photos={photos} />
-    </section>
-  );
+  return <GalleryBoard photos={photos} blobConfigured={blobConfigured} />;
 }

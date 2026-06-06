@@ -8,13 +8,16 @@ import { cn } from "@/lib/utils";
  * Used for inline notifications, warnings, and informational messages.
  */
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-ink [&>svg~*]:pl-7",
+  "relative w-full rounded-xl border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg~*]:pl-7",
   {
     variants: {
       variant: {
-        default: "bg-card text-ink border-line",
-        destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive bg-destructive/5",
+        default: "bg-card text-ink border-line [&>svg]:text-ink",
+        // The Steel Atelier theme has no `--destructive` token, so the stock
+        // shadcn destructive variant rendered colourless. Re-pointed at the
+        // project's `error`/`success` tokens (the same ones the Toaster uses).
+        destructive: "border-error/30 bg-error-soft text-ink [&>svg]:text-error",
+        success: "border-success/30 bg-success-soft text-ink [&>svg]:text-success",
       },
     },
     defaultVariants: {

@@ -70,9 +70,20 @@ export function buildLocalBusinessJsonLd(
 }
 
 /**
- * Stable string serialization for the JSON-LD `<script>` tag's body.
- * Sorts keys for deterministic output (helps caching + diffing).
+ * Serialize a JSON-LD payload for a `<script type="application/ld+json">` body.
+ *
+ * Escapes the characters that are dangerous inside a `<script>` element: `<`
+ * (escaped to `<`) prevents a `</script>` breakout — broken markup at best,
+ * stored XSS at worst — and U+2028 / U+2029 keep inline parsers happy. The output
+ * is still valid JSON-LD that Google parses. This matters because some payloads
+ * carry admin-editable, free-form text (e.g. FAQ answers) injected via
+ * `dangerouslySetInnerHTML`.
  */
 export function jsonLdScript(json: unknown): string {
-  return JSON.stringify(json);
+  return JSON.stringify(json)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }

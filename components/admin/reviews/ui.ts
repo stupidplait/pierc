@@ -15,7 +15,7 @@ import {
 // Elevated panel + layered shadow — the same surface /account, /services and the
 // settings cards use.
 export const SURFACE =
-  "rounded-2xl border border-line bg-card shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]";
+  "rounded-2xl border border-line bg-card shadow-elev";
 
 // Field surface borrowed from the /account EditProfileDrawer + settings form:
 // hairline ink border over a near-invisible wash, magenta accent focus ring.

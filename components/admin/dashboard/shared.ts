@@ -11,7 +11,7 @@ import type { MetricTone } from "./types";
 // Elevated panel surface — the exact layered shadow /account + the featured
 // service card use, so the admin dashboard reads as one of the same family.
 export const SURFACE =
-  "rounded-2xl border border-line bg-card shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]";
+  "rounded-2xl border border-line bg-card shadow-elev";
 
 // Blur-focus entrance, reused from the services/account vocabulary so the
 // dashboard resolves with the same timing as the rest of the site.

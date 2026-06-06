@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import {
   ENTRANCE_DURATION,
@@ -22,7 +22,7 @@ export function BlockReveal({ delay = 0, className, children }: BlockRevealProps
   const reduce = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial="hidden"
       animate="show"
@@ -39,6 +39,6 @@ export function BlockReveal({ delay = 0, className, children }: BlockRevealProps
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }

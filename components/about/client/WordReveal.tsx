@@ -1,7 +1,7 @@
 "use client";
 
 import { createElement, Fragment } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { m, useReducedMotion, type Variants } from "framer-motion";
 
 // Matches the landing's reveal easing so the About page feels of a piece.
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -17,12 +17,12 @@ const unit: Variants = {
 };
 
 const MOTION_TAGS = {
-  h1: motion.h1,
-  h2: motion.h2,
-  h3: motion.h3,
-  p: motion.p,
-  span: motion.span,
-  blockquote: motion.blockquote,
+  h1: m.h1,
+  h2: m.h2,
+  h3: m.h3,
+  p: m.p,
+  span: m.span,
+  blockquote: m.blockquote,
 } as const;
 
 type Tag = keyof typeof MOTION_TAGS;
@@ -71,7 +71,7 @@ export function WordReveal({
   // Indexing the map yields a union of distinct motion components that TS
   // won't accept as one JSX tag; cast to a single concrete motion type — they
   // all share HTMLMotionProps, so props (incl. children) line up.
-  const MotionTag = MOTION_TAGS[as] as typeof motion.p;
+  const MotionTag = MOTION_TAGS[as] as typeof m.p;
   const byChar = splitBy === "char";
   const units = byChar ? Array.from(text) : text.trim().split(/\s+/);
   // Orchestration lives in a container variant so staggerChildren/delayChildren
@@ -89,6 +89,11 @@ export function WordReveal({
       whileInView="show"
       viewport={{ once: true, amount }}
     >
+      {/* The visible reveal is a stream of per-unit spans — in char mode that
+          fragments the word into single glyphs, which some screen readers spell
+          out letter by letter. Expose the whole string once to assistive tech
+          and hide the animated pieces from it, so it reads as one word/line. */}
+      <span className="sr-only">{text}</span>
       {units.map((u, i) => {
         // A space in char mode is a literal gap — render it as-is so it never
         // joins the stagger (and the line keeps its kerning).
@@ -97,9 +102,9 @@ export function WordReveal({
         }
         return (
           <Fragment key={`${i}-${u}`}>
-            <motion.span variants={unit} className="inline-block">
+            <m.span aria-hidden variants={unit} className="inline-block">
               {u}
-            </motion.span>
+            </m.span>
             {!byChar && i < units.length - 1 ? " " : ""}
           </Fragment>
         );

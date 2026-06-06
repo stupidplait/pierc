@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -103,7 +103,7 @@ export function ConfirmDialog({
     <AnimatePresence>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <motion.div
+          <m.div
             className="absolute inset-0 bg-[rgba(8,8,8,0.62)] backdrop-blur-sm"
             onClick={() => {
               if (!pending) onClose();
@@ -113,14 +113,14 @@ export function ConfirmDialog({
             exit={{ opacity: 0 }}
             transition={{ duration: reduce ? 0 : 0.2 }}
           />
-          <motion.div
+          <m.div
             ref={panelRef}
             role="alertdialog"
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={description ? descId : undefined}
             aria-busy={pending}
-            className="relative w-full max-w-sm rounded-2xl border border-line bg-card p-6 shadow-[0_24px_70px_-20px_rgba(8,8,8,0.8)]"
+            className="relative w-full max-w-sm rounded-2xl border border-line bg-card p-6 shadow-elev-overlay"
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
@@ -154,7 +154,7 @@ export function ConfirmDialog({
                 {pending ? pendingLabel ?? confirmLabel : confirmLabel}
               </button>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       ) : null}
     </AnimatePresence>,

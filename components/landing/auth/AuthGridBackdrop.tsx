@@ -13,9 +13,8 @@
  *     so it's most visible at the page center and fades to fully
  *     transparent before reaching the edges.
  *
- * The site is single-theme dark, so the grid line is always the pale cream
- * value — it stays visible over the `#080808` void regardless of the visitor's
- * OS `prefers-color-scheme`.
+ * The grid line is themed via `--backdrop-grid` (pale cream over the dark
+ * void; faint ink on light) so it stays visible in both themes.
  *
  * `aria-hidden` because decorative.
  */
@@ -33,7 +32,7 @@ const authGridStyles = `
   position: fixed;
   inset: 0;
   pointer-events: none;
-  --auth-grid-line: rgba(239, 231, 216, 0.08);
+  --auth-grid-line: var(--backdrop-grid, rgba(239, 231, 216, 0.08));
   --auth-grid-cell: 64px;
   background-image:
     linear-gradient(to right, var(--auth-grid-line) 1px, transparent 1px),

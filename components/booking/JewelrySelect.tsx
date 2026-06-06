@@ -120,7 +120,7 @@ export function JewelrySelect({
         />
 
         {open ? (
-          <ul className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 flex max-h-72 flex-col overflow-y-auto overscroll-contain rounded-xl border border-line bg-page p-1 shadow-[0_18px_44px_-16px_rgba(8,8,8,0.75)]">
+          <ul className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 flex max-h-72 flex-col overflow-y-auto overscroll-contain rounded-xl border border-line bg-page p-1 shadow-elev-overlay">
             {matches.length === 0 ? (
               <li className="px-3 py-3 text-sm text-mute">{t.jewelryEmpty}</li>
             ) : (

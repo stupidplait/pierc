@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { ru } from "@/lib/i18n/ru";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 
 // Body font: Inter (Latin + Cyrillic).
 const inter = Inter({
@@ -79,19 +80,24 @@ export default function RootLayout({
       className={`${inter.variable} ${onest.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
-        {/* App-mode flag. The native shell (mobile/) tags its WebView UA with
-            `PiercApp`; set html[data-app] before first paint so the app-mode
-            CSS (hidden site chrome, safe-area insets) never flashes. Mirrors
-            the theme-flash-prevention pattern. */}
+        {/* Pre-paint theme + app-mode resolution. Runs before first paint so
+            the correct palette (and the native-shell chrome stripping) are in
+            place with no flash:
+              • theme — stored choice wins; otherwise follow the OS
+                prefers-color-scheme. Sets BOTH the `.theme-*` class (CSS
+                tokens) and `data-theme` attribute (watched by the 3D scenes).
+              • app mode — `data-app` when the WebView UA carries `PiercApp`.
+            ThemeProvider re-asserts the same values on mount, so this is
+            idempotent. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(navigator.userAgent.indexOf("PiercApp")>-1)document.documentElement.dataset.app="1"}catch(e){}`,
+            __html: `(function(){try{var d=document.documentElement;var s=localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");d.classList.add("theme-"+t);d.setAttribute("data-theme",t);}catch(e){}try{if(navigator.userAgent.indexOf("PiercApp")>-1)d.dataset.app="1";}catch(e){}})();`,
           }}
         />
       </head>
       <body className="min-h-full flex flex-col bg-page text-ink">
         <ThemeProvider>
-          {children}
+          <MotionProvider>{children}</MotionProvider>
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>

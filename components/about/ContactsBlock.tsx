@@ -1,17 +1,19 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/ui/card";
 import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 import type { AboutData } from "./types";
 
 /**
- * Contacts card — email / phone / address (+ Yandex directions link) / hours.
- * Just the card surface; the variant supplies its own heading so the contacts
- * read consistently no matter which design wraps them.
+ * Contacts card — email / phone / address (+ Yandex directions link) / hours,
+ * as a single surface with a two-column grid of labelled fields.
+ *
+ * Server component — purely presentational. The entrance is supplied by the
+ * <Reveal> wrapper on the About page.
  */
 export function ContactsBlock({ data }: { data: AboutData }) {
   const { email, phone, address, hours, t } = data;
   return (
-    <Card radius="rounded-xl" className="grid gap-6 sm:grid-cols-2">
+    <Card className="grid gap-6 rounded-xl p-6 sm:grid-cols-2 sm:p-8">
       <ContactItem label={t.email}>
         {email ? (
           <a

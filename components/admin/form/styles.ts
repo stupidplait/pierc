@@ -5,7 +5,7 @@
 
 // Elevated panel + layered shadow shared with the settings cards and /account.
 export const CARD =
-  "rounded-2xl border border-line bg-card shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)]";
+  "rounded-2xl border border-line bg-card shadow-elev";
 
 // Field surface borrowed from the /account drawer: hairline border over a
 // barely-there ink wash, accent focus ring. Replaces the old `bg-page` inputs

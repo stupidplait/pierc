@@ -1,6 +1,8 @@
 import { ru } from "@/lib/i18n/ru";
 import { formatRub } from "./ServiceCard";
 import { ServiceBookButton } from "@/components/booking/ServiceBookButton";
+import { Badge } from "@/components/shadcn/ui/badge";
+import { Card } from "@/components/shadcn/ui/card";
 import type { BookingUser, WizardService } from "@/lib/booking/wizard-types";
 
 interface FeaturedServiceCardProps {
@@ -22,12 +24,11 @@ export function FeaturedServiceCard({
   const t = ru.pages.services;
 
   return (
-    <div className="grid gap-8 rounded-2xl border border-line bg-card p-6 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)] sm:grid-cols-[1.5fr_1fr] sm:gap-10 sm:p-8">
+    <Card className="grid gap-8 p-6 sm:grid-cols-[1.5fr_1fr] sm:gap-10 sm:p-8">
       <div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-primary">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <Badge variant="accent" className="rounded-full px-2.5">
           {t.featuredTag}
-        </span>
+        </Badge>
         <h2 className="mt-5 font-display text-3xl font-medium text-ink sm:text-4xl">
           {service.name}
         </h2>
@@ -56,13 +57,16 @@ export function FeaturedServiceCard({
             {formatRub(service.price)}
           </p>
           <div className="mt-3 flex items-center gap-2.5">
-            <span className="rounded-full border border-line px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-mute">
+            <Badge
+              variant="quiet"
+              className="rounded-full text-[11px] font-normal uppercase tracking-widest"
+            >
               {service.durationMin} мин
-            </span>
+            </Badge>
           </div>
         </div>
         <ServiceBookButton service={service} user={user} label={bookLabel} />
       </div>
-    </div>
+    </Card>
   );
 }

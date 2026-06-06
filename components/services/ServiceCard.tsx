@@ -1,4 +1,6 @@
 import { ServiceBookButton } from "@/components/booking/ServiceBookButton";
+import { Badge } from "@/components/shadcn/ui/badge";
+import { Card } from "@/components/shadcn/ui/card";
 import type { BookingUser, WizardService } from "@/lib/booking/wizard-types";
 
 const priceFormatter = new Intl.NumberFormat("ru-RU", {
@@ -30,8 +32,8 @@ export function ServiceCard({
   className = "",
 }: ServiceCardProps) {
   return (
-    <div
-      className={`group flex h-full flex-col rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(8,8,8,0.5),0_10px_28px_-10px_rgba(8,8,8,0.6)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/40 sm:p-6 ${className}`}
+    <Card
+      className={`group flex h-full flex-col p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/40 sm:p-6 ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-display text-xl font-medium text-ink">
@@ -41,15 +43,24 @@ export function ServiceCard({
           {formatRub(service.price)}
         </span>
       </div>
-      <p className="mt-3 line-clamp-2 min-h-10 text-sm text-mute">
-        {service.description}
-      </p>
+      {service.description ? (
+        <p className="mt-3 line-clamp-2 min-h-10 text-sm text-mute">
+          {service.description}
+        </p>
+      ) : (
+        // Keep the two-line slot reserved so cards stay aligned in the grid
+        // even when a service has no blurb (matches min-h-10 above).
+        <p className="mt-3 min-h-10" aria-hidden />
+      )}
       <div className="mt-5 flex items-center justify-between gap-3 border-t border-rule pt-5">
-        <span className="rounded-full border border-line px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-mute">
+        <Badge
+          variant="quiet"
+          className="rounded-full text-[11px] font-normal uppercase tracking-widest"
+        >
           {service.durationMin} мин
-        </span>
+        </Badge>
         <ServiceBookButton service={service} user={user} label={bookLabel} />
       </div>
-    </div>
+    </Card>
   );
 }

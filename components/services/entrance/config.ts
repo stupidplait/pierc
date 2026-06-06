@@ -7,7 +7,9 @@ import type { Target } from "framer-motion";
 
 export const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 export const ENTRANCE_DURATION = 0.5;
-export const ENTRANCE_STAGGER = 0.06;
+// Per-item stagger, kept at/under the 50ms ceiling so the cascade stays snappy
+// rather than feeling sluggish as the list grows.
+export const ENTRANCE_STAGGER = 0.05;
 
 // Viewport trigger shared by the grid reveals (StaggerGrid, ValuesRail). Grids
 // stack multiple rows, so a high `amount` ("60% of the whole grid visible")

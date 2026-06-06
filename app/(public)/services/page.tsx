@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
 import { ru, seoStrings } from "@/lib/i18n/ru";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { Section } from "@/components/ui/Section";
@@ -8,8 +7,7 @@ import { FeaturedServiceCard } from "@/components/services/FeaturedServiceCard";
 import { BlockReveal } from "@/components/services/entrance/BlockReveal";
 import { StaggerGrid } from "@/components/services/entrance/StaggerGrid";
 import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
-import { getBookingPrefillUser } from "@/lib/public/queries";
-import type { WizardService } from "@/lib/booking/wizard-types";
+import { getBookingPrefillUser, getPublishedServices } from "@/lib/public/queries";
 
 export const metadata: Metadata = buildPageMetadata({
   title: seoStrings.services.title,
@@ -21,23 +19,13 @@ export const metadata: Metadata = buildPageMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage() {
-  const [rows, user] = await Promise.all([
-    prisma.service.findMany({
-      where: { published: true },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    }),
+  // `getPublishedServices` is tag-cached (shared across visitors); the prefill
+  // is per-user. Run them together so the dynamic prefill doesn't waterfall
+  // behind the (usually cache-hit) service read.
+  const [services, user] = await Promise.all([
+    getPublishedServices(),
     getBookingPrefillUser(),
   ]);
-
-  // Normalize to the booking wizard's service shape (Decimal price → string)
-  // so the same object feeds both ServiceCard and the booking drawer.
-  const services: WizardService[] = rows.map((s) => ({
-    id: s.id,
-    name: s.name,
-    description: s.description,
-    price: s.price.toString(),
-    durationMin: s.durationMin,
-  }));
 
   // The first service (by admin order) is the flagship — promoted into a large
   // detail card above the grid; everything else uses the shared ServiceCard.
@@ -55,7 +43,7 @@ export default async function ServicesPage() {
         {/* Title + lead reveal per unit (the title glyph-by-glyph, the lead a
             beat later word-by-word) — the blurred reveal echoes the cards'
             blur-focus entrance below. Replaces the static PageHeader here. */}
-        <header className="mb-12 sm:mb-16">
+        <header className="mt-4 mb-12 sm:mt-8 sm:mb-16">
           <WordReveal
             text={t.title}
             as="h1"
@@ -89,7 +77,7 @@ export default async function ServicesPage() {
                 services={rest}
                 user={user}
                 bookLabel={t.book}
-                className="mt-12 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3"
+                className="mt-12 grid gap-5 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3"
               />
             ) : null}
           </>

@@ -3,17 +3,18 @@
 import { useId, useState } from "react";
 import {
   AnimatePresence,
-  motion,
+  m,
   MotionConfig,
   useReducedMotion,
 } from "framer-motion";
 import {
-  Reveal,
   RevealStagger,
   RevealItem,
   revealItemVariants,
 } from "@/components/landing/Reveal";
+import { BlurReveal } from "@/components/motion/BlurReveal";
 import { StickyTocRail, type TocItem } from "@/components/about/client/StickyTocRail";
+import { Card } from "@/components/shadcn/ui/card";
 import { type FaqGroup, type FaqItem } from "./faqData";
 
 /**
@@ -32,10 +33,12 @@ import { type FaqGroup, type FaqItem } from "./faqData";
  * (rail, reveals, accordions) honors prefers-reduced-motion.
  */
 
-// Solid elevated card surface — same recipe as the profile (AccountView),
-// tuned to a lighter shadow for a stack of list cards.
+// Elevated card surface via the shared shadcn `Card` (same `bg-card` hairline
+// panel as the profile/AccountView). `Card` supplies the rounded border + base
+// shadow; we override only with the lighter shadow tuned for a stack of list
+// cards, plus the accordion's clip + hover.
 const CARD =
-  "overflow-hidden rounded-2xl border border-line bg-card shadow-[0_18px_48px_-28px_rgba(8,8,8,0.9)] transition-colors duration-200 hover:border-ink/25";
+  "overflow-hidden shadow-elev transition-colors duration-200 hover:border-ink/25";
 
 export function FaqInstrumentIndex({ groups }: { groups: FaqGroup[] }) {
   const toc: TocItem[] = groups.map((g) => ({
@@ -62,19 +65,28 @@ export function FaqInstrumentIndex({ groups }: { groups: FaqGroup[] }) {
               id={`faq-${g.category.key}`}
               className="scroll-mt-24"
             >
-              <Reveal amount={0.6}>
-                <header className="mb-6">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span aria-hidden className="h-px w-8 bg-ink-line-strong" />
-                    <p className="text-xs uppercase tracking-[0.3em] text-mute">
-                      {g.category.blurb}
-                    </p>
-                  </div>
-                  <h2 className="font-display text-2xl font-medium text-ink sm:text-3xl">
+              {/* Section heading — the same per-element blur-focus cascade as
+                  the /about dossier bands (AboutSectionHeading `animated`): the
+                  eyebrow rule + blurb, then the title, each landing a beat after
+                  the last. */}
+              <header className="mb-6">
+                <BlurReveal
+                  as="div"
+                  index={0}
+                  amount={0.6}
+                  className="mb-3 flex items-center gap-3"
+                >
+                  <span aria-hidden className="h-px w-8 bg-ink-line-strong" />
+                  <p className="text-xs uppercase tracking-[0.3em] text-mute">
+                    {g.category.blurb}
+                  </p>
+                </BlurReveal>
+                <BlurReveal as="div" index={1} amount={0.6}>
+                  <h2 className="font-display text-3xl font-medium text-ink sm:text-4xl">
                     {g.category.label}
                   </h2>
-                </header>
-              </Reveal>
+                </BlurReveal>
+              </header>
 
               <RevealStagger amount={0.6} className="flex flex-col gap-3">
                 {g.items.map((item) => (
@@ -98,16 +110,16 @@ function FaqCard({ item }: { item: FaqItem }) {
   const contentId = useId();
 
   return (
-    <div className={CARD}>
+    <Card className={CARD}>
       {/* Question is a real heading for a11y/SEO; Tailwind preflight makes it
           inherit size/weight so the button controls the styling. */}
       <h3>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          aria-expanded={open ? "true" : "false"}
+          aria-expanded={open}
           aria-controls={contentId}
-          className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left text-base font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:px-6 sm:py-5"
+          className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left text-base font-medium text-ink outline-none transition-transform active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:transition-none sm:px-6 sm:py-5"
         >
           <span>{item.question}</span>
           <Chevron open={open} />
@@ -115,7 +127,7 @@ function FaqCard({ item }: { item: FaqItem }) {
       </h3>
       <AnimatePresence initial={false}>
         {open ? (
-          <motion.div
+          <m.div
             id={contentId}
             key="body"
             initial={{ height: 0, opacity: 0 }}
@@ -127,10 +139,10 @@ function FaqCard({ item }: { item: FaqItem }) {
             <p className="whitespace-pre-line px-5 pb-5 text-mute sm:px-6 sm:pb-6">
               {item.answer}
             </p>
-          </motion.div>
+          </m.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </Card>
   );
 }
 
@@ -142,7 +154,7 @@ function Chevron({ open }: { open: boolean }) {
       height="20"
       viewBox="0 0 20 20"
       fill="none"
-      className={`shrink-0 text-mute transition-transform duration-200 ${
+      className={`shrink-0 text-mute transition-transform duration-200 motion-reduce:transition-none ${
         open ? "rotate-180" : ""
       }`}
     >

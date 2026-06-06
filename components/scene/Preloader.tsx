@@ -109,8 +109,11 @@ function PreloaderLogo() {
     const fontSize = 240;
     const letterSpacing = 24;
     const fontWeight = 900;
-    const tinted = "rgba(240, 240, 240, 0.18)";
-    const bright = "rgba(240, 240, 240, 0.96)";
+    // Stroke colour follows the themed ink so the draw-in is legible on the
+    // light preloader background too (was a baked near-white that vanished on
+    // white). Opacity carries the tinted-base vs bright-draw contrast.
+    const tintedOpacity = 0.18;
+    const brightOpacity = 0.96;
     const dasharray = 5600;
 
     return (
@@ -130,10 +133,10 @@ function PreloaderLogo() {
                 fontWeight={fontWeight}
                 letterSpacing={letterSpacing}
                 fill="none"
-                stroke={tinted}
                 strokeWidth="1.8"
                 strokeLinejoin="round"
                 strokeLinecap="round"
+                style={{ stroke: "var(--ink)", strokeOpacity: tintedOpacity }}
             >
                 PIERCERKZN
             </text>
@@ -147,13 +150,14 @@ function PreloaderLogo() {
                 fontWeight={fontWeight}
                 letterSpacing={letterSpacing}
                 fill="none"
-                stroke={bright}
                 strokeWidth="1.8"
                 strokeDasharray={dasharray}
                 strokeDashoffset={dasharray}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 style={{
+                    stroke: "var(--ink)",
+                    strokeOpacity: brightOpacity,
                     animation: "preloaderDraw 4s linear forwards",
                 }}
             >

@@ -285,11 +285,11 @@ export default function JewelryShowcase({
                            max-w-[clamp(180px,22vw,260px)]
                            max-[480px]:left-1/2 max-[480px]:right-auto max-[480px]:items-center max-[480px]:text-center max-[480px]:max-w-[min(80vw,280px)] max-[480px]:-translate-x-1/2"
             >
-                <span className="font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-white/70 leading-tight">
+                <span className="font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-ink/70 leading-tight">
                     {current.material}
                 </span>
-                <span className="block w-[22px] h-px bg-white/30" aria-hidden="true" />
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 tabular-nums">
+                <span className="block w-[22px] h-px bg-ink/30" aria-hidden="true" />
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/55 tabular-nums">
                     {current.gauge} · {current.weight}
                 </span>
                 <span className="font-mono font-medium tracking-[0.1em] text-accent tabular-nums mt-0.5 text-[clamp(14px,1.3vw,17px)]">
@@ -363,7 +363,7 @@ export default function JewelryShowcase({
                             type="button"
                             onClick={() => wrappedTriggerSwap(-1)}
                             aria-label="Предыдущее"
-                            className="flex flex-col items-end justify-center h-10 max-[880px]:h-[38px] px-1 bg-transparent border-0 cursor-pointer text-right text-white/55 hover:text-white/80 transition-colors
+                            className="flex flex-col items-end justify-center h-10 max-[880px]:h-[38px] px-1 bg-transparent border-0 cursor-pointer text-right text-ink/55 hover:text-ink/80 transition-colors
                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
                         >
                             <AnimatePresence mode="popLayout" initial={false}>
@@ -416,7 +416,7 @@ export default function JewelryShowcase({
                             type="button"
                             onClick={() => wrappedTriggerSwap(1)}
                             aria-label="Следующее"
-                            className="flex flex-col items-end justify-center h-10 max-[880px]:h-[38px] px-1 bg-transparent border-0 cursor-pointer text-right text-white/55 hover:text-white/80 transition-colors
+                            className="flex flex-col items-end justify-center h-10 max-[880px]:h-[38px] px-1 bg-transparent border-0 cursor-pointer text-right text-ink/55 hover:text-ink/80 transition-colors
                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
                         >
                             <AnimatePresence mode="popLayout" initial={false}>

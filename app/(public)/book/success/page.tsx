@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import { Section } from "@/components/ui/Section";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/ui/card";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/jewelry/format";
 
@@ -63,7 +63,7 @@ export default async function BookSuccessPage({ searchParams }: BookSuccessProps
       <PageHeader title={t.title} lead={t.lead} />
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
         {bookings.length > 0 ? (
-          <Card>
+          <Card className="p-6 sm:p-8">
             <h2 className="mb-3 text-xs uppercase tracking-[0.2em] text-mute">
               {t.summaryJewelry}
             </h2>
@@ -82,13 +82,13 @@ export default async function BookSuccessPage({ searchParams }: BookSuccessProps
             </ul>
           </Card>
         ) : (
-          <Card>
+          <Card className="p-6 sm:p-8">
             <p className="text-sm text-mute">{t.noJewelry}</p>
           </Card>
         )}
 
         {appointment?.slot ? (
-          <Card>
+          <Card className="p-6 sm:p-8">
             <h2 className="mb-3 text-xs uppercase tracking-[0.2em] text-mute">
               {t.summarySlot}
             </h2>
@@ -97,7 +97,7 @@ export default async function BookSuccessPage({ searchParams }: BookSuccessProps
             </p>
           </Card>
         ) : (
-          <Card>
+          <Card className="p-6 sm:p-8">
             <p className="text-sm text-mute">{t.noSlot}</p>
           </Card>
         )}

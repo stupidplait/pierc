@@ -170,8 +170,3 @@ export function categorizeFaq(items: FaqItem[]): FaqGroup[] {
 
   return groups;
 }
-
-// "01", "02", … — pure, no clock/random so it's React-Compiler-purity safe.
-export function padIndex(n: number): string {
-  return String(n).padStart(2, "0");
-}

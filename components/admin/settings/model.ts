@@ -1,8 +1,5 @@
 import { ru } from "@/lib/i18n/ru";
 
-// Serializable shape the settings page passes to every variant. Mirrors the
-// columns the `updateSettings` action reads from the form, so the three
-// presentations stay in lockstep with the data model.
 export interface SettingsLike {
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -22,10 +19,21 @@ export interface FieldDef {
   inputMode?: "text" | "tel" | "email" | "url" | "numeric" | "decimal";
   autoComplete?: string;
   placeholder?: string;
-  /** RU +7 (XXX) XXX-XX-XX live mask instead of a plain input. */
   phone?: boolean;
-  /** Spans both columns in two-up grids. */
+  digitsOnly?: boolean;
   full?: boolean;
+  /**
+   * When set, the field renders as a fixed, non-editable URL prefix (shown
+   * greyed) followed by an editable handle. The form still submits — and the
+   * store keeps — the full URL (`prefix + handle`).
+   */
+  prefix?: string;
+  /**
+   * Renders an inline "Проверить" link beside the label that pings the
+   * currently-typed value as a Telegram chat id. Only meaningful for
+   * `telegramChatId`.
+   */
+  testTelegram?: boolean;
 }
 
 export interface SectionDef {
@@ -37,8 +45,6 @@ export interface SectionDef {
 
 const t = ru.admin.settings;
 
-// The single source of truth for which fields live where. All three variants
-// iterate this — only the layout around it differs.
 export const SETTINGS_SECTIONS: SectionDef[] = [
   {
     key: "contacts",
@@ -63,12 +69,11 @@ export const SETTINGS_SECTIONS: SectionDef[] = [
         name: "contactAddress",
         label: t.contactAddressLabel,
         placeholder: t.contactAddressPlaceholder,
-        full: true,
       },
       {
         name: "workingHoursHint",
         label: t.workingHoursLabel,
-        placeholder: "Вт–Сб · 11:00–19:00",
+        placeholder: "Пн–Пт: 11:00–19:00",
       },
     ],
   },
@@ -80,18 +85,14 @@ export const SETTINGS_SECTIONS: SectionDef[] = [
       {
         name: "instagramUrl",
         label: t.instagramUrlLabel,
-        type: "url",
-        inputMode: "url",
-        autoComplete: "url",
-        placeholder: "https://instagram.com/…",
+        prefix: "https://instagram.com/",
+        placeholder: "username",
       },
       {
         name: "telegramUrl",
         label: t.telegramUrlLabel,
-        type: "url",
-        inputMode: "url",
-        autoComplete: "url",
-        placeholder: "https://t.me/…",
+        prefix: "https://t.me/",
+        placeholder: "username",
       },
     ],
   },
@@ -104,7 +105,10 @@ export const SETTINGS_SECTIONS: SectionDef[] = [
         name: "telegramChatId",
         label: t.telegramChatIdLabel,
         placeholder: "123456789",
+        inputMode: "numeric",
+        digitsOnly: true,
         full: true,
+        testTelegram: true,
       },
     ],
   },

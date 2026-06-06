@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type Variants, type HTMLMotionProps } from "framer-motion";
+import { m, type Variants, type HTMLMotionProps } from "framer-motion";
 
 const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -35,7 +35,7 @@ export function Reveal({
     ...rest
 }: RevealProps) {
     return (
-        <motion.div
+        <m.div
             initial="hidden"
             whileInView="show"
             viewport={{ once, amount }}
@@ -50,7 +50,7 @@ export function Reveal({
             {...rest}
         >
             {children}
-        </motion.div>
+        </m.div>
     );
 }
 
@@ -70,7 +70,7 @@ export function RevealStagger({
     ...rest
 }: RevealStaggerProps) {
     return (
-        <motion.div
+        <m.div
             initial="hidden"
             whileInView="show"
             viewport={{ once, amount }}
@@ -84,10 +84,10 @@ export function RevealStagger({
             {...rest}
         >
             {children}
-        </motion.div>
+        </m.div>
     );
 }
 
-export const RevealItem = motion.div;
+export const RevealItem = m.div;
 export const revealItemVariants = fadeUp;
 export { fadeUp, stagger };

@@ -108,7 +108,7 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 flex max-h-72 flex-col overflow-hidden rounded-xl border border-line bg-page shadow-[0_18px_44px_-16px_rgba(8,8,8,0.75)]">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 flex max-h-72 flex-col overflow-hidden rounded-xl border border-line bg-page shadow-elev-overlay">
           <div className="border-b border-line p-2">
             <input
               ref={inputRef}

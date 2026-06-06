@@ -5,6 +5,7 @@
 // it, every Header + Footer render hits Postgres + the auth provider.
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -13,6 +14,7 @@ import {
   type PublicSessionUser,
   type PublicAdmin,
 } from "@/lib/auth-helpers";
+import type { WizardService } from "@/lib/booking/wizard-types";
 
 export const getSettings = cache(async () => {
   return await prisma.settings.findUnique({ where: { id: "default" } });
@@ -52,4 +54,30 @@ export const getBookingPrefillUser = cache(
       phone: profile?.phone ?? null,
     };
   },
+);
+
+// Published services for the public /services page. The list is admin-edited and
+// identical for every visitor, so it's cached across requests (not just per
+// request like the `cache()` helpers above) to spare Neon a query on every view
+// — the page itself still renders dynamically for the per-user booking prefill.
+// Normalized to the booking-wizard shape here (Decimal price → string) so the
+// cached value is plain-serializable and round-trips cleanly. Invalidated by
+// `revalidateTag("services")` in the admin content actions on any service
+// create / update / reorder / delete.
+export const getPublishedServices = unstable_cache(
+  async (): Promise<WizardService[]> => {
+    const rows = await prisma.service.findMany({
+      where: { published: true },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      price: s.price.toString(),
+      durationMin: s.durationMin,
+    }));
+  },
+  ["services-published"],
+  { tags: ["services"] },
 );

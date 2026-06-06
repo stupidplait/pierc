@@ -418,57 +418,32 @@ export async function sendReviewRequestEmail(args: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test ping — used by the "Тестовое уведомление" button in /admin/settings
+// Telegram test ping — used by the inline "Проверить" link next to the Telegram
+// chat id field in /admin/settings. Pings the supplied chat id with the
+// configured bot so the admin can verify the setup against what they've typed,
+// before saving.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function sendTestNotification(): Promise<{
-  email: { ok: boolean; reason: string };
-  telegram: { ok: boolean; reason: string };
-}> {
-  const settings = await prisma.settings.findUnique({
-    where: { id: "default" },
-    select: { contactEmail: true, telegramChatId: true },
-  });
-
-  // ── Email ──
-  let emailReason = "ok";
-  let emailOk = false;
-  if (!isEmailConfigured()) {
-    emailReason =
-      "Resend не настроен. Установите RESEND_API_KEY и RESEND_FROM_EMAIL в .env.";
-  } else if (!settings?.contactEmail) {
-    emailReason = "Контактный email студии не указан в Настройках.";
-  } else {
-    const r = await sendEmail({
-      to: settings.contactEmail,
-      subject: "Тестовое уведомление — PIERCERKZN",
-      html: `<p>Это тестовое письмо. Resend и адрес студии настроены корректно.</p><p style="color:#666;font-size:12px">${new Date().toISOString()}</p>`,
-      text: "Это тестовое письмо. Resend и адрес студии настроены корректно.",
-    });
-    emailOk = r.ok;
-    if (!r.ok) emailReason = r.error ?? r.reason;
-    else emailReason = "Письмо отправлено.";
-  }
-
-  // ── Telegram ──
-  let tgReason = "ok";
-  let tgOk = false;
+export async function sendTelegramTest(
+  chatId: string,
+): Promise<{ ok: boolean; reason: string }> {
   if (!isTelegramConfigured()) {
-    tgReason = "Telegram-бот не настроен. Установите TELEGRAM_BOT_TOKEN в .env.";
-  } else if (!settings?.telegramChatId) {
-    tgReason = "Chat id не указан в Настройках. Получите его через @BotFather + /getUpdates.";
-  } else {
-    const r = await sendTelegram({
-      chatId: settings.telegramChatId,
-      text: "✅ Тестовое уведомление от PIERCERKZN. Бот работает.",
-    });
-    tgOk = r.ok;
-    if (!r.ok) tgReason = r.error ?? r.reason;
-    else tgReason = "Сообщение отправлено.";
+    return {
+      ok: false,
+      reason: "Telegram-бот не настроен. Установите TELEGRAM_BOT_TOKEN в .env.",
+    };
   }
-
-  return {
-    email: { ok: emailOk, reason: emailReason },
-    telegram: { ok: tgOk, reason: tgReason },
-  };
+  const id = chatId.trim();
+  if (!id) {
+    return {
+      ok: false,
+      reason: "Укажите Telegram chat id, чтобы отправить тест.",
+    };
+  }
+  const r = await sendTelegram({
+    chatId: id,
+    text: "✅ Тестовое уведомление от PIERCERKZN. Бот работает.",
+  });
+  if (r.ok) return { ok: true, reason: "Сообщение отправлено." };
+  return { ok: false, reason: r.error ?? "Не удалось отправить сообщение." };
 }

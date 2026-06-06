@@ -1,14 +1,72 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { Euler, Group, Object3D, Quaternion, Vector3 } from "three";
+import { useReducedMotion } from "framer-motion";
+import {
+  Euler,
+  Group,
+  type Material,
+  MathUtils,
+  type Mesh,
+  Object3D,
+  Quaternion,
+  Vector3,
+} from "three";
 import type {
   AnchorWire,
   EquippedMap,
   JewelryWire,
 } from "@/lib/catalog/types";
 import { catalogGlbSrc } from "@/lib/jewelry/glb-proxy";
+
+// ── Dither-dissolve reveal ────────────────────────────────────────────────
+// Materialize newly-attached jewelry with a hashed screen-space dither (à la
+// the landing's jewelry swaps) instead of a hard pop-in: a `uReveal` uniform
+// ramps 0→1 and any fragment whose stable per-pixel hash exceeds it is
+// discarded, so the piece stipples into existence. Works on any GLB material
+// (discard needs no transparency/sort), patched per-instance via onBeforeCompile.
+const REVEAL_TARGET = 1.12; // slightly >1 so no stray pixels stay discarded
+const REVEAL_DAMP = 4.5; // ramp speed (≈0.6s)
+
+const DITHER_GLSL = /* glsl */ `
+uniform float uReveal;
+float _revealHash(vec2 p){
+  return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453);
+}
+`;
+
+function patchDitherReveal(material: Material) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uReveal = { value: 0 };
+    // Stash the compiled shader so useFrame can drive uReveal without holding a
+    // React value (avoids the lint against mutating refs/memos during render).
+    material.userData.shader = shader;
+    shader.fragmentShader =
+      DITHER_GLSL +
+      shader.fragmentShader.replace(
+        "void main() {",
+        "void main() {\n  if (uReveal < _revealHash(gl_FragCoord.xy)) discard;",
+      );
+  };
+  material.needsUpdate = true;
+}
+
+/** Push the current reveal value into every patched material in `root`. */
+function setRevealValue(root: Object3D, value: number) {
+  root.traverse((o) => {
+    const mesh = o as Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const m of mats) {
+      const shader = m?.userData?.shader as
+        | { uniforms: { uReveal?: { value: number } } }
+        | undefined;
+      if (shader?.uniforms.uReveal) shader.uniforms.uReveal.value = value;
+    }
+  });
+}
 
 interface EquippedPiecesProps {
   anchors: AnchorWire[];
@@ -117,26 +175,83 @@ export function EquippedPieces({
 // worth the complexity since real pieces always have a GLB.
 // ─────────────────────────────────────────────────────────────────────────
 
+const PLACEHOLDER_ACCENT = "#fe017e";
+
 function PlaceholderRing({ anchor }: { anchor: AnchorWire }) {
+  const billboardRef = useRef<Group | null>(null);
+  const spinRef = useRef<Group | null>(null);
+  const { invalidate } = useThree();
+  const reduced = useReducedMotion() ?? false;
+
+  // A localized "materializing" spinner pinned at the anchor: a faint accent
+  // track with two arcs sweeping around the view axis + a soft glowing core, so
+  // a piece that's still loading reads as actively assembling rather than a
+  // stray ring. Billboards to the camera; idles flat for reduced motion.
+  useFrame(({ camera, clock }) => {
+    const bb = billboardRef.current;
+    if (!bb) return;
+    bb.quaternion.copy(camera.quaternion);
+    if (reduced) return;
+    const spin = spinRef.current;
+    if (spin) spin.rotation.z = -clock.elapsedTime * 2.6;
+    const pulse = 0.92 + Math.sin(clock.elapsedTime * 4) * 0.08;
+    bb.scale.setScalar(pulse);
+    invalidate();
+  });
+
   return (
-    <group
-      position={[anchor.position.x, anchor.position.y, anchor.position.z]}
-      rotation={[anchor.rotation.x, anchor.rotation.y, anchor.rotation.z]}
-    >
-      <mesh>
-        <torusGeometry args={[0.013, 0.0035, 12, 32]} />
-        <meshStandardMaterial
-          color="#fe017e"
-          metalness={0.85}
-          roughness={0.18}
-          emissive="#fe017e"
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-      <mesh position={[0, 0, 0.005]}>
-        <sphereGeometry args={[0.005, 16, 16]} />
-        <meshStandardMaterial color="#ffffff" metalness={0.2} roughness={0.4} />
-      </mesh>
+    <group position={[anchor.position.x, anchor.position.y, anchor.position.z]}>
+      <group ref={billboardRef}>
+        {/* faint full track */}
+        <mesh renderOrder={1000}>
+          <ringGeometry args={[0.0046, 0.0054, 48]} />
+          <meshBasicMaterial
+            color={PLACEHOLDER_ACCENT}
+            transparent
+            opacity={0.18}
+            depthTest={false}
+            toneMapped={false}
+          />
+        </mesh>
+
+        {/* two bright arcs sweeping around the track */}
+        <group ref={spinRef}>
+          <mesh renderOrder={1001}>
+            <ringGeometry args={[0.0043, 0.0057, 32, 1, 0, Math.PI * 0.42]} />
+            <meshBasicMaterial
+              color={PLACEHOLDER_ACCENT}
+              transparent
+              opacity={0.95}
+              depthTest={false}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh renderOrder={1001}>
+            <ringGeometry
+              args={[0.0043, 0.0057, 32, 1, Math.PI, Math.PI * 0.42]}
+            />
+            <meshBasicMaterial
+              color={PLACEHOLDER_ACCENT}
+              transparent
+              opacity={0.95}
+              depthTest={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+
+        {/* soft glowing core */}
+        <mesh renderOrder={1002}>
+          <circleGeometry args={[0.0016, 24]} />
+          <meshBasicMaterial
+            color="#ffe6f2"
+            transparent
+            opacity={0.9}
+            depthTest={false}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -175,19 +290,41 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
   // Load via the same-origin proxy — the raw blob URL is blocked cross-origin.
   const url = catalogGlbSrc(jewelry.id, jewelry.glbUrl);
   const gltf = useGLTF(url) as unknown as { scene: Group };
+  const { invalidate } = useThree();
+  const reduced = useReducedMotion() ?? false;
 
-  // Per-instance clone - use shallow clone for performance, then deep clone only children
-  // This avoids cloning the entire scene graph hierarchy unnecessarily
+  // Current reveal progress (0→REVEAL_TARGET). Only touched in useFrame/effects,
+  // never during render, so it stays lint-clean.
+  const revealRef = useRef(0);
+
+  // Per-instance clone: clone direct children (meshes) AND their materials so
+  // the per-instance dither patch never mutates drei's shared cached material.
+  // Reduced motion → skip the patch entirely (materials stay shared, instant).
   const cloned = useMemo(() => {
     const clone = new Group();
-    // Clone only the direct children (meshes), not the entire hierarchy
     gltf.scene.children.forEach((child) => {
       clone.add(child.clone());
     });
-    // Copy userData and other properties
     clone.userData = { ...gltf.scene.userData };
+    if (!reduced) {
+      clone.traverse((o) => {
+        const mesh = o as Mesh;
+        if (!mesh.isMesh) return;
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map((m) => {
+            const c = m.clone();
+            patchDitherReveal(c);
+            return c;
+          });
+        } else if (mesh.material) {
+          const c = mesh.material.clone();
+          patchDitherReveal(c);
+          mesh.material = c;
+        }
+      });
+    }
     return clone;
-  }, [gltf.scene]);
+  }, [gltf.scene, reduced]);
 
   // Read attach:* empties' local positions ONCE per cloned scene.
   const attachLocals = useMemo(
@@ -198,9 +335,6 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
   const groupRef = useRef<Group | null>(null);
 
   // Compute and apply the placement transform whenever anchors / mesh change.
-  // We mutate the group's transform directly (pattern matched in CameraRig);
-  // React Compiler is not in play here because the assignment happens
-  // inside an effect and references are not memoised props.
   useEffect(() => {
     const group = groupRef.current;
     if (!group) return;
@@ -210,7 +344,21 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
     } else {
       placeMultiAnchor(group, anchors, attachLocals);
     }
-  }, [anchors, attachLocals, jewelry.glbScale]);
+    invalidate(); // kick the demand loop so the reveal starts from this mount
+  }, [anchors, attachLocals, jewelry.glbScale, invalidate]);
+
+  // Drive the dither dissolve until fully revealed, then idle.
+  useFrame((_, delta) => {
+    if (reduced || revealRef.current >= REVEAL_TARGET - 0.01) return;
+    revealRef.current = MathUtils.damp(
+      revealRef.current,
+      REVEAL_TARGET,
+      REVEAL_DAMP,
+      Math.min(delta, 0.05),
+    );
+    setRevealValue(cloned, revealRef.current);
+    invalidate();
+  });
 
   return (
     <group ref={groupRef}>
