@@ -35,10 +35,9 @@ WHAT IT DOES
     the old "rotation is hand-authored and never corrected" behaviour — the root
     cause of posts pointing at the wrong angle.
   • DERIVES the hoop orientation (`ringRotation`) so a ring HANGS (band-top up) and
-    FACES the anchor's catalog camera. On a laterally-viewed anchor (the ear) a hoop
-    used to render edge-on/crooked because it faced front; now its hole-axis points
-    at the camera, so it reads as a clean circle. Front-viewed anchors already face
-    their camera and are left untouched.
+    faces FRONT (+Z) — i.e. perpendicular to the body surface, the way a real hoop
+    earring dangles. On the ear this is a clean circle hanging perpendicular to the
+    pinna, not a ring lying flat in the ear's plane.
   • Converts Blender (Z-up) → glTF (Y-up) coords.
   • Updates `prisma/seed-data/anchors.json` (position + rotation + camera target;
     preserves name, place, side, fov, ringRotation — only the seated bits change).
@@ -297,19 +296,13 @@ fixed_ring = []
 for a in anchors_doc:
     if a.get("place") in INTERNAL_PLACES or a.get("lockRingRotation") is True:
         continue
-    cps = a.get("cameraPresets") or []
-    cam = cps[0].get("position") if cps else None
-    if cam is None:
-        continue
-    p = a["position"]
-    facing = Vector((cam["x"] - p["x"], 0.0, cam["z"] - p["z"]))  # horizontal, toward camera
-    if facing.length < 1e-6:
-        continue  # camera directly above/below — no lateral cue, leave as authored
-    zc = facing.normalized()
-    xc = Vector((0.0, 1.0, 0.0)).cross(zc)
-    if xc.length < 1e-6:
-        continue
-    xc.normalize()
+    # A hoop hangs FRONT-FACING (perpendicular to the body surface, like a real
+    # earring): hole-axis = world FRONT (+Z), band-top = world up. On the ear this
+    # is a circle dangling perpendicular to the pinna — NOT a ring lying flat in the
+    # ear's plane (which is what an earlier "face the lateral camera" attempt did,
+    # making ear hoops read as running ALONG the ear).
+    zc = Vector(WORLD_FORWARD)                              # world front (+Z)
+    xc = Vector((0.0, 1.0, 0.0)).cross(zc).normalized()
     yc = zc.cross(xc).normalized()
     rex, rey, rez = _mat_to_euler_xyz([[xc.x, yc.x, zc.x], [xc.y, yc.y, zc.y], [xc.z, yc.z, zc.z]])
     cur = a.get("ringRotation")
@@ -317,12 +310,7 @@ for a in anchors_doc:
         ch = _euler_xyz_outz(cur["x"], cur["y"], cur["z"])
         ch = Vector((ch.x, 0.0, ch.z))
         if ch.length > 1e-6 and math.degrees(math.acos(max(-1.0, min(1.0, ch.normalized().dot(zc))))) <= RING_THRESH_DEG:
-            continue  # already faces the camera
-    else:
-        # No explicit override → the renderer's deriveRingRotation runs (front-biased);
-        # that's fine for a front-viewed anchor, only wrong for a laterally-viewed one.
-        if math.degrees(math.acos(max(-1.0, min(1.0, zc.dot(Vector(WORLD_FORWARD)))))) <= 30.0:
-            continue
+            continue  # already hangs front-facing
     a["ringRotation"] = {"x": clean(rex), "y": clean(rey), "z": clean(rez)}
     fixed_ring.append(a["slug"])
 
@@ -343,7 +331,7 @@ if moved_pos:
 if fixed_rot:
     print(f"    ↳ re-oriented (post normal): {', '.join(fixed_rot)}")
 if fixed_ring:
-    print(f"    ↳ re-faced (hoop→camera): {', '.join(fixed_ring)}")
+    print(f"    ↳ re-faced (hoop→front): {', '.join(fixed_ring)}")
 if unknown_in_blend:
     print(f"  WARN: {len(unknown_in_blend)} empties in .blend with no JSON entry: {sorted(unknown_in_blend)}")
 

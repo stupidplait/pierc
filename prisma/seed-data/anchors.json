@@ -33,7 +33,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -71,7 +71,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -109,7 +109,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -147,7 +147,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -185,7 +185,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -223,7 +223,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -261,7 +261,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -299,7 +299,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -337,7 +337,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -375,7 +375,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -413,7 +413,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -451,7 +451,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -489,7 +489,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -527,7 +527,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -983,7 +983,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1021,7 +1021,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1059,7 +1059,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1097,7 +1097,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1135,7 +1135,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1173,7 +1173,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1211,7 +1211,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1249,7 +1249,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1287,7 +1287,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1325,7 +1325,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1363,7 +1363,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1401,7 +1401,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1439,7 +1439,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1477,7 +1477,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1515,7 +1515,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": 1.5708,
+      "y": 0,
       "z": 0
     }
   },
@@ -1553,7 +1553,7 @@
     "auto": true,
     "ringRotation": {
       "x": 0,
-      "y": -1.5708,
+      "y": 0,
       "z": 0
     }
   },
