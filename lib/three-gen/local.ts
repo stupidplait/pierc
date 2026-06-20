@@ -1,41 +1,69 @@
+import { randomUUID } from "node:crypto";
 import type { Provider, StartResult, PollResult } from "./types";
+import { prisma } from "@/lib/prisma";
 
-// Local self-hosted generation — the credit-zero fallback.
+// Local self-hosted generation — the credit-zero fallback (see
+// docs/22-local-fallback.md).
 //
-// SEAM ONLY (no worker yet). This provider sits at the TAIL of AUTO_PRIORITY
-// so that when the paid providers (Replicate, Tripo3D) run out of credits or
-// fail, the chain falls through to here. The intended runtime is a
-// pull-based worker on owned hardware (see docs/22-local-fallback.md):
+// PULL-WORKER design. There's no external API to call: `start()` simply mints a
+// claimable job id, and a worker on owned hardware reaches OUT to claim it:
 //
-//   start() → enqueue a job the local worker will claim (no external API
-//             call, so it never costs anything to *start*).
-//   poll()  → report what the worker has written back to the job row.
+//   start() → return providerJobId `local:queued:<uuid>` (no network call, so it
+//             never costs anything to start). The caller stores it on a normal
+//             GenerationJob row (status PROCESSING), exactly like any provider.
+//   worker  → POST /api/local-jobs/claim  → atomically flips the providerJobId
+//             from the `local:queued:` prefix to `local:run:<uuid>` (the CAS claim
+//             marker — no schema change needed), then generates the .glb and
+//             POSTs it to /api/local-jobs/<id>/result, which re-hosts + finalizes
+//             the job (SUCCEEDED + jewelry PENDING_REVIEW) directly.
+//   poll()  → read the row's status. Finalization happens in the result endpoint,
+//             so from the poll loop's perspective a local job is just "still
+//             processing" until the worker reports back (or FAILED).
 //
-// Until that worker exists, this provider is OFF by default
-// (`LOCAL_3D_WORKER` unset), so the live behaviour of the app is unchanged:
-// pickAutoProvider/pickNextAutoProvider simply skip it. Flipping
-// `LOCAL_3D_WORKER=1` *before* the worker is built surfaces an explicit,
-// honest error rather than silently hanging a job forever.
+// OFF by default (`LOCAL_3D_WORKER` unset) so the live auto-chain is unchanged
+// until a worker exists. When enabled it sits at the TAIL of AUTO_PRIORITY, so a
+// generation only reaches it after the paid providers are exhausted.
 
 const isEnabled = () => process.env.LOCAL_3D_WORKER === "1";
 
-const NOT_IMPLEMENTED_ERROR =
-  "Локальная генерация ещё не реализована. Это заглушка для будущего " +
-  "self-hosted воркера (см. docs/22-local-fallback.md). Снимите LOCAL_3D_WORKER, " +
-  "пока воркер не готов.";
+/** providerJobId prefix for a job awaiting a worker (the CAS claim marker). */
+export const LOCAL_QUEUED_PREFIX = "local:queued:";
+/** providerJobId prefix once a worker has claimed the job. */
+export const LOCAL_RUNNING_PREFIX = "local:run:";
+
+const DISABLED_ERROR =
+  "Локальная генерация выключена. Установите LOCAL_3D_WORKER=1 и запустите " +
+  "воркер (см. docs/22-local-fallback.md).";
 
 export const localProvider: Provider = {
   id: "local",
 
-  // Off unless explicitly enabled — keeps the auto-chain behaviour identical
-  // to today until the worker lands.
   isAvailable: () => isEnabled(),
 
   async start(): Promise<StartResult> {
-    return { ok: false, error: NOT_IMPLEMENTED_ERROR };
+    if (!isEnabled()) return { ok: false, error: DISABLED_ERROR };
+    // No external call — just a claimable id. The pull-worker finds PROCESSING
+    // local jobs whose providerJobId still carries the queued prefix.
+    return { ok: true, providerJobId: `${LOCAL_QUEUED_PREFIX}${randomUUID()}` };
   },
 
-  async poll(): Promise<PollResult> {
-    return { status: "FAILED", errorMessage: NOT_IMPLEMENTED_ERROR };
+  async poll(providerJobId: string): Promise<PollResult> {
+    const job = await prisma.generationJob.findFirst({
+      where: { providerJobId },
+      select: { status: true, errorMessage: true },
+    });
+    if (!job) {
+      return { status: "FAILED", errorMessage: "Локальная задача не найдена." };
+    }
+    if (job.status === "FAILED") {
+      return {
+        status: "FAILED",
+        errorMessage: job.errorMessage ?? "Локальная генерация не удалась.",
+      };
+    }
+    // SUCCEEDED is set out-of-band by /api/local-jobs/[id]/result (which also
+    // re-hosts + flips the jewelry to PENDING_REVIEW), so the poll loop never has
+    // to finalize a local job — it only ever sees it as in-progress.
+    return { status: "PROCESSING" };
   },
 };

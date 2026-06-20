@@ -48,10 +48,12 @@ import { Matrix4, Quaternion, Vector3 } from "three";
 import {
   normalizeStudDocument,
   normalizeRingDocument,
+  normalizeBarbellDocument,
   collectMeshVertices,
   bakeRoll,
   bakeHeadFlip,
 } from "./glb-normalize";
+import type { QualityVerdict } from "./glb-quality-vision";
 
 // ── Tuning ───────────────────────────────────────────────────────────────────
 // Only simplify (lossy triangle reduction) when a mesh is genuinely dense; most
@@ -106,6 +108,12 @@ export interface OptimizeResult {
   note?: string;
   /** Present when `normalize` was requested for a STUD. */
   placement?: PlacementResult;
+  /**
+   * Vision quality verdict for AI output — present only when `normalize.photoUrl`
+   * was supplied (i.e. the auto-generation path; manual upload skips it). The
+   * caller decides accept vs auto-retry; see lib/admin/glb-quality-vision.ts.
+   */
+  quality?: QualityVerdict;
 }
 
 // NodeIO is reusable across calls; building it requires the meshopt WASM to be
@@ -160,6 +168,7 @@ export async function optimizeGlb(
     // prune() would delete a mesh-less leaf node mid-pass.
     let placement: PlacementResult | undefined;
     let attachLocal: [number, number, number] | undefined;
+    let attachSecondary: [number, number, number] | undefined;
     if (opts.normalize?.type === "STUD") {
       const r = normalizeStudDocument(doc, {
         gauge: opts.normalize.gauge,
@@ -252,7 +261,30 @@ export async function optimizeGlb(
           };
         }
       }
+    } else if (opts.normalize?.type === "BARBELL") {
+      // Straight/curved bar: recover the two ball ends as attach:primary/secondary.
+      // No reorientation or glbScale — the multi-anchor renderer derives scale from
+      // the two-anchor span (placeMultiAnchor in lib/catalog/place-jewelry.ts).
+      const r = normalizeBarbellDocument(doc);
+      placement = {
+        applied: r.ok,
+        confidence: r.confidence,
+        suggestedScale: r.suggestedScale,
+        note: r.note,
+      };
+      if (r.ok && r.attachLocals && r.attachLocals.length >= 2) {
+        attachLocal = r.attachLocals[0];
+        attachSecondary = r.attachLocals[1];
+      }
     }
+
+    // Capture the FINAL oriented vertices for the quality gate NOW, before the
+    // compression transforms (weld/simplify/meshopt) quantize positions. Only when
+    // a reference photo is available to compare against — i.e. the AI path; manual
+    // upload passes no `normalize`, so it skips the gate entirely.
+    const qualityVerts = opts.normalize?.photoUrl
+      ? collectMeshVertices(doc)
+      : null;
 
     const triangles = countTriangles(doc);
 
@@ -278,13 +310,33 @@ export async function optimizeGlb(
 
     await doc.transform(...transforms);
 
-    // Inject attach:primary now that prune() has run, so it survives to the file.
+    // Inject attach:* now that prune() has run, so they survive to the file
+    // (prune() would delete a mesh-less leaf node mid-pass).
     if (attachLocal) {
       const scene =
         doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
       scene?.addChild(
         doc.createNode("attach:primary").setTranslation(attachLocal),
       );
+      // BARBELL: the second ball end → attach:secondary (multi-anchor renderer).
+      if (attachSecondary) {
+        scene?.addChild(
+          doc.createNode("attach:secondary").setTranslation(attachSecondary),
+        );
+      }
+    }
+
+    // Quality gate: render the final oriented mesh from several angles and ask the
+    // vision judge whether it's a faithful, clean reconstruction of the photo.
+    // Best-effort — a missing key / dead judge returns ok:false and never blocks.
+    let quality: QualityVerdict | undefined;
+    if (qualityVerts && opts.normalize?.photoUrl) {
+      const { assessQuality } = await import("./glb-quality-vision");
+      quality = await assessQuality({
+        vertices: qualityVerts,
+        photoUrl: opts.normalize.photoUrl,
+        type: opts.normalize.type,
+      });
     }
 
     const out = await io.writeBinary(doc);
@@ -302,9 +354,17 @@ export async function optimizeGlb(
         optimized: false,
         note: "no size gain",
         placement,
+        quality,
       };
     }
-    return { bytes: out, before, after, optimized: after < before, placement };
+    return {
+      bytes: out,
+      before,
+      after,
+      optimized: after < before,
+      placement,
+      quality,
+    };
   } catch (err) {
     return {
       bytes: src,
@@ -404,25 +464,26 @@ export async function nudgeGlbOrientation(
  * Set `attach:primary` to an exact local point and return the new GLB bytes — the
  * admin's manual point-picker fallback when auto-placement (geometry / AI) puts the
  * attach point in the wrong spot. `point` is in the model's LOCAL frame (the same
- * frame `readAttachLocals` reads on the client). Finds the existing attach:primary
- * node (gltf-transform preserves names, so match by `getName()`) or creates one at
- * the scene root, sets its translation, and re-compresses geometry with meshopt;
- * textures (already WebP) ride through untouched. Never the full optimize pass —
- * the model is already optimized.
+ * frame `readAttachLocals` reads on the client). `name` is the attach node to set
+ * (`attach:primary` by default, or `attach:secondary` for a 2-anchor bar's other
+ * end). Finds the existing node (gltf-transform preserves names, so match by
+ * `getName()`) or creates one at the scene root, sets its translation, and
+ * re-compresses geometry with meshopt; textures (already WebP) ride through
+ * untouched. Never the full optimize pass — the model is already optimized.
  */
 export async function setGlbAttachPoint(
   input: ArrayBuffer | Uint8Array,
   point: [number, number, number],
+  name: string = "attach:primary",
 ): Promise<Uint8Array> {
   const src = input instanceof Uint8Array ? input : new Uint8Array(input);
   const io = await getIO();
   const doc = await io.readBinary(src);
   const root = doc.getRoot();
 
-  let node =
-    root.listNodes().find((n) => n.getName() === "attach:primary") ?? null;
+  let node = root.listNodes().find((n) => n.getName() === name) ?? null;
   if (!node) {
-    node = doc.createNode("attach:primary");
+    node = doc.createNode(name);
     const scene = root.getDefaultScene() ?? root.listScenes()[0];
     scene?.addChild(node);
   }

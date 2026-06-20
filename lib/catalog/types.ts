@@ -153,6 +153,18 @@ export function isSingleAnchorType(type: JewelryType): boolean {
   return type === "STUD" || type === "RING";
 }
 
+/**
+ * Whether AI auto-generation (Replicate/Tripo) is allowed for this type. STUD and
+ * RING are single-anchor; BARBELL adds a straight/curved bar whose two ball ends
+ * the canonicalizer recovers as attach:primary/secondary, and the renderer derives
+ * scale from the two-anchor span. CIRCULAR_BARBELL/ORBITAL/CHAIN_LADDER need
+ * arc-fit / per-ring endpoint placement AI can't reliably produce — parametric only.
+ * See lib/admin/glb-normalize.ts (normalizeBarbellDocument) + docs/20.
+ */
+export function isAiGeneratableType(type: JewelryType): boolean {
+  return type === "STUD" || type === "RING" || type === "BARBELL";
+}
+
 export function piercingCountForType(
   type: JewelryType,
   bindingsLength: number,

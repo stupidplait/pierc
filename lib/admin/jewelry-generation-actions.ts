@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
 import { firstPhotoUrl, asPhotos, genPhotoUrls } from "@/lib/jewelry/format";
+import { isAiGeneratableType } from "@/lib/catalog/types";
 import {
   getProvider,
   pickAutoProvider,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/three-gen";
 import type { ProviderId } from "@/lib/three-gen";
 import { safeAssetFetch } from "@/lib/security/safe-fetch";
+import type { QualityVerdict } from "@/lib/admin/glb-quality-vision";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared types + helpers
@@ -57,6 +59,7 @@ async function rehostGlb(
     suggestedScale: number | null;
     note: string;
   };
+  quality?: QualityVerdict;
 }> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error(
@@ -80,8 +83,16 @@ async function rehostGlb(
   // Unified scale: measure the FINAL (oriented, compressed) GLB's real bbox and
   // derive glbScale via the shared formula — the SAME measurement + rule the
   // manual upload + analyzer use, so a piece gets one scale regardless of path.
+  // Only single-anchor types get a glbScale — multi-anchor (BARBELL) scale is
+  // derived by the renderer from the two-anchor span, so leave it untouched.
+  const singleAnchor = normalize?.type === "STUD" || normalize?.type === "RING";
   let placement = opt.placement;
-  if (placement?.applied && normalize && (normalize.gauge || normalize.size)) {
+  if (
+    placement?.applied &&
+    singleAnchor &&
+    normalize &&
+    (normalize.gauge || normalize.size)
+  ) {
     const { suggestScaleFromSizeM } = await import("@/lib/admin/glb-scale");
     const sizeM = await measureGlbSizeM(opt.bytes);
     const s = sizeM
@@ -102,6 +113,7 @@ async function rehostGlb(
     after: opt.after,
     optimized: opt.optimized,
     placement,
+    quality: opt.quality,
   };
 }
 
@@ -132,15 +144,16 @@ export async function startJewelryGeneration(
   });
   if (!jewelry) return { ok: false, error: "Украшение не найдено" };
 
-  // AI is restricted to single-anchor types — see docs/20-multi-anchor-jewelry.md
-  // and docs/18-replicate-3d.md. Multi-anchor pieces (industrial bars,
-  // horseshoes through 2 holes, …) need precise endpoint placement that AI
-  // can't reliably produce; admin must use the parametric pipeline instead.
-  if (jewelry.type !== "STUD" && jewelry.type !== "RING") {
+  // AI is restricted to STUD/RING and straight/curved BARBELL — see
+  // docs/20-multi-anchor-jewelry.md and docs/18-replicate-3d.md. A barbell's two
+  // ball ends are recoverable as attach:primary/secondary (the renderer derives
+  // scale from the two-anchor span); horseshoes, orbitals and ladders need
+  // endpoint placement AI can't reliably produce, so they stay parametric-only.
+  if (!isAiGeneratableType(jewelry.type)) {
     return {
       ok: false,
       error:
-        "Авто-генерация доступна только для одноточечных украшений (STUD, RING). Для штанг и подков используйте параметрический пайплайн или загрузите .glb вручную.",
+        "Авто-генерация доступна для одноточечных украшений (STUD, RING) и прямых штанг (BARBELL). Для подков, орбитальных колец и лесенок используйте параметрический пайплайн или загрузите .glb вручную.",
     };
   }
 
@@ -349,7 +362,16 @@ export async function pollJewelryJob(
             // Enables the AI roll tiebreaker for asymmetric hoops (when GEMINI_API_KEY set).
             photoUrl: firstPhotoUrl(jewelry.photos),
           }
-        : undefined;
+        : jewelry?.type === "BARBELL"
+          ? {
+              type: "BARBELL",
+              gauge: jewelry.gauge,
+              size: jewelry.size,
+              // No glbScale/roll for a bar — the renderer derives scale from the two
+              // anchors; photoUrl still drives the quality gate.
+              photoUrl: firstPhotoUrl(jewelry.photos),
+            }
+          : undefined;
 
   // SUCCEEDED — re-host (+optimize +place) the GLB on our blob, then surface for review.
   let blobUrl: string;
@@ -390,6 +412,58 @@ export async function pollJewelryJob(
         placementNote =
           " Автоматическое размещение не удалось — настройте ориентацию и масштаб вручную.";
       }
+    }
+
+    // AI quality gate. A confident reject auto-retries the next provider; the auto
+    // chain caps retries (each provider is tried at most once), so this can't loop.
+    // An exhausted chain KEEPS the model for manual review — a borderline mesh is
+    // often salvageable via the point-picker, better than discarding it.
+    const { qualityRejected } = await import("@/lib/admin/glb-quality-vision");
+    if (qualityRejected(hosted.quality)) {
+      const q = hosted.quality!;
+      const issuesText = q.issues.length
+        ? ` Проблемы: ${q.issues.join("; ")}.`
+        : "";
+      const next = pickNextAutoProvider(job.provider as ProviderId);
+      if (next) {
+        const photoUrls = asPhotos(job.inputPhotos).map((p) => p.url);
+        const startResult = await next.start({ photoUrls });
+        if (startResult.ok) {
+          // Drop the rejected blob, fail this attempt, queue the next provider.
+          if (process.env.BLOB_READ_WRITE_TOKEN) {
+            try {
+              await del(hosted.url);
+            } catch {
+              /* best-effort */
+            }
+          }
+          await prisma.generationJob.update({
+            where: { id: job.id },
+            data: {
+              status: "FAILED",
+              errorMessage: `Низкое качество (оценка ${q.score}).${issuesText}`,
+              completedAt: new Date(),
+            },
+          });
+          await prisma.generationJob.create({
+            data: {
+              jewelryId,
+              provider: next.id,
+              providerJobId: startResult.providerJobId,
+              status: "PROCESSING",
+              inputPhotos: job.inputPhotos as object,
+              startedAt: new Date(),
+            },
+          });
+          revalidateForJewelry(jewelryId);
+          return {
+            ok: true,
+            message: `Модель отклонена ИИ-проверкой качества (оценка ${q.score}).${issuesText} Перегенерируем через ${next.id}.`,
+          };
+        }
+      }
+      // No fallback (or it refused to start): keep the model, flag it for review.
+      placementNote += ` ⚠ ИИ-проверка качества выявила возможные дефекты (оценка ${q.score}).${issuesText} Проверьте модель вручную или перегенерируйте.`;
     }
   } catch (err) {
     const msg =

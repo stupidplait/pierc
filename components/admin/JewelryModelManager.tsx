@@ -3,6 +3,7 @@ import { ru } from "@/lib/i18n/ru";
 import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 import { GlbDropzone } from "@/components/admin/GlbDropzone";
 import { JewelryGenerationActions } from "@/components/admin/JewelryGenerationActions";
+import { ParametricGenerator } from "@/components/admin/ParametricGenerator";
 import { GlbInspector } from "@/components/admin/GlbInspector";
 import {
   RingOrientationTuner,
@@ -11,7 +12,11 @@ import {
 import { CARD, GHOST, GHOST_DELETE } from "@/components/admin/form/styles";
 import { removeJewelryGlb } from "@/lib/admin/jewelry-actions";
 import { getProviderStatus } from "@/lib/three-gen";
-import { isSingleAnchorType, type JewelryType } from "@/lib/catalog/types";
+import {
+  isAiGeneratableType,
+  isSingleAnchorType,
+  type JewelryType,
+} from "@/lib/catalog/types";
 import { adminGlbSrc } from "@/lib/jewelry/glb-proxy";
 
 interface JewelryModelManagerProps {
@@ -37,11 +42,11 @@ interface JewelryModelManagerProps {
  * Server component orchestrating the 3D-model panel on the jewelry edit page:
  *
  *   • Header — current GLB state + "Скачать .glb" + "Удалить модель".
- *   • Auto generation — Replicate / Tripo3D (when configured) — RESTRICTED to
- *     single-anchor types (STUD, RING). Multi-anchor types (BARBELL,
- *     CIRCULAR_BARBELL, ORBITAL, CHAIN_LADDER) require precise endpoint
- *     placement which AI generation can't reliably produce, so we surface
- *     a hint and route the admin to the parametric pipeline instead.
+ *   • Auto generation — Replicate / Tripo3D (when configured) — allowed for
+ *     STUD, RING and straight/curved BARBELL (its two ball ends are recovered as
+ *     attach:primary/secondary). CIRCULAR_BARBELL, ORBITAL and CHAIN_LADDER need
+ *     endpoint placement AI can't reliably produce, so we surface a hint and route
+ *     the admin to the parametric pipeline instead.
  *     See docs/18-replicate-3d.md and docs/20-multi-anchor-jewelry.md.
  *   • Manual upload — admin uploads a .glb directly (always works).
  */
@@ -57,7 +62,7 @@ export function JewelryModelManager({
 }: JewelryModelManagerProps) {
   const t = ru.admin.jewelry.model;
   const providers = getProviderStatus();
-  const aiAllowed = isSingleAnchorType(jewelryType);
+  const aiAllowed = isAiGeneratableType(jewelryType);
 
   // A generated model awaiting approval (result differs from the published one)
   // owns its own compare/review preview in the generation panel below, so the
@@ -122,6 +127,7 @@ export function JewelryModelManager({
                 scale={glbScale}
                 scaleJewelryId={jewelryId}
                 actions={modelActions}
+                multiAnchor={!isSingleAnchorType(jewelryType)}
               />
             </div>
           )
@@ -146,6 +152,17 @@ export function JewelryModelManager({
             {t.autoMultiAnchorBlocked}
           </p>
         )}
+      </div>
+
+      {/* ── Parametric self-serve generation (no Blender) ────────── */}
+      <div className="border-t border-line pt-6">
+        <h3 className="mb-3 text-sm font-medium text-ink">
+          Параметрическая генерация
+        </h3>
+        <ParametricGenerator
+          jewelryId={jewelryId}
+          blobConfigured={blobConfigured}
+        />
       </div>
 
       {/* ── Ring orientation tuner (RING only) — Layer 3 escape hatch ── */}

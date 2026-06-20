@@ -125,12 +125,12 @@ async function renderCandidate(
     .toBuffer();
 }
 
-interface PhotoData {
+export interface PhotoData {
   data: string; // base64
   mimeType: string;
 }
 
-async function fetchPhotoBase64(url: string): Promise<PhotoData | null> {
+export async function fetchPhotoBase64(url: string): Promise<PhotoData | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;

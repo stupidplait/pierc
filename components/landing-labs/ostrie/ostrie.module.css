@@ -1,0 +1,738 @@
+/*
+ * «ОСТРИЁ» — brutalist editorial kinetic typography.
+ *
+ * Local design tokens layered over the app theme tokens (--bg, --ink, --accent…)
+ * so the page re-skins on the light/dark toggle for free. The aesthetic is a
+ * Swiss/brutalist print magazine: near-white paper, hairline rules, oversized
+ * black grotesk, ONE magenta accent used surgically.
+ */
+
+.root {
+  /* Local register, derived from the app tokens. Light = paper, dark = ink. */
+  --o-paper: var(--bg);
+  --o-ink: var(--ink);
+  --o-mute: var(--ink-muted);
+  --o-line: var(--ink-line);
+  --o-line-strong: var(--ink-line-strong);
+  --o-accent: var(--accent);
+  --o-on-accent: var(--on-primary);
+
+  /* Fluid editorial scale. */
+  --o-gutter: clamp(16px, 4.5vw, 72px);
+
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  overflow-x: clip;
+  background: var(--o-paper);
+  color: var(--o-ink);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hide the OS cursor on pointer-fine devices — the custom cursor takes over.
+   Touch devices keep their native behaviour (the cursor element is hidden). */
+@media (hover: hover) and (pointer: fine) {
+  .root,
+  .root a,
+  .root button {
+    cursor: none;
+  }
+}
+
+.displayFont {
+  font-family: var(--font-ostrie-display), var(--font-onest), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.russoFont {
+  font-family: var(--font-ostrie-russo), var(--font-onest), sans-serif;
+  font-weight: 400;
+}
+
+.monoFont {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/* ── Paper atmosphere ────────────────────────────────────────────────────── */
+
+/* Fine film grain over the whole page — fixed so it doesn't scroll. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:global(.theme-dark) .grain {
+  mix-blend-mode: screen;
+  opacity: 0.08;
+}
+
+/* Baseline grid hairlines — faint vertical rules anchoring the layout. */
+.baselineGrid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--o-line) 0,
+    var(--o-line) 1px,
+    transparent 1px,
+    transparent calc(100% / 6)
+  );
+  opacity: 0.45;
+}
+
+/* ── Custom cursor ───────────────────────────────────────────────────────── */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 80;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 999px;
+  background: var(--o-accent);
+  pointer-events: none;
+  mix-blend-mode: difference;
+  will-change: transform;
+}
+.cursorRing {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 79;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 1px solid var(--o-ink);
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0.6;
+  will-change: transform;
+}
+@media (hover: none), (pointer: coarse) {
+  .cursor,
+  .cursorRing {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor,
+  .cursorRing {
+    display: none;
+  }
+}
+
+/* ── Marquee ─────────────────────────────────────────────────────────────── */
+
+.marquee {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  white-space: nowrap;
+  border-block: 1px solid var(--o-line-strong);
+  background: var(--o-paper);
+}
+.marqueeTrack {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: clamp(20px, 4vw, 56px);
+  padding-block: clamp(10px, 1.6vh, 18px);
+  padding-right: clamp(20px, 4vw, 56px);
+  animation: marqueeScroll 28s linear infinite;
+}
+.marqueeReverse .marqueeTrack {
+  animation-direction: reverse;
+  animation-duration: 36s;
+}
+.marquee:hover .marqueeTrack {
+  animation-play-state: paused;
+}
+@keyframes marqueeScroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marqueeTrack {
+    animation: none;
+  }
+}
+.marqueeWord {
+  font-size: clamp(13px, 1.6vw, 18px);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+.marqueeDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--o-accent);
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + clamp(76px, 12vh, 120px)) var(--o-gutter)
+    clamp(24px, 4vh, 48px);
+}
+
+.heroTopRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--o-line-strong);
+  padding-bottom: clamp(10px, 1.6vh, 18px);
+}
+.kicker {
+  font-size: clamp(10px, 1.1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--o-mute);
+}
+
+/* The page-load split-letter words. */
+.heroType {
+  position: relative;
+  margin-block: clamp(20px, 5vh, 64px);
+}
+.heroWord {
+  display: block;
+  font-size: clamp(58px, 19vw, 320px);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+.heroWord + .heroWord {
+  margin-top: clamp(-4px, -0.4vw, 0px);
+}
+.letter {
+  display: inline-block;
+  will-change: transform;
+}
+/* Pull the second word right for an asymmetric, grid-breaking column. */
+.heroWordShift {
+  padding-left: clamp(24px, 16vw, 280px);
+}
+.heroWordOutline {
+  color: transparent;
+  -webkit-text-stroke: clamp(1px, 0.18vw, 2.5px) var(--o-ink);
+}
+.heroAccentDot {
+  color: var(--o-accent);
+}
+
+.heroBottom {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: end;
+  gap: clamp(18px, 3vw, 48px);
+  border-top: 1px solid var(--o-line-strong);
+  padding-top: clamp(14px, 2vh, 24px);
+}
+@media (min-width: 760px) {
+  .heroBottom {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+.heroLede {
+  max-width: 42ch;
+  font-size: clamp(15px, 1.7vw, 21px);
+  line-height: 1.4;
+  text-wrap: balance;
+  color: var(--o-ink);
+}
+.heroLede em {
+  font-style: normal;
+  color: var(--o-accent);
+}
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(16px, 2vw, 36px);
+  font-size: clamp(11px, 1.1vw, 13px);
+}
+.heroMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.heroMetaLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--o-mute);
+  font-size: 0.78em;
+}
+.heroMetaValue {
+  font-size: clamp(14px, 1.5vw, 18px);
+}
+
+/* The 3D corner stud canvas. */
+.studCorner {
+  position: absolute;
+  top: clamp(72px, 11vh, 132px);
+  right: var(--o-gutter);
+  z-index: 2;
+  width: clamp(96px, 13vw, 200px);
+  height: clamp(96px, 13vw, 200px);
+  pointer-events: none;
+}
+.studFallback {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--o-line-strong);
+  border-radius: 999px;
+  background:
+    radial-gradient(60% 60% at 35% 30%, var(--o-line) 0%, transparent 70%);
+}
+
+.scrollHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(10px, 1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.26em;
+  color: var(--o-mute);
+}
+.scrollHintBar {
+  display: block;
+  width: 44px;
+  height: 1px;
+  background: var(--o-ink);
+  transform-origin: left;
+  animation: hintPulse 2.4s ease-in-out infinite;
+}
+@keyframes hintPulse {
+  0%,
+  100% {
+    transform: scaleX(0.3);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrollHintBar {
+    animation: none;
+  }
+}
+
+/* ── Section scaffolding ─────────────────────────────────────────────────── */
+
+.section {
+  position: relative;
+  z-index: 1;
+  padding: clamp(64px, 12vh, 160px) var(--o-gutter);
+}
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--o-line-strong);
+  padding-bottom: clamp(12px, 1.6vh, 20px);
+}
+.sectionNo {
+  font-size: clamp(13px, 1.4vw, 16px);
+  letter-spacing: 0.12em;
+  color: var(--o-accent);
+}
+.sectionTitle {
+  font-size: clamp(28px, 6vw, 88px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.sectionTag {
+  font-size: clamp(10px, 1.1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: var(--o-mute);
+}
+
+/* ── Horizontal jewelry rail (pinned) ────────────────────────────────────── */
+
+.railPin {
+  position: relative;
+  z-index: 1;
+  /* Height set inline = (track scroll distance) so ScrollTrigger can pin it. */
+  background: var(--o-paper);
+}
+.railSticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.railHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: calc(env(safe-area-inset-top) + clamp(20px, 5vh, 56px)) var(--o-gutter)
+    clamp(8px, 1.4vh, 16px);
+  border-bottom: 1px solid var(--o-line-strong);
+}
+.railViewport {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  /* On touch this becomes a native horizontal scroller (set inline). */
+}
+.railTrack {
+  display: flex;
+  gap: clamp(16px, 2vw, 32px);
+  padding: clamp(20px, 4vh, 56px) var(--o-gutter);
+  will-change: transform;
+}
+.railCard {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(220px, 30vw, 340px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(24px, 4vh, 56px);
+  padding: clamp(18px, 2vw, 28px);
+  border: 1px solid var(--o-line-strong);
+  background: var(--o-paper);
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease;
+}
+.railCard:hover {
+  background: var(--o-ink);
+  color: var(--o-paper);
+  border-color: var(--o-ink);
+}
+.railCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.railIndex {
+  font-size: clamp(28px, 4vw, 52px);
+  line-height: 0.8;
+  letter-spacing: 0.02em;
+}
+.railTag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  opacity: 0.7;
+}
+.railName {
+  font-size: clamp(20px, 2.4vw, 30px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.railSpecRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 12px;
+  font-size: clamp(11px, 1.1vw, 13px);
+}
+.railSpec {
+  color: inherit;
+  opacity: 0.7;
+}
+.railCardBottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid currentColor;
+  padding-top: clamp(12px, 1.6vh, 18px);
+}
+.railPrice {
+  font-size: clamp(18px, 2vw, 26px);
+  letter-spacing: -0.01em;
+}
+.railArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+.railProgress {
+  height: 2px;
+  width: 100%;
+  background: var(--o-line);
+}
+.railProgressBar {
+  height: 100%;
+  width: 0%;
+  background: var(--o-accent);
+  will-change: width;
+}
+
+/* ── Process (3 steps) ───────────────────────────────────────────────────── */
+
+.steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: clamp(32px, 6vh, 72px);
+  border-top: 1px solid var(--o-line);
+}
+@media (min-width: 860px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+    border-top: none;
+  }
+}
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vh, 24px);
+  padding: clamp(28px, 4vh, 56px) 0;
+  border-bottom: 1px solid var(--o-line);
+}
+@media (min-width: 860px) {
+  .step {
+    padding: clamp(28px, 4vh, 56px) clamp(20px, 2.5vw, 44px);
+    border-bottom: none;
+    border-left: 1px solid var(--o-line);
+  }
+  .step:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+.stepNo {
+  font-size: clamp(48px, 8vw, 120px);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--o-ink);
+}
+.stepTitle {
+  font-size: clamp(24px, 3vw, 40px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.stepTitle .stepAccent {
+  color: var(--o-accent);
+}
+.stepBody {
+  max-width: 34ch;
+  font-size: clamp(14px, 1.4vw, 17px);
+  line-height: 1.45;
+  color: var(--o-mute);
+}
+
+/* ── About ───────────────────────────────────────────────────────────────── */
+
+.aboutGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  margin-top: clamp(36px, 6vh, 80px);
+}
+@media (min-width: 900px) {
+  .aboutGrid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.aboutLead {
+  font-size: clamp(22px, 3.4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.aboutLead em {
+  font-style: normal;
+  color: var(--o-accent);
+}
+.aboutCol {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vh, 36px);
+}
+.aboutP {
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.5;
+  color: var(--o-mute);
+  max-width: 46ch;
+}
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(16px, 2vw, 28px);
+  border-top: 1px solid var(--o-line-strong);
+  padding-top: clamp(18px, 2.5vh, 28px);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.statNum {
+  font-size: clamp(34px, 5vw, 64px);
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+}
+.statNum .statAccent {
+  color: var(--o-accent);
+}
+.statLabel {
+  font-size: clamp(10px, 1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--o-mute);
+}
+
+/* ── Final CTA ───────────────────────────────────────────────────────────── */
+
+.cta {
+  position: relative;
+  z-index: 1;
+  padding: clamp(48px, 10vh, 140px) var(--o-gutter)
+    calc(env(safe-area-inset-bottom) + clamp(48px, 8vh, 100px));
+  border-top: 1px solid var(--o-line-strong);
+}
+.ctaLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.ctaWord {
+  display: block;
+  font-size: clamp(54px, 17vw, 280px);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+.ctaLetter {
+  display: inline-block;
+  transition:
+    color 0.3s ease,
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.ctaLink:hover .ctaLetter {
+  color: var(--o-accent);
+}
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(16px, 3vw, 40px);
+  margin-top: clamp(28px, 5vh, 56px);
+  border-top: 1px solid var(--o-line);
+  padding-top: clamp(20px, 3vh, 32px);
+}
+.ctaSub {
+  max-width: 40ch;
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 1.4;
+  color: var(--o-mute);
+}
+.ctaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(14px, 1.6vh, 18px) clamp(22px, 2.4vw, 34px);
+  min-height: 48px;
+  font-size: clamp(13px, 1.3vw, 15px);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  background: var(--o-accent);
+  color: var(--o-on-accent);
+  border: 1px solid var(--o-accent);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.3s ease;
+  will-change: transform;
+}
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(14px, 1.6vh, 18px) clamp(22px, 2.4vw, 34px);
+  min-height: 48px;
+  font-size: clamp(13px, 1.3vw, 15px);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  color: var(--o-ink);
+  background: transparent;
+  border: 1px solid var(--o-line-strong);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease;
+  will-change: transform;
+}
+.btnGhost:hover {
+  border-color: var(--o-ink);
+}
+.btnPrimary:focus-visible,
+.btnGhost:focus-visible,
+.ctaLink:focus-visible,
+.railCard:focus-visible {
+  outline: 2px solid var(--o-accent);
+  outline-offset: 3px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: clamp(36px, 6vh, 72px);
+  font-size: clamp(10px, 1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--o-mute);
+}

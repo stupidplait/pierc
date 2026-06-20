@@ -23,6 +23,7 @@ import {
   placeMultiAnchor,
   placeSingleAnchor,
   readAttachLocals,
+  readAttachUp,
   type EquippedPiece,
 } from "@/lib/catalog/place-jewelry";
 
@@ -306,6 +307,8 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
     () => readAttachLocals(cloned),
     [cloned],
   );
+  // Optional roll constraint for asymmetric multi-anchor pieces (attach:up).
+  const attachUp = useMemo(() => readAttachUp(cloned), [cloned]);
 
   const groupRef = useRef<Group | null>(null);
 
@@ -329,12 +332,13 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
         offset,
       );
     } else {
-      placeMultiAnchor(group, anchors, attachLocals);
+      placeMultiAnchor(group, anchors, attachLocals, attachUp);
     }
     invalidate(); // kick the demand loop so the reveal starts from this mount
   }, [
     anchors,
     attachLocals,
+    attachUp,
     jewelry.glbScale,
     jewelry.type,
     jewelry.anchorBindings,

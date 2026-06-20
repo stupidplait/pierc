@@ -68,6 +68,17 @@ produce; admin must use the parametric Blender pipeline (see
 [`docs/14-jewelry-pipeline.md`](./14-jewelry-pipeline.md)) or upload a
 hand-modeled `.glb` for those.
 
+> **Update (Jun 2026): BARBELL added.** AI generation now also covers
+> straight/curved `BARBELL` pieces. `normalizeBarbellDocument`
+> (`lib/admin/glb-normalize.ts`) recovers the two ball ends via PCA and injects
+> `attach:primary`/`attach:secondary`; the multi-anchor renderer derives uniform
+> scale from the two-anchor span, so **no `glbScale` is needed** (and the
+> auto-scale step is skipped for multi-anchor types). `CIRCULAR_BARBELL`
+> (horseshoe), `ORBITAL` and `CHAIN_LADDER` stay parametric-only — a horseshoe's
+> two tips sit at the gap, not at the PCA extremes, so they need arc-fitting. The
+> allow-list lives in `isAiGeneratableType` (`lib/catalog/types.ts`), enforced in
+> both the UI (`<JewelryModelManager>`) and `startJewelryGeneration`.
+
 Enforcement (defence in depth):
 
 - **UI** — `<JewelryModelManager>` hides the auto-generation panel and
@@ -298,6 +309,30 @@ falls back transparently to Tripo3D.
     fallback
 - The dev/prod activation step is just adding the two new env vars;
   no schema migration, no script to run.
+
+## AI quality gate (Gemini)
+
+Auto-generation now has a quality gate on top of the orientation tiebreaker.
+After a model is re-hosted + canonicalized, `lib/admin/glb-quality-vision.ts`
+renders it from several orthographic angles (reusing the dependency-free
+depth-splat from `glb-roll-vision.ts`) and asks **Gemini Flash** for a
+structured `{ acceptable, score, issues[], reason }` verdict, comparing the
+renders to the product photo. Wired inside `optimizeGlb` (gated on
+`normalize.photoUrl`), so **both** the admin poll action and the cron poller get
+it; manual uploads (no `normalize`) skip it.
+
+A **confident reject** (`acceptable=false` AND `score < 45`) is treated like a
+`FAILED` generation: the rejected blob is dropped and the next provider in the
+auto chain is tried. The chain length caps retries (each provider runs once), so
+it can't loop. When the chain is exhausted the model is **kept** in
+`PENDING_REVIEW` with the issues surfaced — a borderline mesh is usually
+salvageable via the admin point-picker, better than discarding it.
+
+Everything degrades gracefully: without `GEMINI_API_KEY` (or on any Gemini
+failure) the verdict is `ok:false` and never blocks. Free tier ≈ 250
+image-verdicts/day — ample at this studio's volume. **Privacy:** the free tier
+may train on submitted images; switch to a paid key to opt out (see
+`.env.example`).
 
 ## Risks & open questions
 

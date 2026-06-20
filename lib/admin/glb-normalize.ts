@@ -45,6 +45,12 @@ export interface NormalizeResult {
    */
   attachLocal?: [number, number, number];
   /**
+   * Multiple attach points in the baked (canonical) frame, in order
+   * primary, secondary, … — used by multi-anchor types (BARBELL) where the
+   * renderer needs both endpoints. Single-anchor paths use `attachLocal` instead.
+   */
+  attachLocals?: [number, number, number][];
+  /**
    * True when the decorative face is non-round, so the roll about +Z ("which way
    * is up") is visually meaningful but NOT recoverable from geometry alone. The
    * baseline roll is set to major-axis-vertical; the optional AI tiebreaker
@@ -708,6 +714,103 @@ export function normalizeRingDocument(
       ok: false,
       confidence: 0,
       note: err instanceof Error ? err.message : "ring normalize failed",
+      suggestedScale: null,
+    };
+  }
+}
+
+// ── BARBELL auto-placement (phase 4): straight / curved bars ────────────────────
+
+const BARBELL_ELONG_LO = 2.0; // length:width below this ≈ not a bar (blob/disc)
+const BARBELL_ELONG_HI = 6.0;
+const BARBELL_END_FRAC = 0.15; // outer fraction of the bar length taken as a ball
+
+/**
+ * Analyze a straight/curved BARBELL document and recover its TWO endpoints (the
+ * ball / threaded ends) as `attach:primary` + `attach:secondary`. Unlike the
+ * stud/ring paths this does NOT reorient the mesh or suggest a glbScale: the
+ * multi-anchor renderer (`placeMultiAnchor` in lib/catalog/place-jewelry.ts) maps
+ * attach[0]→anchor[0], attach[1]→anchor[1] and DERIVES uniform scale from the
+ * two-anchor span, so we only need the two points in one consistent baked frame.
+ *
+ * Method: bake transforms → PCA; the longest principal axis is the bar. The two
+ * extreme ends along that axis are the balls; each endpoint is the centroid of the
+ * outer ~15% of the bar's length (robust to a noisy tip). Order (which end is
+ * primary) is arbitrary for a symmetric bar — the admin can swap it in the
+ * point-picker. This works for STRAIGHT and CURVED bars (ends are the PCA
+ * extremes); a horseshoe's two tips sit together at the gap, NOT at the extremes,
+ * so CIRCULAR_BARBELL stays parametric-only. Never throws.
+ */
+export function normalizeBarbellDocument(doc: Document): NormalizeResult {
+  try {
+    if (hasSharedMesh(doc)) {
+      return { ok: false, confidence: 0, note: "shared mesh — skipped", suggestedScale: null };
+    }
+    bakeNodeTransforms(doc);
+    const pts = gatherPositions(doc);
+    if (pts.length < 64) {
+      return { ok: false, confidence: 0, note: "too few vertices", suggestedScale: null };
+    }
+
+    const { centroid, values, vectors } = computePrincipalAxes(pts);
+    const axis = vectors[0]; // PC1 = the bar's long axis
+
+    // Signed position of every vertex along the bar axis.
+    let tMin = Infinity;
+    let tMax = -Infinity;
+    const ts = new Array<number>(pts.length);
+    const v = new Vector3();
+    for (let i = 0; i < pts.length; i++) {
+      const t = v.set(pts[i][0], pts[i][1], pts[i][2]).sub(centroid).dot(axis);
+      ts[i] = t;
+      if (t < tMin) tMin = t;
+      if (t > tMax) tMax = t;
+    }
+    const span = tMax - tMin || 1e-6;
+    const loCut = tMin + BARBELL_END_FRAC * span;
+    const hiCut = tMax - BARBELL_END_FRAC * span;
+
+    // Endpoint = centroid of the outer slice at each end of the bar.
+    const endA = new Vector3();
+    const endB = new Vector3();
+    let nA = 0;
+    let nB = 0;
+    for (let i = 0; i < pts.length; i++) {
+      if (ts[i] <= loCut) {
+        endA.add(v.set(pts[i][0], pts[i][1], pts[i][2]));
+        nA++;
+      } else if (ts[i] >= hiCut) {
+        endB.add(v.set(pts[i][0], pts[i][1], pts[i][2]));
+        nB++;
+      }
+    }
+    if (nA < 3 || nB < 3) {
+      return { ok: false, confidence: 0, note: "no two distinct ends", suggestedScale: null };
+    }
+    endA.multiplyScalar(1 / nA);
+    endB.multiplyScalar(1 / nB);
+
+    // Confidence from elongation (PC1 ≫ PC2 ⇒ a real bar, not a blob/disc).
+    const elong = Math.sqrt(values[0] / (values[1] + 1e-9));
+    const confidence =
+      0.2 + 0.8 * smoothstep(BARBELL_ELONG_LO, BARBELL_ELONG_HI, elong);
+
+    return {
+      ok: true,
+      confidence: Number(confidence.toFixed(2)),
+      note: `barbell elong ${elong.toFixed(2)}, ends ${nA}/${nB}`,
+      // Multi-anchor scale is derived by the renderer from the two-anchor span.
+      suggestedScale: null,
+      attachLocals: [
+        [endA.x, endA.y, endA.z],
+        [endB.x, endB.y, endB.z],
+      ],
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      confidence: 0,
+      note: err instanceof Error ? err.message : "barbell normalize failed",
       suggestedScale: null,
     };
   }
