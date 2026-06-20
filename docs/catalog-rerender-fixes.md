@@ -1,5 +1,12 @@
 # Catalog Rerendering Fixes
 
+> **Historical — superseded.** The React Compiler is now enabled
+> (`reactCompiler: true` in `next.config.ts`), so it auto-memoizes components.
+> Do **not** apply the manual `useMemo`/`useCallback`/`memo` changes prescribed
+> below — they're redundant under the compiler. Kept only as a record of the
+> original investigation; some component names here predate the current catalog
+> tree (`Showroom` / `CatalogStage` / `CardsLayer`).
+
 ## Issues Identified
 
 ### 1. URL Sync Effect (Showroom.tsx:112-126)

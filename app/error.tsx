@@ -1,15 +1,17 @@
 "use client";
 
-// Route-segment error boundary. Caught by Next.js for any RSC/component
-// throw inside a public page. Has the public Header/Footer because the
-// (public) layout is the parent of this file when the error is in that
-// segment; for admin segment errors, Next.js falls back to global-error.
+// Root error boundary. Next.js renders it INSIDE the root layout only: an
+// error.js is wrapped by *parent* layouts but NOT by its own/sibling segment
+// layout, and this file sits above the (public) route group — so it does NOT
+// get the public Header/Footer or the admin sidebar. Segment-scoped boundaries
+// keep their own chrome (app/admin/(protected)/error.tsx wraps in the sidebar).
 
 import { useEffect } from "react";
 import Link from "next/link";
 import { ru } from "@/lib/i18n/ru";
 import { Section } from "@/components/ui/Section";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { reportClientError } from "@/lib/observability/report-client";
 
 export default function Error({
   error,
@@ -19,8 +21,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log to console in dev; production hooks (Sentry, etc.) go here later.
-    console.error("[error.tsx]", error);
+    reportClientError(error, { boundary: "root" });
   }, [error]);
 
   return (

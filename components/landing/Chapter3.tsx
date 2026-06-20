@@ -1,10 +1,10 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { motion, useInView, type Variants } from "framer-motion";
+import { m, useInView, type Variants } from "framer-motion";
 import { JEWELRY_ITEMS } from "@/components/showcase/JewelryShowcase";
 import { SITE } from "@/lib/site";
-import { Reveal } from "./Reveal";
+import { Reveal } from "@/components/motion/Reveal";
 
 /**
  * Chapter 3 — "ЗАБРОНИРУЙ" / Reserve close.
@@ -185,7 +185,7 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
                 (bg-[#e8e5dd]/40) gives a sheet-on-sheet read so the
                 perimeter stays legible even when the body model drifts
                 behind it on smaller viewports. */}
-            <motion.aside
+            <m.aside
                 ref={dossierRef}
                 aria-label="Бронирование"
                 initial={{ opacity: 0, x: 20 }}
@@ -228,14 +228,14 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
                 <span aria-hidden className="block w-full h-px bg-[#0a0a0a]/[0.15]" />
 
                 {/* Curated set — numbered, staggered entrance */}
-                <motion.ul
+                <m.ul
                     className="list-none m-0 p-0 flex flex-col gap-2.5"
                     variants={listVariants}
                     initial="hidden"
                     animate={dossierInView ? "show" : "hidden"}
                 >
                     {items.map((it, idx) => (
-                        <motion.li
+                        <m.li
                             key={it.id}
                             variants={itemVariants}
                             className="grid grid-cols-[20px_1fr_auto] items-baseline gap-x-3"
@@ -249,9 +249,9 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
                             <span className="font-mono text-[11px] tracking-[0.1em] text-[#0a0a0a]/65 tabular-nums">
                                 {it.price}
                             </span>
-                        </motion.li>
+                        </m.li>
                     ))}
-                </motion.ul>
+                </m.ul>
 
                 <span aria-hidden className="block w-full h-px bg-[#0a0a0a]/[0.15]" />
 
@@ -296,7 +296,7 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
                         →
                     </span>
                 </a>
-            </motion.aside>
+            </m.aside>
         </section>
     );
 });

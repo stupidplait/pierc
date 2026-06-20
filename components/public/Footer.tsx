@@ -105,6 +105,9 @@ export async function Footer() {
           <p>
             © {year} {ru.studio.name}. {ru.footer.rights}
           </p>
+          <Link href="/privacy" className="hover:text-primary">
+            Политика конфиденциальности
+          </Link>
         </div>
       </div>
     </footer>

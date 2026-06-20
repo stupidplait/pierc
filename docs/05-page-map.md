@@ -1,5 +1,11 @@
 # 05 — Page Map
 
+> **Partially outdated.** The `/catalog` description below predates the current
+> 3D showroom. The live catalog renders through `components/catalog/Showroom.tsx`
+> → `CatalogStage` → `CardsLayer`; the older `<ShowroomScene>` / `<Mannequin>` /
+> `CatalogSidebar` names no longer match, and `CatalogControls` is now only the
+> lite-mode / mobile fallback.
+
 ## Route overview
 
 ```

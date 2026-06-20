@@ -24,7 +24,7 @@ import {
 /**
  * shadcn/ui Sidebar composite, hand-authored and re-themed to the Steel Atelier
  * vocabulary (translucent `bg-card/60 backdrop-blur-xl` rail over the shared
- * AuthBackdrop, hairline `border-line/70` divider, `bg-ink/10` active row, magenta
+ * ContentBackdrop, hairline `border-line/70` divider, `bg-ink/10` active row, magenta
  * is left to the per-route glyph). It deliberately does NOT introduce the stock
  * `--sidebar-*` design tokens — those collide with the project's Steel Atelier
  * token names — so the surfaces are styled with the existing project classes.

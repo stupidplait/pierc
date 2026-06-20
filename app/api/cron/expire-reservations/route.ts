@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { cancelAppointmentInTx, cancelBookingInTx } from "@/lib/booking/cancel";
+import { authorizeCron } from "@/lib/cron-auth";
+import { pruneRateLimits } from "@/lib/rate-limit";
+import { reportError } from "@/lib/observability/logger";
 
 // Vercel Cron — auto-releases stale, unconfirmed reservations so abandoned
 // carts don't hold slots / stock forever:
@@ -15,11 +18,14 @@ import { cancelAppointmentInTx, cancelBookingInTx } from "@/lib/booking/cancel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Cap wall-clock: this sweep runs up to 200+200 per-row transactions. Bound it so
+// a backlog can't run unbounded; remaining rows are picked up on the next tick.
+export const maxDuration = 60;
 
 const EXPIRY_HOURS = 48;
 
 export async function GET(request: Request) {
-  if (!authorize(request)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -50,7 +56,7 @@ export async function GET(request: Request) {
       await prisma.$transaction((tx) => cancelAppointmentInTx(tx, a.id));
       appointmentsCancelled += 1;
     } catch (err) {
-      console.error("[cron expire] appointment", a.id, err);
+      reportError(err, { scope: "cron.expire.appointment", appointmentId: a.id });
     }
   }
 
@@ -59,7 +65,7 @@ export async function GET(request: Request) {
       await prisma.$transaction((tx) => cancelBookingInTx(tx, b.id));
       bookingsCancelled += 1;
     } catch (err) {
-      console.error("[cron expire] booking", b.id, err);
+      reportError(err, { scope: "cron.expire.booking", bookingId: b.id });
     }
   }
 
@@ -72,17 +78,14 @@ export async function GET(request: Request) {
     revalidatePath("/admin/slots");
   }
 
+  // Opportunistically reap expired rate-limit counters in the same daily tick.
+  const rateLimitsPruned = await pruneRateLimits();
+
   return NextResponse.json({
     ok: true,
     cutoff: cutoff.toISOString(),
     appointmentsCancelled,
     bookingsCancelled,
+    rateLimitsPruned,
   });
-}
-
-function authorize(request: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) return true; // dev / unconfigured mode
-  const auth = request.headers.get("authorization") ?? "";
-  return auth === `Bearer ${expected}`;
 }

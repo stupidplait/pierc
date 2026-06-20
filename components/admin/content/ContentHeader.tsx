@@ -1,7 +1,7 @@
 "use client";
 
 import { ru } from "@/lib/i18n/ru";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { WordReveal } from "@/components/motion/WordReveal";
 
 const t = ru.admin.content;
 

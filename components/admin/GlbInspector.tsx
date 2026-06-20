@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Minus, Plus, Loader2, Check, Undo2 } from "lucide-react";
+import { Minus, Plus, Loader2, Check, Undo2, Rotate3d, Crosshair } from "lucide-react";
 import { Euler, Quaternion } from "three";
 import { GlbPreview, type GlbStats } from "@/components/admin/GlbPreview";
 import { ScaleField } from "@/components/admin/ScaleField";
-import { nudgeJewelryGlb } from "@/lib/admin/jewelry-actions";
+import { nudgeJewelryGlb, setJewelryAttachPoint } from "@/lib/admin/jewelry-actions";
 import { ru } from "@/lib/i18n/ru";
 
 
@@ -62,11 +62,23 @@ export function GlbInspector({
   const t = ru.admin.jewelry.model;
   const [stats, setStats] = useState<GlbStats | null>(null);
 
+  // Two edit modes for the model (only when jewelryId is set):
+  //   • rotate — per-axis orientation nudge (camera locked face-on), baked on Save.
+  //   • pick   — click the model to set attach:primary exactly (orbit free), saved
+  //              via setJewelryAttachPoint. The reliability backstop when auto-
+  //              placement (geometry / AI) put the point wrong.
+  const [mode, setMode] = useState<"rotate" | "pick">("rotate");
+
   // Live orientation nudge (client-side; baked on Save). Per-axis degrees, in the
   // fixed face-on view: X = tilt up/down, Y = turn left/right, Z = spin in-plane.
   const [rot, setRot] = useState({ x: 0, y: 0, z: 0 });
   const [saving, startSave] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Picked attach point (local frame; null until the admin clicks the model).
+  const [picked, setPicked] = useState<[number, number, number] | null>(null);
+  const [savingPick, startSavePick] = useTransition();
+  const [pickError, setPickError] = useState<string | null>(null);
 
   const finalQ = useMemo(
     () =>
@@ -105,6 +117,21 @@ export function GlbInspector({
       if (res && res.ok === false) setError(res.error);
     });
   };
+
+  const savePick = () => {
+    if (!jewelryId || !picked) return;
+    setPickError(null);
+    const fd = new FormData();
+    fd.set("id", jewelryId);
+    fd.set("x", String(picked[0]));
+    fd.set("y", String(picked[1]));
+    fd.set("z", String(picked[2]));
+    startSavePick(async () => {
+      const res = await setJewelryAttachPoint(fd);
+      // On success the parent remounts (new url) → picked resets to null.
+      if (res && res.ok === false) setPickError(res.error);
+    });
+  };
   // (Дропнули HEAD-проба размера файла: лишний запрос к blob на каждый монтаж
   // превью — а это повышало шанс словить Vercel Security Checkpoint. Полигоны/
   // вершины и так читаются из загруженного GLB без отдельного запроса.)
@@ -115,16 +142,38 @@ export function GlbInspector({
       ? { jewelryId: scaleJewelryId, currentScale: scale, candidateJobId }
       : null;
 
-  const orientationEl = jewelryId ? (
-    <OrientationControls
-      rot={rot}
-      bump={bump}
-      reset={reset}
-      save={save}
-      dirty={dirty}
-      saving={saving}
-      error={error}
-    />
+  const controlsEl = jewelryId ? (
+    <div className="flex flex-col gap-3">
+      <ModeToggle
+        mode={mode}
+        setMode={(m) => {
+          setMode(m);
+          setPickError(null);
+        }}
+      />
+      {mode === "rotate" ? (
+        <OrientationControls
+          rot={rot}
+          bump={bump}
+          reset={reset}
+          save={save}
+          dirty={dirty}
+          saving={saving}
+          error={error}
+        />
+      ) : (
+        <PickControls
+          picked={picked}
+          clear={() => {
+            setPicked(null);
+            setPickError(null);
+          }}
+          save={savePick}
+          saving={savingPick}
+          error={pickError}
+        />
+      )}
+    </div>
   ) : null;
 
   return (
@@ -144,12 +193,15 @@ export function GlbInspector({
             onStats={setStats}
             className={highlight ? "ring-1 ring-accent/40" : ""}
             quaternion={
-              jewelryId
+              jewelryId && mode === "rotate"
                 ? (finalQ.toArray() as [number, number, number, number])
                 : undefined
             }
             showAttach={!!jewelryId}
-            lockCamera={!!jewelryId}
+            lockCamera={!!jewelryId && mode === "rotate"}
+            pickMode={!!jewelryId && mode === "pick"}
+            onPick={setPicked}
+            pickedPoint={picked}
           />
         </div>
 
@@ -168,7 +220,7 @@ export function GlbInspector({
             ) : null}
           </dl>
 
-          {orientationEl}
+          {controlsEl}
 
           {actions ? (
             <div className="mt-auto flex flex-wrap items-center gap-3">
@@ -305,9 +357,101 @@ function OrientationControls({
       ) : null}
 
       <p className="text-[11px] leading-snug text-mute">
-        Розовая точка — место крепления к пирсингу. Поворачивайте по осям до
-        нужного вида и нажмите «Сохранить».
+        Розовая точка — место крепления к пирсингу, зелёная ось — наружу от тела,
+        серый диск — кожа. Украшение должно «смотреть» вдоль зелёной оси.
+        Поворачивайте по осям до нужного вида и нажмите «Сохранить».
       </p>
+      {error ? <p className="text-xs text-error">{error}</p> : null}
+    </div>
+  );
+}
+
+/** Switch between the rotate (orientation nudge) and pick (set attach point) modes. */
+function ModeToggle({
+  mode,
+  setMode,
+}: {
+  mode: "rotate" | "pick";
+  setMode: (m: "rotate" | "pick") => void;
+}) {
+  const opts: { m: "rotate" | "pick"; icon: typeof Rotate3d; label: string }[] = [
+    { m: "rotate", icon: Rotate3d, label: "Повернуть" },
+    { m: "pick", icon: Crosshair, label: "Поставить точку" },
+  ];
+  return (
+    <div className="flex items-center gap-1.5">
+      {opts.map(({ m, icon: Icon, label }) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => setMode(m)}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition-colors ${
+            mode === m
+              ? "border-ink bg-ink text-bg"
+              : "border-ink/15 text-ink hover:border-ink/40"
+          }`}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Click-to-place attach-point controls: instructions, the picked coords, and a
+ *  Save that bakes the point into the GLB (setJewelryAttachPoint). */
+function PickControls({
+  picked,
+  clear,
+  save,
+  saving,
+  error,
+}: {
+  picked: [number, number, number] | null;
+  clear: () => void;
+  save: () => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11px] leading-snug text-mute">
+        Покрутите модель и кликните по месту крепления к пирсингу — голубая точка.
+        Затем нажмите «Сохранить».
+      </p>
+      {picked ? (
+        <p className="text-[11px] tabular-nums text-mute">
+          Точка: {picked.map((n) => n.toFixed(4)).join(", ")}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!picked || saving}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-medium text-bg transition-colors hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+          Сохранить
+        </button>
+        {picked ? (
+          <button
+            type="button"
+            className={`${STEP_BTN} h-9 w-9 border-transparent text-mute hover:text-ink`}
+            onClick={clear}
+            disabled={saving}
+            title="Сбросить"
+            aria-label="Сбросить точку"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
       {error ? <p className="text-xs text-error">{error}</p> : null}
     </div>
   );

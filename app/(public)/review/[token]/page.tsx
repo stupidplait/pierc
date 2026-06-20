@@ -14,6 +14,8 @@ interface ReviewTokenPageProps {
 
 export const metadata: Metadata = {
   title: `${reviewsStrings.form.title} — ${ru.studio.name}`,
+  // Tokenized, customer-specific URL — never index (robots.txt also disallows it).
+  robots: { index: false },
 };
 
 export default async function ReviewTokenPage({

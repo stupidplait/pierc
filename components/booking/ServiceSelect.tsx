@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { ru } from "@/lib/i18n/ru";
-import { formatPrice } from "@/lib/jewelry/format";
+import { formatDuration, formatPrice } from "@/lib/jewelry/format";
 import type { WizardService } from "@/lib/booking/wizard-types";
 
 interface ServiceSelectProps {
@@ -62,6 +62,7 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
     onChange(id);
     setOpen(false);
   };
+  const optionId = (i: number) => `${listId}-opt-${i}`;
 
   const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -114,6 +115,13 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
               ref={inputRef}
               autoFocus
               type="text"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                matches.length > 0 ? optionId(active) : undefined
+              }
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -127,6 +135,8 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
           </div>
           <ul
             id={listId}
+            role="listbox"
+            aria-label={t.servicePlaceholder}
             className="flex-1 overflow-y-auto overscroll-contain p-1"
           >
             {matches.length === 0 ? (
@@ -136,12 +146,14 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
                 const isSel = s.id === value;
                 const isActive = i === active;
                 return (
-                  <li key={s.id}>
+                  <li key={s.id} role="presentation">
                     <button
                       type="button"
+                      id={optionId(i)}
+                      role="option"
+                      aria-selected={isSel}
                       onClick={() => choose(s.id)}
                       onMouseEnter={() => setActive(i)}
-                      aria-pressed={isSel}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                         isActive ? "bg-card" : ""
                       }`}
@@ -157,10 +169,7 @@ export function ServiceSelect({ services, value, onChange }: ServiceSelectProps)
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="rounded-full border border-line px-2 py-0.5 text-[11px] uppercase tracking-[0.1em] text-mute">
-                            {ru.pages.book.serviceStep.durationMin.replace(
-                              "{n}",
-                              String(s.durationMin),
-                            )}
+                            {formatDuration(s.durationMin)}
                           </span>
                           {s.description ? (
                             <span className="truncate text-xs text-mute">

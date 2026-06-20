@@ -15,7 +15,7 @@ import {
   ENTRANCE_STAGGER,
   ENTRANCE_VIEWPORT,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 
 type Value = { title: string; body: string };
 

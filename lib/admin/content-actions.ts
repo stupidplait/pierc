@@ -36,6 +36,7 @@ function revalidatePublic() {
   revalidatePath("/faq");
   revalidatePath("/gallery");
   revalidatePath("/", "layout"); // header/footer read Settings
+  revalidateTag("settings", { expire: 0 }); // /about contacts + JSON-LD cache
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export async function updateAbout(
 
   revalidatePath("/admin/content");
   revalidatePath("/about");
+  revalidateTag("about", { expire: 0 }); // drop getAboutBody() cache now
   return { ok: true, message: "Сохранено" };
 }
 
@@ -165,6 +167,7 @@ export async function upsertFaq(
 
   revalidatePath("/admin/content");
   revalidatePath("/faq");
+  revalidateTag("faq", { expire: 0 }); // drop getPublishedFaqItems() cache now
   return { ok: true, message: id ? "Вопрос сохранён" : "Вопрос добавлен" };
 }
 
@@ -177,6 +180,7 @@ export async function reorderFaq(ids: string[]): Promise<void> {
   );
   revalidatePath("/admin/content");
   revalidatePath("/faq");
+  revalidateTag("faq", { expire: 0 }); // drop getPublishedFaqItems() cache now
 }
 
 export async function deleteFaq(formData: FormData): Promise<void> {
@@ -186,6 +190,7 @@ export async function deleteFaq(formData: FormData): Promise<void> {
   await prisma.fAQItem.delete({ where: { id } });
   revalidatePath("/admin/content");
   revalidatePath("/faq");
+  revalidateTag("faq", { expire: 0 }); // drop getPublishedFaqItems() cache now
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,6 +249,7 @@ export async function uploadGalleryPhoto(
 
   revalidatePath("/admin/content");
   revalidatePath("/gallery");
+  revalidateTag("gallery", { expire: 0 }); // drop getGalleryPhotos() cache now
   return { ok: true, message: "Загружено" };
 }
 
@@ -269,6 +275,7 @@ export async function deleteGalleryPhoto(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/content");
   revalidatePath("/gallery");
+  revalidateTag("gallery", { expire: 0 }); // drop getGalleryPhotos() cache now
 }
 
 const galleryUpdateSchema = z.object({
@@ -296,6 +303,7 @@ export async function updateGalleryPhoto(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/content");
   revalidatePath("/gallery");
+  revalidateTag("gallery", { expire: 0 }); // drop getGalleryPhotos() cache now
 }
 
 export async function reorderGalleryPhotos(ids: string[]): Promise<void> {
@@ -307,6 +315,7 @@ export async function reorderGalleryPhotos(ids: string[]): Promise<void> {
   );
   revalidatePath("/admin/content");
   revalidatePath("/gallery");
+  revalidateTag("gallery", { expire: 0 }); // drop getGalleryPhotos() cache now
 }
 
 /**
@@ -361,6 +370,7 @@ export async function replaceGalleryPhoto(
 
   revalidatePath("/admin/content");
   revalidatePath("/gallery");
+  revalidateTag("gallery", { expire: 0 }); // drop getGalleryPhotos() cache now
   return { ok: true, message: "Фото заменено" };
 }
 

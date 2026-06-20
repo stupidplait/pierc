@@ -4,7 +4,7 @@ import { m, useReducedMotion } from "framer-motion";
 import {
   ENTRANCE_STAGGER,
   ENTRANCE_VIEWPORT,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { blurRevealVariants } from "@/components/motion/BlurReveal";
 import {
   TestimonialCard,

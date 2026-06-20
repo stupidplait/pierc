@@ -34,13 +34,12 @@ import { cn } from "@/lib/utils";
 /** Showroom i18n bundle, re-exported so views import one symbol. */
 export const ct = catalogStrings.showroom;
 
-/** The catalog-card design directions, compared via the `?card=` switcher. */
+/** Filmstrip card design direction (locked to "frame" today). */
 export type CardVariant = "classic" | "overlay" | "frame" | "minimal";
 
 /**
- * Props every catalog layout variant receives. Identical surface to the old
- * `CatalogControls`, plus `hideGridLink`. The Showroom orchestrator owns the
- * state and passes these down so the four views stay purely presentational.
+ * Props every catalog view receives. The Showroom orchestrator owns the state
+ * and passes these down so the views stay purely presentational.
  */
 export interface CatalogViewProps {
   anchors: AnchorWire[];
@@ -55,9 +54,9 @@ export interface CatalogViewProps {
   hideGridLink?: boolean;
   /** Which filmstrip card design to render (Console). Defaults to "classic". */
   cardVariant?: CardVariant;
-  /** Design-lab scene environment (drives <CatalogStage>). */
+  /** Design-lab scene environment (drives <ShowroomStage>). */
   env?: EnvVariant;
-  /** Design-lab HUD / postprocessing level (drives <CatalogStage>). */
+  /** Design-lab HUD / postprocessing level (drives <ShowroomStage>). */
   hud?: HudVariant;
   /** Where piercing-place selection lives (rail layout). */
   place?: PlaceVariant;
@@ -89,7 +88,7 @@ export interface CatalogViewProps {
 
 /**
  * Shared derived model — the same grouping/filtering/tray math the old
- * `CatalogControls` computed inline, lifted so all four views reuse it.
+ * `LiteInventory` computed inline, lifted so all four views reuse it.
  */
 export function useCatalogModel({
   anchors,

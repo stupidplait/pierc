@@ -1,9 +1,12 @@
 import type { NextAuthConfig } from "next-auth";
 
-// Edge-safe NextAuth configuration.
-// Imported by both middleware (Edge Runtime) and lib/auth.ts (Node).
-// Must NOT import anything that won't run on the Edge Runtime
-// (no bcryptjs, no @prisma/client, no Node built-ins).
+// Lean NextAuth configuration shared by proxy.ts and lib/auth.ts.
+//
+// NOTE (Next 16): proxy.ts (the former `middleware`) runs on the Node.js
+// runtime — the Edge runtime is no longer supported there and cannot be
+// configured. So this split is no longer required for Edge-safety; it's kept
+// only to stay lean (faster cold starts; no bcryptjs/@prisma/client pulled into
+// the proxy). The concrete Credentials provider + DB access live in lib/auth.ts.
 
 export const authConfig = {
   pages: {

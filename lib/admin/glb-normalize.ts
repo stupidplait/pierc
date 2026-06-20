@@ -233,9 +233,20 @@ export function normalizeStudDocument(
     cov[2][1] = cov[1][2];
 
     const { values, vectors } = eigenSym3(cov);
-    // PC1 (largest variance) is the post+head elongation axis.
-    let axis = new Vector3(vectors[0][0], vectors[0][1], vectors[0][2]).normalize();
-    const elong = values[0] / (values[1] + 1e-9); // length : width
+    const elong = values[0] / (values[1] + 1e-9); // PC1 : PC2 (length : width)
+    // Most studs are elongated along the post → PC1 IS the post+head axis. But a
+    // flat DISC-top stud (wide low head, short post) is a pancake: two large
+    // eigenvalues span the disc plane and the SMALLEST is the post/outward normal.
+    // Using PC1 there would bake the pose 90° off. Detect that case (not elongated
+    // AND clearly flat) and take the least-variance axis as the outward axis. The
+    // confidence stays low (elong below ELONG_LO), so it still routes to verify.
+    const flatness = values[1] / (values[2] + 1e-9);
+    const discLike = elong < ELONG_LO && flatness > 2.5;
+    let axis = (
+      discLike
+        ? new Vector3(vectors[2][0], vectors[2][1], vectors[2][2])
+        : new Vector3(vectors[0][0], vectors[0][1], vectors[0][2])
+    ).normalize();
 
     const centroid = new Vector3(c[0], c[1], c[2]);
 
@@ -392,7 +403,7 @@ export function normalizeStudDocument(
     return {
       ok: true,
       confidence: Number(confidence.toFixed(2)),
-      note: `elong ${elong.toFixed(2)}, head/post ${contrast.toFixed(2)}, roll-asym ${rollAsymmetry.toFixed(2)}`,
+      note: `elong ${elong.toFixed(2)}${discLike ? " (disc)" : ""}, head/post ${contrast.toFixed(2)}, roll-asym ${rollAsymmetry.toFixed(2)}`,
       suggestedScale,
       headDiameterM,
       attachLocal,
@@ -483,6 +494,30 @@ function computePrincipalAxes(pts: number[][]): {
   };
 }
 
+/** Circular-mean angle of a per-angular-bin weight distribution, in the ring
+ *  plane. Used to find the centroid angle of the band feature that defines the
+ *  mount (thinness deficit) or the charm (radius excess). Returns an angle in
+ *  (−π, π]; defaults to +Y (top) when every weight is zero. */
+function circularMeanAngle(weights: number[], bins: number): number {
+  let sx = 0;
+  let sy = 0;
+  for (let b = 0; b < bins; b++) {
+    const w = weights[b];
+    if (w <= 0) continue;
+    const a = ((b + 0.5) / bins) * 2 * Math.PI - Math.PI;
+    sx += w * Math.cos(a);
+    sy += w * Math.sin(a);
+  }
+  if (sx === 0 && sy === 0) return Math.PI / 2;
+  return Math.atan2(sy, sx);
+}
+
+/** Median of a numeric array (non-mutating). */
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length ? s[Math.floor(s.length / 2)] : 0;
+}
+
 /**
  * Analyze + reorient a RING (hoop) document in place. Per the parametric
  * convention (docs/20-multi-anchor-jewelry.md, shape_seamless_hoop.py): the ring
@@ -545,13 +580,14 @@ export function normalizeRingDocument(
     // Quaternion that takes the ring normal onto +Z.
     const q = new Quaternion().setFromUnitVectors(normal, new Vector3(0, 0, 1));
 
-    // ── In-plane angular profile → roll ambiguity + a baseline "feature down" roll.
-    // Project every vertex into the ring plane (apply q so the normal is +Z), bin by
-    // angle, and record the max planar radius per bin. A clean round hoop reads ~equal
-    // radius in every bin → no meaningful "up"; a charm/gem spikes a bin and a gap
-    // empties one → the roll becomes semantic.
+    // ── In-plane angular profile → which band point is the MOUNT (skin contact).
+    // Project every vertex into the ring plane (apply q so the normal is +Z) and,
+    // per angular bin, record the band's OUTER radius and THICKNESS (outer − inner).
+    // Tracking thickness — not just the outline — is what lets us spot a thinned
+    // mount/clasp on a hoop whose outer radius barely changes when the wire necks.
     const ANG_BINS = 36;
-    const binMaxR = new Array(ANG_BINS).fill(0);
+    const binOuter = new Array(ANG_BINS).fill(0);
+    const binInner = new Array(ANG_BINS).fill(Infinity);
     const pv = new Vector3();
     for (const p of pts) {
       pv.set(p[0], p[1], p[2]).sub(centroid).applyQuaternion(q);
@@ -561,30 +597,63 @@ export function normalizeRingDocument(
         ANG_BINS - 1,
         Math.floor(((a + Math.PI) / (2 * Math.PI)) * ANG_BINS),
       );
-      if (pr > binMaxR[b]) binMaxR[b] = pr;
+      if (pr > binOuter[b]) binOuter[b] = pr;
+      if (pr < binInner[b]) binInner[b] = pr;
     }
-    const ringMaxR = Math.max(...binMaxR, 1e-9);
-    const meanBinR = binMaxR.reduce((s, r) => s + r, 0) / ANG_BINS;
-    const varBinR =
-      binMaxR.reduce((s, r) => s + (r - meanBinR) * (r - meanBinR), 0) / ANG_BINS;
-    // Lumpiness (charm/gem pokes past the band) OR a gap (some sectors empty) ⇒
-    // asymmetric. Thresholds are heuristic; round hoops sit well under both.
-    const cv = meanBinR > 1e-9 ? Math.sqrt(varBinR) / meanBinR : 0;
-    const gapFraction =
-      binMaxR.filter((r) => r < 0.3 * ringMaxR).length / ANG_BINS;
-    const rollAmbiguous = cv > 0.15 || gapFraction > 0.1;
+    const ringMaxR = Math.max(...binOuter, 1e-9);
+    const binThick = binOuter.map((o, b) =>
+      binInner[b] === Infinity ? 0 : Math.max(0, o - binInner[b]),
+    );
+    const medOuter = median(binOuter.filter((o) => o > 0.3 * ringMaxR)) || ringMaxR;
+    const medThick = median(binThick.filter((t) => t > 0)) || 1e-9;
 
-    // Baseline roll (only when asymmetric): rotate the heaviest-radius bin to −Y, so
-    // the bare wire — and thus attach:primary at +Y — is on top. Gemini may override
-    // this later against the photo; for a round hoop it stays 0 (any roll is identical).
+    // Per-bin "thinness" (mount signal): a sector counts as thin when its band
+    // necks down (thickness deficit) OR the outline tapers in (outer-radius
+    // deficit) OR it is empty (a gap/opening). Heaviness (charm signal): outer
+    // radius poking past the band.
+    const thinW = new Array(ANG_BINS).fill(0);
+    const heavyW = new Array(ANG_BINS).fill(0);
+    for (let b = 0; b < ANG_BINS; b++) {
+      const empty = binInner[b] === Infinity || binOuter[b] < 0.3 * ringMaxR;
+      const thickDef = medThick > 1e-9 ? (medThick - binThick[b]) / medThick : 0;
+      const outerDef = medOuter > 1e-9 ? (medOuter - binOuter[b]) / medOuter : 0;
+      thinW[b] = empty ? 1 : Math.max(0, thickDef, outerDef);
+      heavyW[b] = medOuter > 1e-9 ? Math.max(0, (binOuter[b] - medOuter) / medOuter) : 0;
+    }
+    const narrowDepth = Math.max(...thinW);
+    const charmHeight = Math.max(...heavyW);
+    const gapFraction =
+      binOuter.filter((o, b) => binInner[b] === Infinity || o < 0.3 * ringMaxR)
+        .length / ANG_BINS;
+
+    // Where the MOUNT (skin-contact, +Y top) goes, in priority:
+    //   • NARROWING / GAP — a thinned neck or opening (clasp, hinge, charm-loop) is
+    //     the designed mount: bring ITS centroid to the top, place attach there.
+    //     Fixes hoops whose narrowed top mount the old "heaviest→bottom" rule missed.
+    //   • CHARM — a heavy lump (gem/pendant) hangs at the BOTTOM; the bare wire
+    //     opposite it is the skin contact → top.
+    //   • UNIFORM hoop — any band point is equivalent; no roll.
+    const hasNarrowing = narrowDepth > 0.25 || gapFraction > 0.08;
+    const hasCharm = charmHeight > 0.25;
+    const rollAmbiguous = hasNarrowing || hasCharm;
+
+    // Baseline roll about +Z; +π/2 maps a feature to the top (+Y), −π/2 to the
+    // bottom (−Y). A later AI roll bake may override this against the photo.
     let baselineRoll = 0;
-    if (rollAmbiguous) {
-      let maxBin = 0;
-      for (let b = 1; b < ANG_BINS; b++) {
-        if (binMaxR[b] > binMaxR[maxBin]) maxBin = b;
-      }
-      const featureAngle = ((maxBin + 0.5) / ANG_BINS) * 2 * Math.PI - Math.PI;
-      baselineRoll = -Math.PI / 2 - featureAngle; // feature → −π/2 (bottom)
+    let feature: "narrowing" | "charm" | "none" = "none";
+    let mountBin = -1;
+    if (hasNarrowing) {
+      const mountAngle = circularMeanAngle(thinW, ANG_BINS);
+      baselineRoll = Math.PI / 2 - mountAngle; // narrowing/gap → top
+      mountBin = Math.min(
+        ANG_BINS - 1,
+        Math.max(0, Math.floor(((mountAngle + Math.PI) / (2 * Math.PI)) * ANG_BINS)),
+      );
+      feature = "narrowing";
+    } else if (hasCharm) {
+      const heavyAngle = circularMeanAngle(heavyW, ANG_BINS);
+      baselineRoll = -Math.PI / 2 - heavyAngle; // charm → bottom; bare wire on top
+      feature = "charm";
     }
 
     // Orient: ring normal → +Z, centroid → origin, then the baseline roll about +Z.
@@ -595,10 +664,14 @@ export function normalizeRingDocument(
     const m = [...M.elements] as unknown as Parameters<typeof transformMesh>[1];
     for (const mesh of doc.getRoot().listMeshes()) transformMesh(mesh, m);
 
-    // attach:primary on the band at the top (+Y), on the wire centerline. A later roll
-    // bake (glb-pipeline.ts Gemini tiebreaker) rotates geometry beneath this fixed +Y
-    // marker, so it always lands on whatever band point ends up on top.
-    const bandRadius = (innerR + outerR) / 2;
+    // attach:primary on the band at the top (+Y). Snap its radius to the wire
+    // centerline of whatever feature ended up on top: for a narrowing that's the
+    // necked wire (its own outer−inner midline), otherwise the mean band centerline.
+    // A later AI roll bake rotates geometry beneath this fixed +Y marker.
+    const bandRadius =
+      feature === "narrowing" && mountBin >= 0 && binInner[mountBin] !== Infinity
+        ? Math.max((binOuter[mountBin] + binInner[mountBin]) / 2, 1e-4)
+        : (innerR + outerR) / 2;
     const attachLocal: [number, number, number] = [0, bandRadius, 0];
 
     // `size` for a ring = outer diameter (mm); fall back to gauge vs tube diameter.
@@ -609,19 +682,23 @@ export function normalizeRingDocument(
       suggestedScale = opts.gauge / 1000 / (tubeR * 2);
     }
 
+    // Confidence = "is this a ring whose pose we recovered" — flatness (thin along
+    // the normal) + hole presence. In-plane ROUNDNESS is deliberately NOT a factor
+    // anymore: an asymmetric hoop (charm / clasp / gap) is exactly the case the
+    // feature detection above now handles, so penalising it would wrongly route a
+    // correctly-placed clasp ring to manual review.
     const confidence =
       0.2 +
       0.8 *
         Math.min(
           smoothstep(2.0, 6.0, flatness),
-          smoothstep(0.6, 0.85, roundness),
           smoothstep(0.2, 0.5, holeRatio),
         );
 
     return {
       ok: true,
       confidence: Number(confidence.toFixed(2)),
-      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}, roll-amb ${rollAmbiguous}`,
+      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}, feature ${feature}, roll-amb ${rollAmbiguous}`,
       suggestedScale,
       attachLocal,
       rollAmbiguous,

@@ -14,7 +14,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-// Repo signature easing (matches components/landing/Reveal.tsx).
+// Repo signature easing (matches components/motion/Reveal.tsx).
 const EASE = [0.16, 1, 0.3, 1] as const;
 const DESKTOP_QUERY = "(min-width: 640px)";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { domMax, LazyMotion } from "framer-motion";
+import { domMax, LazyMotion, MotionConfig } from "framer-motion";
 import type { ReactNode } from "react";
 
 /**
@@ -19,5 +19,13 @@ import type { ReactNode } from "react";
  * harmless under this — same features.
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
-  return <LazyMotion features={domMax}>{children}</LazyMotion>;
+  return (
+    <LazyMotion features={domMax}>
+      {/* reducedMotion="user" makes Framer honor prefers-reduced-motion for
+          every `m`/`motion` element in the tree (it suppresses transform/layout
+          animations), so components that don't hand-roll a useReducedMotion
+          guard still degrade correctly. Mirrors the admin islands. */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+    </LazyMotion>
+  );
 }

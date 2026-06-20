@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { getPublishedFaqItems } from "@/lib/public/queries";
 import { ru, seoStrings } from "@/lib/i18n/ru";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { jsonLdScript } from "@/lib/seo/local-business";
+import { buildFaqJsonLd } from "@/lib/seo/local-business";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Section } from "@/components/ui/Section";
-import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
+import { WordReveal } from "@/components/motion/WordReveal";
 import { categorizeFaq } from "@/components/faq/faqData";
-import { FaqInstrumentIndex } from "@/components/faq/FaqInstrumentIndex";
+import { FaqContent } from "@/components/faq/FaqContent";
 
 export const metadata: Metadata = buildPageMetadata({
   title: seoStrings.faq.title,
@@ -15,29 +16,8 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/faq",
 });
 
-// Skip build-time prerender — reads live, admin-editable FAQ rows.
-export const dynamic = "force-dynamic";
-
-// schema.org FAQPage payload — lets search engines surface the Q&A as rich
-// results. Built from the same published rows we render.
-function buildFaqJsonLd(items: { question: string; answer: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: items.map((q) => ({
-      "@type": "Question",
-      name: q.question,
-      acceptedAnswer: { "@type": "Answer", text: q.answer },
-    })),
-  };
-}
-
 export default async function FaqPage() {
-  const rows = await prisma.fAQItem.findMany({
-    where: { published: true },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    select: { id: true, question: true, answer: true, category: true },
-  });
+  const rows = await getPublishedFaqItems();
 
   const groups = categorizeFaq(
     rows.map((r) => ({
@@ -51,20 +31,10 @@ export default async function FaqPage() {
   return (
     <>
       {/* Same drifting-grid + dotted backdrop as the other content pages. */}
-      <AuthBackdrop />
+      <ContentBackdrop />
 
       <Section className="relative z-10">
-        {rows.length > 0 ? (
-          <script
-            type="application/ld+json"
-            // Trusted, server-built JSON-LD; jsonLdScript escapes `<`/`>`/`&` so
-            // admin-entered answers can't break out of the <script>.
-            // react-doctor-disable-next-line react-doctor/no-danger
-            dangerouslySetInnerHTML={{
-              __html: jsonLdScript(buildFaqJsonLd(rows)),
-            }}
-          />
-        ) : null}
+        <JsonLd data={rows.length > 0 ? buildFaqJsonLd(rows) : null} />
 
         {/* Hero — title + subtitle stream in word-by-word (WordReveal), the
             same entry choreography as the /about hero. The heading lands a beat
@@ -87,7 +57,7 @@ export default async function FaqPage() {
         {groups.length === 0 ? (
           <p className="text-mute">{ru.pages.faq.stub}</p>
         ) : (
-          <FaqInstrumentIndex groups={groups} />
+          <FaqContent groups={groups} />
         )}
       </Section>
     </>

@@ -5,7 +5,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import type { MetricTone } from "./types";
 
 // Elevated panel surface — the exact layered shadow /account + the featured

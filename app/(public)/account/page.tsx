@@ -145,9 +145,13 @@ export default async function AccountPage() {
   const telegramConnected = Boolean(profile?.telegramChatId);
   let telegramConnectUrl: string | null = null;
   if (!telegramConnected) {
-    const botUsername = await getBotUsername();
+    // Independent reads — run them together instead of serially. (Token signing
+    // is a cheap HMAC, so computing it even when botUsername is null is fine.)
+    const [botUsername, token] = await Promise.all([
+      getBotUsername(),
+      signTelegramLinkToken(user.id),
+    ]);
     if (botUsername) {
-      const token = await signTelegramLinkToken(user.id);
       telegramConnectUrl = `https://t.me/${botUsername}?start=${token}`;
     }
   }

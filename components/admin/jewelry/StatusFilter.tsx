@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, MotionConfig, type Variants } from "framer-motion";
-import { REVEAL_EASE } from "@/components/services/entrance/config";
+import { REVEAL_EASE } from "@/components/motion/entrance";
 import { jewelryStatusLabels, ru } from "@/lib/i18n/ru";
 import { AnimatedNumber } from "@/components/admin/form/AnimatedNumber";
 import type { JewelryStatus } from "./JewelryFilters";

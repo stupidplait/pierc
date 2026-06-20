@@ -50,12 +50,12 @@ app/
 components/
   catalog/                          // 3D showroom (Three.js + R3F)
     Showroom.tsx                    // → LiteMode on WebGL2-fail
-    ShowroomScene.tsx
+    scene/CatalogStage.tsx          // R3F canvas (ex-ShowroomScene); + environments/, SceneLoader
+    cards/                          // inventory rail + hotbar (CardsLayer, CardsSideRail, RailDetail)
     AnchorDots.tsx
     EquippedPieces.tsx
     BodyModel.tsx
     CameraRig.tsx
-    CatalogSidebar.tsx              // reused by LiteMode
     CatalogGridFallback.tsx         // reused by LiteMode "Все украшения" toggle
   lite/                             // ★ Phase 2 — photo-upload lite mode
     LiteMode.tsx                    // top-level container
@@ -65,18 +65,14 @@ components/
   admin/
     JewelryForm.tsx, JewelryGenerationActions.tsx, ...
     JewelryModelManager.tsx         // GLB
-    JewelrySpriteManager.tsx        // ★ Phase 2 — sprite for lite-mode
-    JewelrySpriteUploader.tsx       // Auto/Manual segmented control
-    SpriteAutoRemover.tsx           // in-browser bg-removal
     ReviewForm.tsx                  // ★ Phase 2
     ReviewPhotoUploadForm.tsx       // ★ Phase 2
     StatusBadges.tsx                // booking / appointment / review states
     ...
   landing/                          // storytelling chapters
-    StoryHero.tsx
-    StoryChapter1.tsx
-    StoryChapter2.tsx               // WebGL2-fail → CTA to /catalog
-    StoryChapter3.tsx
+    Hero.tsx
+    Chapter2.tsx                    // WebGL2-fail → CTA to /catalog
+    Chapter3.tsx
   public/
     Header.tsx, Footer.tsx, MobileMenu.tsx
     PublicAuthForm.tsx

@@ -43,6 +43,16 @@ export function useSectionSnap({
             "ontouchstart" in window || navigator.maxTouchPoints > 0;
         if (isTouch) return;
 
+        // Respect prefers-reduced-motion: this hook preventDefaults every wheel
+        // tick and drives JS window.scrollTo, which CSS scroll-behavior:auto
+        // cannot override. Bail entirely (like SmoothScroll does) so these users
+        // get plain native scrolling with no hijack.
+        if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        )
+            return;
+
         const SCROLL_LAMBDA = 9;
         const SNAP_LAMBDA = 12;
         const WHEEL_DAMPING = 0.28;

@@ -2,25 +2,17 @@
 
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { signIn, signOut } from "@/lib/auth";
 import { ru } from "@/lib/i18n/ru";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { signUpSchema } from "@/lib/auth/auth-schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sign-up — also handles the guest-upgrade case.
+// Sign-up — also handles the guest-upgrade case. Field validation lives in the
+// shared `auth-schema` module (reused by the client form), so client and server
+// reject the same inputs with the same messages.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const signUpSchema = z.object({
-  name: z.string().trim().min(1, ru.pages.signUp.errors.nameRequired),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email(ru.pages.signUp.errors.emailInvalid),
-  password: z.string().min(8, ru.pages.signUp.errors.passwordTooShort),
-  phone: z.string().trim().optional(),
-});
 
 export type SignUpState = { error?: string } | undefined;
 
@@ -28,6 +20,18 @@ export async function signUpAction(
   _prev: SignUpState,
   formData: FormData,
 ): Promise<SignUpState> {
+  // Throttle account creation by IP: signUp runs an unauthenticated bcrypt.hash
+  // (cost 12) + prisma.user.create, so it must be rate-limited like login/booking
+  // to blunt scripted account spam and bcrypt CPU exhaustion.
+  const ip = await clientIp();
+  const throttle = await rateLimit(`signup:${ip}`, {
+    limit: 5,
+    windowMs: 60 * 60_000,
+  });
+  if (!throttle.ok) {
+    return { error: ru.pages.signUp.errors.generic };
+  }
+
   const parsed = signUpSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),

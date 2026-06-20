@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AppointmentBookingDrawer } from "./AppointmentBookingDrawer";
+import dynamic from "next/dynamic";
 import { getBookingExtras } from "@/lib/booking/slot-actions";
 import type {
   BookingUser,
@@ -9,6 +9,16 @@ import type {
   WizardService,
   WizardSlot,
 } from "@/lib/booking/wizard-types";
+
+// Lazy-load the booking wizard (Drawer + BookingForm + step components, ~1.5k
+// lines of interactive client code) on first open instead of shipping it into
+// the /services bundle for every card up front. ssr:false — it's purely
+// interactive and hidden until the user clicks "Записаться".
+const AppointmentBookingDrawer = dynamic(
+  () =>
+    import("./AppointmentBookingDrawer").then((m) => m.AppointmentBookingDrawer),
+  { ssr: false },
+);
 
 interface Extras {
   slots: WizardSlot[];
@@ -30,10 +40,14 @@ export function ServiceBookButton({
   label,
 }: ServiceBookButtonProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [extras, setExtras] = useState<Extras | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleOpen() {
+    // First click mounts the lazy drawer chunk; it stays mounted afterwards so
+    // the close animation can play.
+    setMounted(true);
     setOpen(true);
     if (!extras && !loading) {
       setLoading(true);
@@ -57,14 +71,16 @@ export function ServiceBookButton({
       >
         {label}
       </button>
-      <AppointmentBookingDrawer
-        open={open}
-        onClose={() => setOpen(false)}
-        service={service}
-        user={user}
-        extras={extras}
-        loading={loading}
-      />
+      {mounted ? (
+        <AppointmentBookingDrawer
+          open={open}
+          onClose={() => setOpen(false)}
+          service={service}
+          user={user}
+          extras={extras}
+          loading={loading}
+        />
+      ) : null}
     </>
   );
 }

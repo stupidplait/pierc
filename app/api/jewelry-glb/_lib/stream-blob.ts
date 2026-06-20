@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeAssetFetch } from "@/lib/security/safe-fetch";
 
 /**
  * Fetch a Vercel Blob URL from inside the function (no cross-origin challenge for
@@ -54,7 +55,7 @@ export async function streamBlob(url: string, method: "GET" | "HEAD") {
 
   let upstream: Response;
   try {
-    upstream = await fetch(url, { method, cache: "no-store" });
+    upstream = await safeAssetFetch(url, { method, cache: "no-store" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Upstream fetch failed";
     return new NextResponse(isHead ? null : `Upstream error: ${msg}`, {

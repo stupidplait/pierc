@@ -4,69 +4,27 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { useReducedMotion } from "framer-motion";
-import {
-  Euler,
-  Group,
-  type Material,
-  MathUtils,
-  type Mesh,
-  Object3D,
-  Quaternion,
-  Vector3,
-} from "three";
+import { Group, type Material, MathUtils, type Mesh } from "three";
 import type {
   AnchorWire,
   EquippedMap,
   JewelryWire,
 } from "@/lib/catalog/types";
 import { catalogGlbSrc } from "@/lib/jewelry/glb-proxy";
-
-// ── Dither-dissolve reveal ────────────────────────────────────────────────
-// Materialize newly-attached jewelry with a hashed screen-space dither (à la
-// the landing's jewelry swaps) instead of a hard pop-in: a `uReveal` uniform
-// ramps 0→1 and any fragment whose stable per-pixel hash exceeds it is
-// discarded, so the piece stipples into existence. Works on any GLB material
-// (discard needs no transparency/sort), patched per-instance via onBeforeCompile.
-const REVEAL_TARGET = 1.12; // slightly >1 so no stray pixels stay discarded
-const REVEAL_DAMP = 4.5; // ramp speed (≈0.6s)
-
-const DITHER_GLSL = /* glsl */ `
-uniform float uReveal;
-float _revealHash(vec2 p){
-  return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453);
-}
-`;
-
-function patchDitherReveal(material: Material) {
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uReveal = { value: 0 };
-    // Stash the compiled shader so useFrame can drive uReveal without holding a
-    // React value (avoids the lint against mutating refs/memos during render).
-    material.userData.shader = shader;
-    shader.fragmentShader =
-      DITHER_GLSL +
-      shader.fragmentShader.replace(
-        "void main() {",
-        "void main() {\n  if (uReveal < _revealHash(gl_FragCoord.xy)) discard;",
-      );
-  };
-  material.needsUpdate = true;
-}
-
-/** Push the current reveal value into every patched material in `root`. */
-function setRevealValue(root: Object3D, value: number) {
-  root.traverse((o) => {
-    const mesh = o as Mesh;
-    if (!mesh.isMesh) return;
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const m of mats) {
-      const shader = m?.userData?.shader as
-        | { uniforms: { uReveal?: { value: number } } }
-        | undefined;
-      if (shader?.uniforms.uReveal) shader.uniforms.uReveal.value = value;
-    }
-  });
-}
+import { GlbPreviewBoundary } from "@/components/admin/GlbPreviewBoundary";
+import {
+  REVEAL_DAMP,
+  REVEAL_TARGET,
+  patchDitherReveal,
+  setRevealValue,
+} from "@/lib/catalog/dither-reveal";
+import {
+  groupEquipped,
+  placeMultiAnchor,
+  placeSingleAnchor,
+  readAttachLocals,
+  type EquippedPiece,
+} from "@/lib/catalog/place-jewelry";
 
 interface EquippedPiecesProps {
   anchors: AnchorWire[];
@@ -74,75 +32,22 @@ interface EquippedPiecesProps {
   equipped: EquippedMap;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Group equipped (anchorId → jewelryId) entries by jewelryId so multi-anchor
-// pieces render once, regardless of how many anchors they occupy.
-// ─────────────────────────────────────────────────────────────────────────
-
-interface EquippedPiece {
-  jewelry: JewelryWire;
-  /** Sorted by JewelryAnchorBinding.order (primary first). Length 1..N. */
-  anchors: AnchorWire[];
-}
-
-function groupEquipped(
-  equipped: EquippedMap,
-  anchorsById: Map<string, AnchorWire>,
-  jewelryById: Map<string, JewelryWire>,
-): EquippedPiece[] {
-  // Bucket anchorIds by jewelryId.
-  const buckets = new Map<string, string[]>();
-  for (const [anchorId, jewelryId] of Object.entries(equipped)) {
-    if (!buckets.has(jewelryId)) buckets.set(jewelryId, []);
-    buckets.get(jewelryId)!.push(anchorId);
-  }
-
-  const pieces: EquippedPiece[] = [];
-  for (const [jewelryId, anchorIds] of buckets) {
-    const j = jewelryById.get(jewelryId);
-    if (!j) continue;
-
-    // Resolve anchor records and sort by their JewelryAnchorBinding.order so
-    // primary lands at attach:primary, secondary at attach:secondary, etc.
-    // Bindings whose anchor isn't in this jewelry's binding list (shouldn't
-    // happen, but be defensive) get pushed to the end.
-    const orderByAnchor = new Map<string, number>();
-    for (const b of j.anchorBindings) orderByAnchor.set(b.anchorId, b.order);
-
-    const resolved = anchorIds
-      .map((id) => anchorsById.get(id))
-      .filter((a): a is AnchorWire => Boolean(a))
-      .sort(
-        (a, b) =>
-          (orderByAnchor.get(a.id) ?? 99) - (orderByAnchor.get(b.id) ?? 99),
-      );
-
-    if (resolved.length === 0) continue;
-    pieces.push({ jewelry: j, anchors: resolved });
-  }
-  return pieces;
-}
-
 export function EquippedPieces({
   anchors,
   jewelry,
   equipped,
 }: EquippedPiecesProps) {
-  // Create stable keys to avoid recalculating maps when array references change
-  const anchorsKey = useMemo(() => anchors.map(a => a.id).join(','), [anchors]);
-  const jewelryKey = useMemo(() => jewelry.map(j => j.id).join(','), [jewelry]);
-
   const anchorsById = useMemo(() => {
     const m = new Map<string, AnchorWire>();
     for (const a of anchors) m.set(a.id, a);
     return m;
-  }, [anchors, anchorsKey]);
+  }, [anchors]);
 
   const jewelryById = useMemo(() => {
     const m = new Map<string, JewelryWire>();
     for (const j of jewelry) m.set(j.id, j);
     return m;
-  }, [jewelry, jewelryKey]);
+  }, [jewelry]);
 
   const pieces = useMemo(
     () => groupEquipped(equipped, anchorsById, jewelryById),
@@ -151,20 +56,27 @@ export function EquippedPieces({
 
   return (
     <group>
-      {pieces.map((p) => (
-        <Suspense
-          // Re-mount when the equipped anchor set changes so we don't end up
-          // with stale transforms from the previous configuration.
-          key={`${p.jewelry.id}:${p.anchors.map((a) => a.id).join(",")}`}
-          fallback={<PlaceholderRing anchor={p.anchors[0]} />}
-        >
-          {p.jewelry.glbUrl ? (
-            <JewelryGLB piece={p} />
-          ) : (
-            <PlaceholderRing anchor={p.anchors[0]} />
-          )}
-        </Suspense>
-      ))}
+      {pieces.map((p) => {
+        // Re-mount when the equipped anchor set changes so we don't carry stale
+        // transforms from the previous configuration. Keying the BOUNDARY (the
+        // outer node) also resets it on re-equip, giving a previously-failed GLB
+        // a fresh load attempt.
+        const key = `${p.jewelry.id}:${p.anchors.map((a) => a.id).join(",")}`;
+        return (
+          <GlbPreviewBoundary
+            key={key}
+            fallback={<LoadFailedMarker anchor={p.anchors[0]} />}
+          >
+            <Suspense fallback={<PlaceholderRing anchor={p.anchors[0]} />}>
+              {p.jewelry.glbUrl ? (
+                <JewelryGLB piece={p} />
+              ) : (
+                <PlaceholderRing anchor={p.anchors[0]} />
+              )}
+            </Suspense>
+          </GlbPreviewBoundary>
+        );
+      })}
     </group>
   );
 }
@@ -257,6 +169,50 @@ function PlaceholderRing({ anchor }: { anchor: AnchorWire }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Load-failed marker — rendered by the error boundary when a piece's GLB throws
+// during load (404 / expired CDN link / malformed file). A static, muted ring,
+// deliberately NOT the magenta animated spinner, so a permanent failure never
+// masquerades as "still loading". Billboards to the camera so it stays visible.
+// ─────────────────────────────────────────────────────────────────────────
+
+function LoadFailedMarker({ anchor }: { anchor: AnchorWire }) {
+  const billboardRef = useRef<Group | null>(null);
+  // Passive billboard — no invalidate(); it re-orients on the next frame the
+  // scene renders for another reason (orbit / equip), which is enough.
+  useFrame(({ camera }) => {
+    const bb = billboardRef.current;
+    if (bb) bb.quaternion.copy(camera.quaternion);
+  });
+
+  return (
+    <group position={[anchor.position.x, anchor.position.y, anchor.position.z]}>
+      <group ref={billboardRef}>
+        <mesh renderOrder={1000}>
+          <ringGeometry args={[0.0044, 0.0056, 32]} />
+          <meshBasicMaterial
+            color="#9aa0a6"
+            transparent
+            opacity={0.5}
+            depthTest={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh renderOrder={1001}>
+          <circleGeometry args={[0.0012, 16]} />
+          <meshBasicMaterial
+            color="#9aa0a6"
+            transparent
+            opacity={0.6}
+            depthTest={false}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Jewelry GLB renderer.
 //
 // Per-instance clones the cached scene so multiple equips on different
@@ -300,12 +256,19 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
   // Per-instance clone: clone direct children (meshes) AND their materials so
   // the per-instance dither patch never mutates drei's shared cached material.
   // Reduced motion → skip the patch entirely (materials stay shared, instant).
-  const cloned = useMemo(() => {
+  //
+  // `disposables` collects ONLY the materials we cloned here, so the unmount
+  // cleanup can free them without ever touching the shared geometry or drei's
+  // cached materials. NOTE: child.clone() shares geometry with the cache, so we
+  // must never dispose geometry; and the reduced path leaves `disposables`
+  // empty because it reuses the cached materials directly.
+  const { cloned, disposables } = useMemo(() => {
     const clone = new Group();
     gltf.scene.children.forEach((child) => {
       clone.add(child.clone());
     });
     clone.userData = { ...gltf.scene.userData };
+    const disposables: Material[] = [];
     if (!reduced) {
       clone.traverse((o) => {
         const mesh = o as Mesh;
@@ -314,17 +277,29 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
           mesh.material = mesh.material.map((m) => {
             const c = m.clone();
             patchDitherReveal(c);
+            disposables.push(c);
             return c;
           });
         } else if (mesh.material) {
           const c = mesh.material.clone();
           patchDitherReveal(c);
+          disposables.push(c);
           mesh.material = c;
         }
       });
     }
-    return clone;
+    return { cloned: clone, disposables };
   }, [gltf.scene, reduced]);
+
+  // Free the per-instance cloned materials (and their compiled GPU programs)
+  // when this piece unmounts or the anchor-set Suspense key churns — otherwise
+  // every equip/re-equip leaks a material + shader. Shared geometry and drei's
+  // cached materials are intentionally left untouched.
+  useEffect(() => {
+    return () => {
+      for (const m of disposables) m.dispose();
+    };
+  }, [disposables]);
 
   // Read attach:* empties' local positions ONCE per cloned scene.
   const attachLocals = useMemo(
@@ -340,12 +315,31 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
     if (!group) return;
 
     if (anchors.length === 1) {
-      placeSingleAnchor(group, anchors[0], jewelry.glbScale, attachLocals[0]);
+      // Per-binding orientation nudge (Layer 3): the admin's escape hatch for a
+      // specific piece on a specific anchor. Null for the common case.
+      const offset =
+        jewelry.anchorBindings.find((b) => b.anchorId === anchors[0].id)
+          ?.rotationOffset ?? null;
+      placeSingleAnchor(
+        group,
+        anchors[0],
+        jewelry.glbScale,
+        attachLocals[0],
+        jewelry.type,
+        offset,
+      );
     } else {
       placeMultiAnchor(group, anchors, attachLocals);
     }
     invalidate(); // kick the demand loop so the reveal starts from this mount
-  }, [anchors, attachLocals, jewelry.glbScale, invalidate]);
+  }, [
+    anchors,
+    attachLocals,
+    jewelry.glbScale,
+    jewelry.type,
+    jewelry.anchorBindings,
+    invalidate,
+  ]);
 
   // Drive the dither dissolve until fully revealed, then idle.
   useFrame((_, delta) => {
@@ -365,163 +359,4 @@ function JewelryGLB({ piece }: JewelryGLBProps) {
       <primitive object={cloned} />
     </group>
   );
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// attach:* lookup
-//
-// The Blender export emits empties as scene-graph nodes named like
-// `attach:primary`, `attach:secondary`, … Drei/three.js loads them as
-// `Object3D` nodes with no geometry. We traverse, match the prefix, and
-// store their LOCAL positions (relative to the GLB scene root). These
-// positions are stable for the lifetime of the cloned scene.
-// ─────────────────────────────────────────────────────────────────────────
-
-const ATTACH_NAMES = [
-  "primary",
-  "secondary",
-  "tertiary",
-  "quaternary",
-  "quinary",
-  "senary",
-  "septenary",
-  "octonary",
-] as const;
-
-/** The attach slug ("primary"/"secondary"/…) of a node, or null if it isn't an
- *  attach empty. three's GLTFLoader runs every node name through
- *  `sanitizeNodeName`, which STRIPS reserved chars including ':' — so our
- *  `attach:primary` node is renamed to `attachprimary` at runtime. The ORIGINAL
- *  name survives in `userData.name`, so prefer that; fall back to the sanitized
- *  form ("attach" + slug, no colon) so the lookup is robust either way. */
-function attachSlug(obj: Object3D): string | null {
-  const raw = (obj.userData?.name as string | undefined) ?? obj.name;
-  if (raw.startsWith("attach:")) return raw.slice("attach:".length); // "attach:primary"
-  if (raw.startsWith("attach") && raw.length > "attach".length) {
-    return raw.slice("attach".length); // sanitized "attachprimary" → "primary"
-  }
-  return null;
-}
-
-function readAttachLocals(scene: Object3D): Vector3[] {
-  // Build a name→local-position map so we can index by order.
-  const found = new Map<string, Vector3>();
-  scene.traverse((obj) => {
-    const slug = attachSlug(obj);
-    if (!slug) return;
-    // Use world-relative-to-scene-root as "local" since attach empties live
-    // directly under the GLB root in our parametric exports. If a complex
-    // hierarchy is introduced later, swap to obj.matrixWorld decomposition.
-    found.set(slug, obj.position.clone());
-  });
-
-  const out: Vector3[] = [];
-  for (const slug of ATTACH_NAMES) {
-    const p = found.get(slug);
-    if (p) out.push(p);
-    else break; // first missing name terminates — attach points are dense.
-  }
-  return out;
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 1-anchor placement
-// ─────────────────────────────────────────────────────────────────────────
-
-function placeSingleAnchor(
-  group: Group,
-  anchor: AnchorWire,
-  scale: number,
-  attachLocal: Vector3 | undefined,
-) {
-  // Reset and apply anchor rotation + scale.
-  group.scale.setScalar(scale);
-  group.position.set(anchor.position.x, anchor.position.y, anchor.position.z);
-  group.rotation.set(
-    anchor.rotation.x,
-    anchor.rotation.y,
-    anchor.rotation.z,
-    "XYZ",
-  );
-
-  if (!attachLocal) return; // legacy GLB without attach:primary — done.
-
-  // Offset the mesh so attach:primary lands exactly on the anchor.
-  // (group.position currently puts the GLB's local origin there; we want
-  // the attach:primary point to be there instead.)
-  const localOffset = attachLocal
-    .clone()
-    .applyEuler(group.rotation as Euler)
-    .multiplyScalar(scale);
-  group.position.sub(localOffset);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Multi-anchor (2+) placement
-//
-// For 2 anchors, this resolves into a unique rigid transform (translation +
-// rotation + uniform scale) up to one DOF — the rotation around the line
-// connecting the two anchors. We don't constrain that DOF because the
-// existing parametric pieces are rotationally symmetric around their bar
-// axis; that's good enough for industrial / circular barbell / orbital.
-//
-// For N>2 we do the same 2-anchor math using the first two attach points;
-// the rest are advisory and not enforced. CHAIN_LADDER would need a real
-// per-segment chain placement — not in scope for Phase B.
-// ─────────────────────────────────────────────────────────────────────────
-
-function placeMultiAnchor(
-  group: Group,
-  anchors: AnchorWire[],
-  attachLocals: Vector3[],
-) {
-  if (anchors.length < 2 || attachLocals.length < 2) {
-    // Fall back to 1-anchor placement if the GLB is missing the required
-    // attach points. This keeps multi-anchor jewelry visible (just not
-    // perfectly placed) until the GLB is rebuilt with empties.
-    placeSingleAnchor(group, anchors[0], 1.0, attachLocals[0]);
-    return;
-  }
-
-  const meshA = attachLocals[0];
-  const meshB = attachLocals[1];
-  const worldA = new Vector3(
-    anchors[0].position.x,
-    anchors[0].position.y,
-    anchors[0].position.z,
-  );
-  const worldB = new Vector3(
-    anchors[1].position.x,
-    anchors[1].position.y,
-    anchors[1].position.z,
-  );
-
-  const meshDir = meshB.clone().sub(meshA);
-  const worldDir = worldB.clone().sub(worldA);
-
-  const meshLen = meshDir.length();
-  const worldLen = worldDir.length();
-  if (meshLen < 1e-6 || worldLen < 1e-6) {
-    // Degenerate — fall back to single-anchor at the first anchor.
-    placeSingleAnchor(group, anchors[0], 1.0, meshA);
-    return;
-  }
-
-  const scale = worldLen / meshLen;
-
-  const meshDirNorm = meshDir.clone().divideScalar(meshLen);
-  const worldDirNorm = worldDir.clone().divideScalar(worldLen);
-
-  const quat = new Quaternion().setFromUnitVectors(meshDirNorm, worldDirNorm);
-
-  // Position so that meshA, after rotation+scale, lands at worldA.
-  //   world = position + quat * (mesh * scale)
-  //   worldA = position + quat * (meshA * scale)
-  //   position = worldA - quat * (meshA * scale)
-  const transformedA = meshA.clone().multiplyScalar(scale).applyQuaternion(quat);
-  const position = worldA.clone().sub(transformedA);
-
-  group.position.copy(position);
-  group.quaternion.copy(quat);
-  group.scale.setScalar(scale);
 }

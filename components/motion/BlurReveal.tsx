@@ -9,7 +9,7 @@ import {
   ENTRANCE_STAGGER,
   ENTRANCE_VIEWPORT,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 
 /**
  * blurRevealVariants — the house "blur-focus" entrance as a reusable variant
@@ -38,8 +38,8 @@ type Tag = keyof typeof MOTION_TAGS;
 /**
  * BlurReveal — a standalone element that plays the house blur-focus entrance.
  * The public-site counterpart to blurReveal() (which spreads onto an `m.*`
- * element inside the admin's LazyMotion tree): it uses full `motion`, picks its
- * own trigger, and honours reduced m.
+ * element inside the admin's LazyMotion tree): it uses the lightweight `m`,
+ * picks its own trigger, and honours reduced motion.
  *
  *   - `trigger="mount"`   plays once on mount — for above-the-fold hero pieces.
  *   - `trigger="in-view"` plays once when scrolled into view — for lower content.

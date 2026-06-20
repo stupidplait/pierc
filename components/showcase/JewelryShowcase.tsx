@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     AnimatePresence,
-    motion,
+    m,
     useReducedMotion,
     useScroll,
     useSpring,
@@ -12,7 +12,7 @@ import {
 import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 import { useJewelrySwap } from "./hooks/useJewelrySwap";
 
-/* Roster aligned 1:1 with PIECE_GEOMETRIES in WireframeRoom.tsx — index 0
+/* Roster aligned 1:1 with PIECE_GEOMETRIES in wireframe-room/geometry.ts — index 0
    is the hero floating torus ring, so what the user sees in hero IS the
    first carousel item once they scroll into Chapter 1. */
 const ROSTER = [
@@ -37,7 +37,6 @@ interface JewelryShowcaseProps {
 
 const SLIDE_TRANSITION = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.8 };
 const INSTANT_TRANSITION = { duration: 0 };
-const REVEAL_EASE = [0.22, 0.9, 0.32, 1] as const;
 const HALO_EASE = [0.16, 1, 0.3, 1] as const;
 const SLIDE_DISTANCE = 28;
 
@@ -273,7 +272,7 @@ export default function JewelryShowcase({
         >
             {/* Instrument nameplate — bottom-left museum-caption block.
                 Surfaces the active piece's specs (material, gauge·weight, price). */}
-            <motion.div
+            <m.div
                 aria-live="polite"
                 style={{
                     opacity: nameplateOpacity,
@@ -295,17 +294,17 @@ export default function JewelryShowcase({
                 <span className="font-mono font-medium tracking-[0.1em] text-accent tabular-nums mt-0.5 text-[clamp(14px,1.3vw,17px)]">
                     {current.price}
                 </span>
-            </motion.div>
+            </m.div>
 
             {/* Rolodex picker — right-edge strip with rail (column of dots) + sliding window.
-                Wrapper handles absolute positioning + responsive layout; inner motion.div
+                Wrapper handles absolute positioning + responsive layout; inner m.div
                 handles the data-visible reveal animation (opacity + x-translate). */}
             <div
                 className="fixed z-[3] w-[240px] -translate-y-1/2 right-[clamp(20px,3vw,56px)] top-1/2
                            max-[880px]:w-[220px]
                            max-[480px]:right-1/2 max-[480px]:top-auto max-[480px]:bottom-[130px] max-[480px]:translate-x-1/2 max-[480px]:translate-y-0"
             >
-                <motion.div
+                <m.div
                     ref={rolodexRef}
                     aria-label="Список украшений"
                     style={{
@@ -367,28 +366,28 @@ export default function JewelryShowcase({
                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
                         >
                             <AnimatePresence mode="popLayout" initial={false}>
-                                <motion.span
+                                <m.span
                                     key={`prev-num-${prevIdx}`}
                                     {...haloMotion}
                                     className="font-sans text-[9px] font-medium tracking-[0.18em] text-accent opacity-50"
                                 >
                                     {String(prevIdx + 1).padStart(2, "0")}
-                                </motion.span>
+                                </m.span>
                             </AnimatePresence>
                             <AnimatePresence mode="popLayout" initial={false}>
-                                <motion.span
+                                <m.span
                                     key={`prev-name-${prevIdx}`}
                                     {...haloMotion}
                                     className="font-sans text-[11px] tracking-[0.06em] uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-full"
                                 >
                                     {ROSTER[prevIdx].name}
-                                </motion.span>
+                                </m.span>
                             </AnimatePresence>
                         </button>
 
                         {/* Active row */}
                         <AnimatePresence initial={false} mode="popLayout" custom={direction}>
-                            <motion.div
+                            <m.div
                                 key={`active-${activeJewelry}`}
                                 custom={direction}
                                 variants={activeVariants}
@@ -408,7 +407,7 @@ export default function JewelryShowcase({
                                     aria-hidden="true"
                                     className="absolute right-[-7px] top-1/2 -translate-y-1/2 size-1.5 rounded-full bg-accent"
                                 />
-                            </motion.div>
+                            </m.div>
                         </AnimatePresence>
 
                         {/* Next halo */}
@@ -420,26 +419,26 @@ export default function JewelryShowcase({
                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
                         >
                             <AnimatePresence mode="popLayout" initial={false}>
-                                <motion.span
+                                <m.span
                                     key={`next-num-${nextIdx}`}
                                     {...haloMotion}
                                     className="font-sans text-[9px] font-medium tracking-[0.18em] text-accent opacity-50"
                                 >
                                     {String(nextIdx + 1).padStart(2, "0")}
-                                </motion.span>
+                                </m.span>
                             </AnimatePresence>
                             <AnimatePresence mode="popLayout" initial={false}>
-                                <motion.span
+                                <m.span
                                     key={`next-name-${nextIdx}`}
                                     {...haloMotion}
                                     className="font-sans text-[11px] tracking-[0.06em] uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-full"
                                 >
                                     {ROSTER[nextIdx].name}
-                                </motion.span>
+                                </m.span>
                             </AnimatePresence>
                         </button>
                     </div>
-                </motion.div>
+                </m.div>
             </div>
         </div>
     );

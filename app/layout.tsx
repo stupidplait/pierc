@@ -6,6 +6,7 @@ import "./globals.css";
 import { ru } from "@/lib/i18n/ru";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
 import { MotionProvider } from "@/components/motion/MotionProvider";
+import { APP_URL } from "@/lib/app-url";
 
 // Body font: Inter (Latin + Cyrillic).
 const inter = Inter({
@@ -29,12 +30,9 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-// `metadataBase` resolves all relative URLs in OpenGraph / Twitter Cards
-// to absolute URLs. Set it from APP_URL so every share preview points
-// at the real production deploy. Falls back to the dev origin so local
-// builds still work. See docs/17-seo.md.
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
-
+// `metadataBase` resolves all relative URLs in OpenGraph / Twitter Cards to
+// absolute URLs. The origin is resolved once in lib/app-url.ts
+// (APP_URL → VERCEL_PROJECT_PRODUCTION_URL → localhost). See docs/17-seo.md.
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
@@ -53,12 +51,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Lock scaling: kills pinch-zoom and the iOS Safari focus-zoom that fires
-  // when a focused input is under 16px. Inputs are also bumped to 16px on
-  // mobile (see the public form components) so nothing jumps if a browser
-  // ignores user-scalable.
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom is intentionally LEFT ENABLED (WCAG 1.4.4 Resize Text). The iOS
+  // Safari focus-zoom that prompted the old `maximumScale:1 / userScalable:false`
+  // lock is already prevented by the 16px mobile inputs in the form components,
+  // so the zoom lock was redundant accessibility debt.
   viewportFit: "cover",
   colorScheme: "light dark",
   themeColor: [

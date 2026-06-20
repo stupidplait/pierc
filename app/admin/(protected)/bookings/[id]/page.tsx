@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -28,20 +29,9 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const b = await prisma.jewelryBooking.findUnique({
-    where: { id },
-    select: { jewelry: { select: { name: true } } },
-  });
-  return {
-    title: b?.jewelry?.name ?? ru.admin.bookings.detail.title,
-  };
-}
-
-export default async function AdminBookingDetailPage({ params }: Props) {
-  const { id } = await params;
-  const booking = await prisma.jewelryBooking.findUnique({
+// Dedup the row read across generateMetadata + the page body within one request.
+const getBooking = cache((id: string) =>
+  prisma.jewelryBooking.findUnique({
     where: { id },
     include: {
       jewelry: { select: { id: true, name: true, price: true, material: true } },
@@ -54,7 +44,20 @@ export default async function AdminBookingDetailPage({ params }: Props) {
         },
       },
     },
-  });
+  }),
+);
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const b = await getBooking(id);
+  return {
+    title: b?.jewelry?.name ?? ru.admin.bookings.detail.title,
+  };
+}
+
+export default async function AdminBookingDetailPage({ params }: Props) {
+  const { id } = await params;
+  const booking = await getBooking(id);
 
   if (!booking) notFound();
   const t = ru.admin.bookings;

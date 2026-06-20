@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { ru } from "@/lib/i18n/ru";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { WordReveal } from "@/components/motion/WordReveal";
 import { SUBMIT } from "@/components/admin/form/styles";
 
 const EASE = [0.16, 1, 0.3, 1] as const;

@@ -4,6 +4,10 @@ import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 import { GlbDropzone } from "@/components/admin/GlbDropzone";
 import { JewelryGenerationActions } from "@/components/admin/JewelryGenerationActions";
 import { GlbInspector } from "@/components/admin/GlbInspector";
+import {
+  RingOrientationTuner,
+  type RingAnchorTune,
+} from "@/components/admin/RingOrientationTuner";
 import { CARD, GHOST, GHOST_DELETE } from "@/components/admin/form/styles";
 import { removeJewelryGlb } from "@/lib/admin/jewelry-actions";
 import { getProviderStatus } from "@/lib/three-gen";
@@ -25,6 +29,8 @@ interface JewelryModelManagerProps {
     errorMessage: string | null;
     createdAt: Date;
   } | null;
+  /** RING-only: per-anchor orientation tuner rows (Layer 3). Empty otherwise. */
+  ringAnchors?: RingAnchorTune[];
 }
 
 /**
@@ -47,6 +53,7 @@ export function JewelryModelManager({
   hasPhotos,
   blobConfigured,
   latestJob,
+  ringAnchors = [],
 }: JewelryModelManagerProps) {
   const t = ru.admin.jewelry.model;
   const providers = getProviderStatus();
@@ -140,6 +147,11 @@ export function JewelryModelManager({
           </p>
         )}
       </div>
+
+      {/* ── Ring orientation tuner (RING only) — Layer 3 escape hatch ── */}
+      {ringAnchors.length > 0 ? (
+        <RingOrientationTuner jewelryId={jewelryId} anchors={ringAnchors} />
+      ) : null}
 
       {/* ── Manual upload — fallback path ────────────────────────── */}
       <div className="border-t border-line pt-6">

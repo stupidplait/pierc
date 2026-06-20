@@ -35,6 +35,17 @@ export interface AnchorWire {
   side: AnchorSide;
   position: Vec3;
   rotation: Vec3;
+  /**
+   * Optional orientation override for RING-family pieces (hoops/seamless/
+   * clickers). `rotation` aims a piece's canonical +Z at the skin's outward
+   * normal — correct for posts/studs, but for a hoop on a laterally-facing
+   * anchor (the whole EAR family, hips, ankles) that lays the ring in the
+   * sagittal plane → edge-on from the front ("along the ear"). A hoop should
+   * instead HANG (band-top up) and FACE the viewer. When set, the renderer
+   * uses this Euler for RINGs; when null it derives one from `rotation` (see
+   * deriveRingRotation in place-jewelry.ts). Studs/posts always use `rotation`.
+   */
+  ringRotation?: Vec3 | null;
   cameraPresets: CameraPreset[];
 }
 
@@ -121,6 +132,16 @@ export interface AnchorBinding {
   anchorId: string;
   /** 0=primary, 1=secondary, … See JewelryWire.anchorBindings. */
   order: number;
+  /**
+   * Optional per-(piece × anchor) orientation nudge, applied in the placed
+   * piece's LOCAL frame on top of the anchor/ring base orientation:
+   * `z` = roll about the hole-axis (clicker face / gem), `y` = yaw, `x` = pitch
+   * (radians). The auto-orientation gets a hoop close; this is the admin's
+   * escape hatch on the review screen for asymmetric pieces or artistic tuning.
+   * Lives on the binding — NOT the GLB — so the same piece can sit correctly on
+   * several anchors. Null → no nudge.
+   */
+  rotationOffset?: Vec3 | null;
 }
 
 /**

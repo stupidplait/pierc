@@ -4,14 +4,14 @@ import dynamic from "next/dynamic";
 import { catalogStrings } from "@/lib/i18n/ru";
 
 /**
- * Client-only `<CatalogStage>` boundary. Three.js / r3f / postprocessing touch
+ * Client-only `<ShowroomStage>` boundary. Three.js / r3f / postprocessing touch
  * `window`, so the Canvas must never render on the server — every catalog
  * layout mounts the stage through this single `ssr:false` import and shares
  * one loading shell. Re-exported under the original name so JSX reads
- * `<CatalogStage .../>`.
+ * `<ShowroomStage .../>`.
  */
-export const CatalogStage = dynamic(
-  () => import("./CatalogStage").then((m) => m.CatalogStage),
+export const ShowroomStage = dynamic(
+  () => import("./ShowroomStage").then((m) => m.ShowroomStage),
   {
     ssr: false,
     loading: () => (

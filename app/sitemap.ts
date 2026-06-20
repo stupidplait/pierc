@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { APP_URL } from "@/lib/app-url";
 
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
-
-// Skip build-time prerender — enumerates Jewelry rows for the URL list.
-export const dynamic = "force-dynamic";
+// Regenerate at most hourly instead of querying Postgres on every crawler
+// fetch — the published-jewelry list has no per-request input. revalidatePath
+// is not wired for the sitemap, so the time-based window is the freshness bound.
+export const revalidate = 3600;
 
 /**
  * Public sitemap. Next.js serves this at `/sitemap.xml` and references

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
 import { ru } from "@/lib/i18n/ru";
-import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
+import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
 import { BrandMark } from "@/components/ui/BrandMark";
 import {
   SidebarInset,
@@ -40,7 +40,7 @@ export default async function ProtectedAdminLayout({
       {/* Shared drifting-grid + floating-dot backdrop, fixed behind everything
           (z-0), so the admin reads as part of the same Steel Atelier family as
           the public content pages. The rail (z-20) and content (z-10) ride above. */}
-      <AuthBackdrop />
+      <ContentBackdrop />
 
       <AdminSidebar name={name} email={email} />
 

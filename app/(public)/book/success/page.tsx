@@ -13,6 +13,9 @@ import { formatPrice } from "@/lib/jewelry/format";
 
 export const metadata: Metadata = {
   title: `${ru.pages.bookSuccess.title} — ${ru.studio.name}`,
+  // Per-booking landing — keep it out of search indexes (defense in depth;
+  // robots.txt also disallows /book/success).
+  robots: { index: false },
 };
 
 const RU_DATE = new Intl.DateTimeFormat("ru-RU", {

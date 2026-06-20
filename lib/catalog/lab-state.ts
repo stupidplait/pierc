@@ -1,8 +1,10 @@
 // Catalog design axes. These started as a `?key=value` variant lab; the
 // directions are now locked, so the URL params + live switcher are gone and the
-// single chosen combination lives in {@link CATALOG_DESIGN} below. The variant
-// type unions survive only because the surviving components still take them as
-// props:
+// single chosen combination lives in {@link CATALOG_DESIGN} below. Axes whose
+// alternate implementations were deleted (env, cards, cardview) are narrowed to
+// the shipped value(s) so the type surface can't advertise a variant that would
+// silently fall back to the survivor; the rest keep their wider unions because
+// the surviving components still branch on them:
 //
 //   env      dais       -> 3D stage / environment
 //   cards    rail       -> jewelry-card placement (hotbar on mobile)
@@ -15,10 +17,13 @@
 //   cardview gallery    -> in-rail card-page layout
 //   loader   spinner    -> loader/spinner style (scene + GLB)
 
-export const ENV_VARIANTS = ["holo", "dais", "atelier", "arena"] as const;
+// Only the character dais survives (EnvHoloVoid / EnvAtelierSpotlight /
+// EnvNeonArena were deleted).
+export const ENV_VARIANTS = ["dais"] as const;
 export type EnvVariant = (typeof ENV_VARIANTS)[number];
 
-export const CARDS_VARIANTS = ["rail", "hotbar", "radial", "sheet"] as const;
+// rail (desktop) + hotbar (mobile) ship; the radial / sheet layouts were deleted.
+export const CARDS_VARIANTS = ["rail", "hotbar"] as const;
 export type CardsVariant = (typeof CARDS_VARIANTS)[number];
 
 export const HUD_VARIANTS = ["full", "subtle", "landing"] as const;
@@ -39,7 +44,8 @@ export type BgVariant = (typeof BG_VARIANTS)[number];
 export const DOTS_VARIANTS = ["ring", "solid", "pulse", "reticle"] as const;
 export type DotsVariant = (typeof DOTS_VARIANTS)[number];
 
-export const CARDVIEW_VARIANTS = ["gallery", "editorial", "sheet"] as const;
+// Only the gallery card-page layout ships; editorial / sheet were deleted.
+export const CARDVIEW_VARIANTS = ["gallery"] as const;
 export type CardviewVariant = (typeof CARDVIEW_VARIANTS)[number];
 
 export const CARDTX_VARIANTS = ["fade", "slide", "cover"] as const;

@@ -9,7 +9,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { ru } from "@/lib/i18n/ru";
 import { pluralRu } from "@/lib/i18n/plural";
 import { JewelryStatusBadge } from "@/components/admin/StatusBadges";

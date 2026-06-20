@@ -116,6 +116,8 @@ async function main() {
     side: Side;
     position: Vec3;
     rotation: Vec3;
+    /** RING-family orientation override; omitted → renderer derives it. */
+    ringRotation?: Vec3;
     cameraPresets: CameraPreset[];
   }
 
@@ -133,6 +135,7 @@ async function main() {
     side: Side;
     position: Vec3;
     rotation: Vec3;
+    ringRotation?: Vec3 | null;
     cameraPresets?: CameraPreset[];
   }>;
   const anchors: AnchorSeed[] = parsed.map((a) => ({
@@ -142,6 +145,7 @@ async function main() {
     side: a.side,
     position: a.position,
     rotation: a.rotation,
+    ringRotation: a.ringRotation ?? undefined,
     cameraPresets: a.cameraPresets ?? [],
   }));
 
@@ -158,6 +162,7 @@ async function main() {
         side: a.side,
         position: a.position,
         rotation: a.rotation,
+        ringRotation: a.ringRotation ?? undefined,
         cameraPresets: a.cameraPresets,
       },
       create: a,

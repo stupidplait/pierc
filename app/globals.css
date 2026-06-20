@@ -121,7 +121,7 @@
   --elev-overlay-up: 0 -24px 70px -20px var(--shadow-3);
   --elev-up:         0 -1px 2px var(--shadow-1), 0 -12px 40px -12px var(--shadow-2);
 
-  /* 2D page backdrop (AuthBackdrop grid + floating dots). Pale cream over
+  /* 2D page backdrop (ContentBackdrop grid + floating dots). Pale cream over
      the dark void; retinted to faint ink on light below so it stays visible
      on white. */
   --backdrop-grid: rgba(239, 231, 216, 0.08);
@@ -241,6 +241,7 @@
 
   --color-overlay:      var(--overlay);
   --color-scene-bg:     var(--scene-bg);
+  --color-scene-ink:    var(--scene-ink);
 
   /* Themed elevation shadows → `shadow-elev*` utilities (soft on light,
      deep on dark). */
@@ -352,24 +353,24 @@ html {
   display: none; /* WebKit/Blink */
 }
 
-/* Equalizer bars for the catalog loader (?loader=bars). */
-@keyframes loaderbar {
-  0%,
-  100% {
-    transform: scaleY(0.35);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-.loader-bar {
-  transform-origin: bottom;
-  animation: loaderbar 0.9s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .loader-bar {
-    animation: none;
-  }
+/* Horizontal scroll affordance: fade both edges so partially off-screen items
+   in a snap-scroll filmstrip read as "there's more to scroll". Uses an alpha
+   mask so it's theme-agnostic (works on the white studio + dark surfaces). */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.25rem,
+    #000 calc(100% - 1.25rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.25rem,
+    #000 calc(100% - 1.25rem),
+    transparent
+  );
 }
 
 /* react-remove-scroll (Radix Select/Popover/Dialog) still measures the reserved
@@ -436,6 +437,15 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Hide the browser's built-in password reveal / clear controls (Edge's
+   ::-ms-reveal "eye" + IE's ::-ms-clear). Same intent as the number-spinner
+   rule above: we ship our own accessible show/hide toggle in AuthForm,
+   so the native eye would just sit on top of ours as a duplicate. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
 }
 
 /* Preloader scroll-lock — used by app/new-design/Preloader.tsx, which

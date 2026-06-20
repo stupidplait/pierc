@@ -5,7 +5,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 
 // Shared "Steel Atelier" vocabulary for the admin reviews area, mirroring the
 // redesigned /admin/settings cards so the two read as one set. Kept as plain

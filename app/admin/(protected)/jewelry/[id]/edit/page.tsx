@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { Trash2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -18,14 +19,28 @@ interface AdminJewelryEditPageProps {
   params: Promise<{ id: string }>;
 }
 
+// Dedup the row read across generateMetadata + the page body within one request.
+const getJewelry = cache((id: string) =>
+  prisma.jewelry.findUnique({
+    where: { id },
+    include: {
+      anchorBindings: {
+        select: { anchorId: true, order: true, rotationOffset: true },
+        orderBy: { order: "asc" },
+      },
+      jobs: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  }),
+);
+
 export async function generateMetadata({
   params,
 }: AdminJewelryEditPageProps): Promise<Metadata> {
   const { id } = await params;
-  const jewelry = await prisma.jewelry.findUnique({
-    where: { id },
-    select: { name: true },
-  });
+  const jewelry = await getJewelry(id);
   // Blank name ⟺ an abandoned legacy draft (pre-lazy-create); null ⟺ not found.
   const title = jewelry
     ? jewelry.name.trim() || ru.admin.jewelry.newTitle
@@ -39,19 +54,7 @@ export default async function AdminJewelryEditPage({
   const { id } = await params;
 
   const [jewelry, categories, anchors] = await Promise.all([
-    prisma.jewelry.findUnique({
-      where: { id },
-      include: {
-        anchorBindings: {
-          select: { anchorId: true, order: true },
-          orderBy: { order: "asc" },
-        },
-        jobs: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    }),
+    getJewelry(id),
     prisma.jewelryCategory.findMany({
       orderBy: { order: "asc" },
       select: { id: true, name: true },
@@ -77,6 +80,27 @@ export default async function AdminJewelryEditPage({
     : null;
 
   const t = ru.admin.jewelry;
+
+  // Layer 3 ring-orientation tuner data: for a RING, each compatible anchor with
+  // its current per-binding rotationOffset (radians → degrees for the UI).
+  const R2D = 180 / Math.PI;
+  const anchorNameById = new Map(anchors.map((a) => [a.id, a.name]));
+  const ringAnchors =
+    jewelry.type === "RING"
+      ? jewelry.anchorBindings.map((b) => {
+          const off = b.rotationOffset as {
+            x?: number;
+            y?: number;
+            z?: number;
+          } | null;
+          return {
+            anchorId: b.anchorId,
+            name: anchorNameById.get(b.anchorId) ?? b.anchorId,
+            yawDeg: off?.y ? off.y * R2D : 0,
+            rollDeg: off?.z ? off.z * R2D : 0,
+          };
+        })
+      : [];
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -154,6 +178,7 @@ export default async function AdminJewelryEditPage({
             hasPhotos={photos.length > 0}
             blobConfigured={blobConfigured}
             latestJob={latestJob}
+            ringAnchors={ringAnchors}
           />
         }
       />

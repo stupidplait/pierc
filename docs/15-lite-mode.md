@@ -4,6 +4,13 @@
 > 15-task v1 roadmap.
 >
 > **Status legend:** ✅ done · 🟡 partial · ⏸ paused · ⬜ not started.
+>
+> ⚠️ **Outdated (audit-hardening branch):** the admin sprite-upload UI
+> (`JewelrySpriteManager` / `JewelrySpriteUploader` / `SpriteAutoRemover`) and
+> the `uploadJewelrySprite` / `removeJewelrySprite` server actions were removed.
+> The `Jewelry.spriteUrl` column and the **read-side** sprite compositing in lite
+> mode are unchanged — sprites are currently set via seed/DB until an uploader is
+> re-introduced. Sections below that describe the admin uploader are historical.
 
 A 2D fallback try-on for devices that fail the WebGL2 capability check.
 Visitor uploads a selfie, MediaPipe Face Landmarker locates piercing

@@ -1,0 +1,57 @@
+"use client";
+
+// Admin segment error boundary. Because an error.js is wrapped by its parent
+// layout, this renders INSIDE app/admin/(protected)/layout.tsx — so a thrown
+// admin RSC keeps the sidebar shell instead of falling through to the bare root
+// error boundary (which has no admin chrome).
+
+import { useEffect } from "react";
+import Link from "next/link";
+import { ru } from "@/lib/i18n/ru";
+import { Section } from "@/components/ui/Section";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { reportClientError } from "@/lib/observability/report-client";
+
+export default function AdminError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    reportClientError(error, { boundary: "admin" });
+  }, [error]);
+
+  return (
+    <Section>
+      <PageHeader
+        eyebrow={ru.studio.name}
+        title={ru.common.error}
+        lead="Не удалось загрузить раздел админки. Попробуйте обновить — если повторяется, проверьте логи."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-page outline-none"
+          >
+            Попробовать снова
+          </button>
+          <Link
+            href="/admin"
+            className="text-sm text-mute transition-colors hover:text-primary"
+          >
+            В дашборд →
+          </Link>
+        </div>
+      </PageHeader>
+
+      {error.digest ? (
+        <p className="text-xs tabular-nums text-mute">
+          Код ошибки: <span className="font-mono">{error.digest}</span>
+        </p>
+      ) : null}
+    </Section>
+  );
+}

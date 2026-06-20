@@ -1,7 +1,7 @@
 // THROWAWAY dev seeder — populates varied reviews so the four admin review
 // views can be visually verified. Remove rows with:
 //   npx tsx scripts/seed-dev-reviews.ts --clean
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, ReviewStatus } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const TAG = "[dev-seed]"; // moderatorNotes marker for easy cleanup
@@ -48,7 +48,7 @@ async function main() {
         rating: s.rating,
         text: s.text,
         authorName: s.authorName,
-        status: s.status as any,
+        status: s.status as ReviewStatus,
         featured: s.featured,
         moderatorNotes: TAG,
         appointmentId: "verified" in s && s.verified && appt ? appt.id : null,

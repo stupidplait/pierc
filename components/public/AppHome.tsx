@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ru } from "@/lib/i18n/ru";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { Section } from "@/components/ui/Section";
-import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
+import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
 
 /**
  * AppHome — the Home tab for the native mobile shell (mobile/).
@@ -39,7 +39,7 @@ const CARD =
 export function AppHome() {
   return (
     <>
-      <AuthBackdrop />
+      <ContentBackdrop />
 
       <Section className="relative z-10">
         <header className="flex flex-col items-start gap-5">

@@ -30,7 +30,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.39517,
+      "z": 0
+    }
   },
   {
     "slug": "right-ear-lobe",
@@ -63,7 +68,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.39517,
+      "z": 0
+    }
   },
   {
     "slug": "left-helix",
@@ -96,7 +106,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.27833,
+      "z": 0
+    }
   },
   {
     "slug": "right-helix",
@@ -129,7 +144,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.27833,
+      "z": 0
+    }
   },
   {
     "slug": "left-tragus",
@@ -162,7 +182,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.22539,
+      "z": 0
+    }
   },
   {
     "slug": "right-tragus",
@@ -195,7 +220,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.22539,
+      "z": 0
+    }
   },
   {
     "slug": "left-conch",
@@ -228,7 +258,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.30328,
+      "z": 0
+    }
   },
   {
     "slug": "right-conch",
@@ -261,7 +296,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.30328,
+      "z": 0
+    }
   },
   {
     "slug": "left-daith",
@@ -294,7 +334,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.27956,
+      "z": 0
+    }
   },
   {
     "slug": "right-daith",
@@ -327,7 +372,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.27956,
+      "z": 0
+    }
   },
   {
     "slug": "left-rook",
@@ -360,7 +410,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23772,
+      "z": 0
+    }
   },
   {
     "slug": "right-rook",
@@ -393,7 +448,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23772,
+      "z": 0
+    }
   },
   {
     "slug": "left-industrial",
@@ -426,7 +486,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.46634,
+      "z": 0
+    }
   },
   {
     "slug": "right-industrial",
@@ -459,7 +524,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.46634,
+      "z": 0
+    }
   },
   {
     "slug": "left-nostril",
@@ -492,7 +562,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.13993,
+      "z": 0
+    }
   },
   {
     "slug": "right-nostril",
@@ -525,7 +600,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.13993,
+      "z": 0
+    }
   },
   {
     "slug": "septum",
@@ -558,7 +638,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.05505,
+      "z": 0
+    }
   },
   {
     "slug": "lip-medusa",
@@ -591,7 +676,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.023,
+      "z": 0
+    }
   },
   {
     "slug": "lip-labret",
@@ -624,7 +714,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23708,
+      "z": 0
+    }
   },
   {
     "slug": "left-eyebrow",
@@ -657,7 +752,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.02018,
+      "z": 0
+    }
   },
   {
     "slug": "right-eyebrow",
@@ -690,7 +790,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.02018,
+      "z": 0
+    }
   },
   {
     "slug": "tongue",
@@ -723,7 +828,12 @@
         "fov": 28
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
   },
   {
     "slug": "left-nipple",
@@ -756,7 +866,12 @@
         "fov": 30
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.00788,
+      "z": 0
+    }
   },
   {
     "slug": "right-nipple",
@@ -789,7 +904,12 @@
         "fov": 30
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.00788,
+      "z": 0
+    }
   },
   {
     "slug": "navel",
@@ -822,7 +942,12 @@
         "fov": 30
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.01935,
+      "z": 0
+    }
   },
   {
     "slug": "left-hip",
@@ -855,7 +980,12 @@
         "fov": 30
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.4216,
+      "z": 0
+    }
   },
   {
     "slug": "right-hip",
@@ -888,7 +1018,12 @@
         "fov": 30
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.42163,
+      "z": 0
+    }
   },
   {
     "slug": "left-ankle",
@@ -921,7 +1056,12 @@
         "fov": 32
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.45152,
+      "z": 0
+    }
   },
   {
     "slug": "right-ankle",
@@ -954,7 +1094,12 @@
         "fov": 32
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.45151,
+      "z": 0
+    }
   },
   {
     "slug": "left-helix-forward",
@@ -987,7 +1132,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-helix-forward",
@@ -1020,7 +1170,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "left-helix-posterior",
@@ -1053,7 +1208,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-helix-posterior",
@@ -1086,7 +1246,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "left-anti-tragus",
@@ -1119,7 +1284,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-anti-tragus",
@@ -1152,7 +1322,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "left-snug",
@@ -1185,7 +1360,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-snug",
@@ -1218,7 +1398,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "left-ear-lobe-2",
@@ -1251,7 +1436,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-ear-lobe-2",
@@ -1284,7 +1474,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "left-ear-lobe-3",
@@ -1317,7 +1512,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "right-ear-lobe-3",
@@ -1350,7 +1550,12 @@
         "fov": 22
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23765,
+      "z": 0
+    }
   },
   {
     "slug": "nose-bridge",
@@ -1383,7 +1588,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
   },
   {
     "slug": "monroe-left",
@@ -1416,7 +1626,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
   },
   {
     "slug": "madonna-right",
@@ -1449,7 +1664,12 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
   },
   {
     "slug": "vertical-labret",
@@ -1482,6 +1702,11 @@
         "fov": 24
       }
     ],
-    "auto": true
+    "auto": true,
+    "ringRotation": {
+      "x": 0,
+      "y": -0.23687,
+      "z": 0
+    }
   }
 ]

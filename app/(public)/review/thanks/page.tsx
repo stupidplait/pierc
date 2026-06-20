@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: `${reviewsStrings.thanks.title} — ${ru.studio.name}`,
+  robots: { index: false },
 };
 
 export default function ReviewThanksPage() {

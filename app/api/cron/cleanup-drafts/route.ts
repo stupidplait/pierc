@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { asPhotos } from "@/lib/jewelry/format";
+import { authorizeCron } from "@/lib/cron-auth";
 
 // Vercel Cron — reaps abandoned, never-named jewelry drafts.
 //
@@ -25,7 +26,7 @@ export const maxDuration = 60; // best-effort blob deletes can be slow
 const ABANDON_AFTER_MS = 24 * 60 * 60 * 1000; // 24h
 
 export async function GET(request: Request) {
-  if (!authorize(request)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -59,11 +60,4 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ ok: true, reaped: ids.length, blobsDeleted });
-}
-
-function authorize(request: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) return true; // dev / unconfigured mode
-  const auth = request.headers.get("authorization") ?? "";
-  return auth === `Bearer ${expected}`;
 }

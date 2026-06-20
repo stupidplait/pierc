@@ -255,7 +255,7 @@ export function BookingForm({
 
       {/* Mobile: inline summary, then a sticky bar carrying total + submit. */}
       <div className="mt-10 lg:hidden">{summaryEl}</div>
-      <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-col gap-1.5 border-t border-line bg-page/85 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-col gap-1.5 border-t border-line bg-page/85 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Total service={selectedService} items={selectedItems} />
           <button
