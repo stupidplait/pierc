@@ -1,11 +1,12 @@
 "use server";
 
 import { AuthError } from "next-auth";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/lib/auth";
 import { ru } from "@/lib/i18n/ru";
-import type { PublicAuthState } from "@/components/public/PublicAuthForm";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { signInSchema } from "@/lib/auth/auth-schema";
+import type { AuthFormState } from "@/components/auth/AuthForm";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared login — one form for both admins and customers.
@@ -20,8 +21,6 @@ import type { PublicAuthState } from "@/components/public/PublicAuthForm";
 // emails, so this is acceptable.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const emailSchema = z.string().trim().toLowerCase().email();
-
 /**
  * Run the shared login flow. `callbackUrl` is the post-login destination for a
  * *customer* (already sanitised by the caller); admins always go to /admin.
@@ -29,13 +28,30 @@ const emailSchema = z.string().trim().toLowerCase().email();
 export async function runLogin(
   callbackUrl: string,
   formData: FormData,
-): Promise<PublicAuthState> {
-  const parsedEmail = emailSchema.safeParse(formData.get("email"));
-  if (!parsedEmail.success) {
+): Promise<AuthFormState> {
+  // Throttle by IP to blunt credential-stuffing and bcrypt-DoS before any work.
+  const ip = await clientIp();
+  const throttle = await rateLimit(`login:${ip}`, {
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!throttle.ok) {
+    return {
+      error: "Слишком много попыток входа. Подождите минуту и попробуйте снова.",
+    };
+  }
+
+  // Validate email format + password presence up front (shared schema). Any
+  // failure collapses into the generic invalid message — we never reveal which
+  // field was wrong on the login path.
+  const parsed = signInSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
     return { error: ru.pages.signIn.invalid };
   }
-  const email = parsedEmail.data;
-  const password = formData.get("password");
+  const { email, password } = parsed.data;
 
   // Existence-only check (no bcrypt) to route to the right provider.
   const isAdmin = !!(await prisma.adminUser.findUnique({ where: { email } }));

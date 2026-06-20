@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+import { APP_URL } from "@/lib/app-url";
 
 /**
  * Public robots.txt. Next.js serves this at `/robots.txt`.

@@ -180,32 +180,39 @@ export async function optimizeGlb(
             "./glb-roll-vision"
           );
           const photoUrl = opts.normalize.photoUrl;
+          // Gather vertices once; only re-gather if the head flip mutates geometry.
+          let verts = collectMeshVertices(doc);
 
           // 1) Head direction (gem out vs in) — fixes a geometric flip. Runs for
           // every stud, since even a round-gem one can be detected backwards.
-          const head = await chooseHeadDirection({
-            vertices: collectMeshVertices(doc),
-            photoUrl,
-          });
+          const head = await chooseHeadDirection({ vertices: verts, photoUrl });
           if (head.flip && attachLocal) {
             bakeHeadFlip(doc);
             attachLocal = [attachLocal[0], -attachLocal[1], -attachLocal[2]];
+            verts = collectMeshVertices(doc); // geometry changed → re-gather for roll
           }
 
           // 2) Roll about +Z — only meaningful for an asymmetric face. Measured
-          // on the (possibly head-flipped) geometry.
+          // on the (possibly head-flipped) geometry, via the two-pass search.
           let rollNote = "roll: skipped";
+          let rollOk = false;
           if (r.rollAmbiguous) {
-            const choice = await chooseRoll({
-              vertices: collectMeshVertices(doc),
-              photoUrl,
-            });
-            if (choice.ok) bakeRoll(doc, choice.angleRad);
+            const choice = await chooseRoll({ vertices: verts, photoUrl, kind: "stud" });
+            if (choice.ok) {
+              bakeRoll(doc, choice.angleRad);
+              rollOk = true;
+            }
             rollNote = `roll: ${choice.note}`;
           }
 
+          // The photo VERIFIED the orientation (a confident head decision and/or a
+          // roll pick), so raise confidence above the geometry-only score.
+          const aiVerified = head.ok || rollOk;
           placement = {
             ...placement,
+            confidence: aiVerified
+              ? Math.max(placement.confidence, 0.85)
+              : placement.confidence,
             note: `${r.note}; head: ${head.note}; ${rollNote}`,
           };
         }
@@ -233,9 +240,16 @@ export async function optimizeGlb(
           const choice = await chooseRoll({
             vertices: collectMeshVertices(doc),
             photoUrl: opts.normalize.photoUrl,
+            kind: "ring", // mount-aware instruction (hinge/opening/narrowing → top)
           });
           if (choice.ok) bakeRoll(doc, choice.angleRad);
-          placement = { ...placement, note: `${r.note}; roll: ${choice.note}` };
+          placement = {
+            ...placement,
+            confidence: choice.ok
+              ? Math.max(placement.confidence, 0.85)
+              : placement.confidence,
+            note: `${r.note}; roll: ${choice.note}`,
+          };
         }
       }
     }
@@ -382,6 +396,38 @@ export async function nudgeGlbOrientation(
   }
 
   // Re-compress geometry only; textures (already WebP) ride through unchanged.
+  await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "medium" }));
+  return io.writeBinary(doc);
+}
+
+/**
+ * Set `attach:primary` to an exact local point and return the new GLB bytes — the
+ * admin's manual point-picker fallback when auto-placement (geometry / AI) puts the
+ * attach point in the wrong spot. `point` is in the model's LOCAL frame (the same
+ * frame `readAttachLocals` reads on the client). Finds the existing attach:primary
+ * node (gltf-transform preserves names, so match by `getName()`) or creates one at
+ * the scene root, sets its translation, and re-compresses geometry with meshopt;
+ * textures (already WebP) ride through untouched. Never the full optimize pass —
+ * the model is already optimized.
+ */
+export async function setGlbAttachPoint(
+  input: ArrayBuffer | Uint8Array,
+  point: [number, number, number],
+): Promise<Uint8Array> {
+  const src = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const io = await getIO();
+  const doc = await io.readBinary(src);
+  const root = doc.getRoot();
+
+  let node =
+    root.listNodes().find((n) => n.getName() === "attach:primary") ?? null;
+  if (!node) {
+    node = doc.createNode("attach:primary");
+    const scene = root.getDefaultScene() ?? root.listScenes()[0];
+    scene?.addChild(node);
+  }
+  node.setTranslation(point);
+
   await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "medium" }));
   return io.writeBinary(doc);
 }

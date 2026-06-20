@@ -11,6 +11,7 @@ import {
   pickNextAutoProvider,
 } from "@/lib/three-gen";
 import type { ProviderId } from "@/lib/three-gen";
+import { safeAssetFetch } from "@/lib/security/safe-fetch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared types + helpers
@@ -63,7 +64,9 @@ async function rehostGlb(
     );
   }
 
-  const res = await fetch(externalUrl);
+  // Guarded fetch: refuse internal/loopback/link-local targets (SSRF defense in
+  // depth — externalUrl comes from a provider poll response).
+  const res = await safeAssetFetch(externalUrl);
   if (!res.ok) {
     throw new Error(
       `Не удалось скачать модель: HTTP ${res.status} ${res.statusText}`,
@@ -71,8 +74,21 @@ async function rehostGlb(
   }
   const buffer = await res.arrayBuffer();
 
-  const { optimizeGlb } = await import("@/lib/admin/glb-pipeline");
+  const { optimizeGlb, measureGlbSizeM } = await import("@/lib/admin/glb-pipeline");
   const opt = await optimizeGlb(buffer, normalize ? { normalize } : {});
+
+  // Unified scale: measure the FINAL (oriented, compressed) GLB's real bbox and
+  // derive glbScale via the shared formula — the SAME measurement + rule the
+  // manual upload + analyzer use, so a piece gets one scale regardless of path.
+  let placement = opt.placement;
+  if (placement?.applied && normalize && (normalize.gauge || normalize.size)) {
+    const { suggestScaleFromSizeM } = await import("@/lib/admin/glb-scale");
+    const sizeM = await measureGlbSizeM(opt.bytes);
+    const s = sizeM
+      ? suggestScaleFromSizeM(sizeM, normalize.gauge ?? null, normalize.size ?? null)
+      : null;
+    if (s) placement = { ...placement, suggestedScale: s.scale };
+  }
 
   const key = `jewelry/${jewelryId}/models/${Date.now()}-auto.glb`;
   const blob = await put(key, Buffer.from(opt.bytes), {
@@ -85,7 +101,7 @@ async function rehostGlb(
     before: opt.before,
     after: opt.after,
     optimized: opt.optimized,
-    placement: opt.placement,
+    placement,
   };
 }
 

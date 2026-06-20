@@ -1,4 +1,5 @@
 import type { Decimal } from "@prisma/client/runtime/library";
+import { ru } from "@/lib/i18n/ru";
 
 // ─── Price formatting ─────────────────────────────────────────────────────
 
@@ -16,6 +17,17 @@ export function formatPrice(price: Decimal | number | string): string {
         ? Number(price)
         : Number(price.toString());
   return rubleFormatter.format(Number.isFinite(n) ? n : 0);
+}
+
+// ─── Duration formatting ───────────────────────────────────────────────────
+
+/**
+ * Format a minutes value as the shared "{n} мин" label. Single source of the
+ * unit suffix (ru.common.durationMin) for the services cards, the booking
+ * wizard, and the admin slot/service summaries.
+ */
+export function formatDuration(min: number): string {
+  return ru.common.durationMin.replace("{n}", String(min));
 }
 
 // ─── Photo array shape (the JSON column on Jewelry) ───────────────────────

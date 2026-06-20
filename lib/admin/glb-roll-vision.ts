@@ -21,7 +21,11 @@ const ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 const IMG = 256; // candidate thumbnail edge (px)
 const LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const DEFAULT_CANDIDATES_DEG = [0, 90, 180, 270];
+// Two-pass roll search: a coarse 8×45° sweep to find the rough orientation, then
+// a fine ±30° refinement around the winner. Coarse keeps ≤8 labels (one Gemini
+// call); the fine pass resolves arbitrary feature angles the old 90° grid missed.
+const COARSE_ROLL_DEG = [0, 45, 90, 135, 180, 225, 270, 315];
+const FINE_ROLL_OFFSETS_DEG = [-30, -15, 0, 15, 30];
 
 const ROLL_INSTRUCTION =
   "The first image is a product PHOTO of a piece of body jewelry (a stud, hoop, " +
@@ -30,6 +34,15 @@ const ROLL_INSTRUCTION =
   "whose orientation best matches how the piece appears in the photo — i.e. " +
   "which way the design is 'up'. Reply with ONLY the single letter of the " +
   "best-matching render.";
+
+const RING_ROLL_INSTRUCTION =
+  "The first image is a product PHOTO of a ring / hoop piece of body jewelry. The " +
+  "following labeled images are renders of a 3D model of the SAME piece at " +
+  "different rotations, all viewed face-on. Pick the render whose orientation " +
+  "matches the photo so that the piece's MOUNTING point — the part that passes " +
+  "through the piercing: a hinge, opening, clasp, narrowed/thin segment, or the " +
+  "natural top of the design — is at the TOP, the way the piece is actually worn. " +
+  "Reply with ONLY the single letter of the best-matching render.";
 
 const HEAD_INSTRUCTION =
   "The first image is a product PHOTO of a piece of body jewelry (a stud), shown " +
@@ -172,14 +185,18 @@ async function askGemini(
 }
 
 /**
- * Choose the roll that best matches the product photo. Renders the candidates
- * locally, then asks Gemini. Returns `{ ok: false }` (caller keeps the geometric
- * baseline) whenever the key is missing or anything fails.
+ * Choose the roll (rotation about +Z) that best matches the product photo, via a
+ * two-pass search: a coarse 8×45° sweep, then a fine ±30° refinement around the
+ * winner — so an arbitrary feature/mount angle is resolved, not just multiples of
+ * 90°. `kind` selects the instruction: "ring" asks the vision model to put the
+ * MOUNTING point (hinge/opening/clasp/narrowing/top) up; "stud" matches the photo's
+ * "up". Returns `{ ok: false }` (caller keeps the geometric baseline) whenever the
+ * key is missing or anything fails.
  */
 export async function chooseRoll(opts: {
   vertices: number[][];
   photoUrl: string;
-  candidatesDeg?: number[];
+  kind?: "stud" | "ring";
 }): Promise<RollChoice> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, angleRad: 0, note: "GEMINI_API_KEY not set" };
@@ -187,27 +204,36 @@ export async function chooseRoll(opts: {
     return { ok: false, angleRad: 0, note: "too few vertices" };
   }
 
+  const instruction =
+    opts.kind === "ring" ? RING_ROLL_INSTRUCTION : ROLL_INSTRUCTION;
+
   try {
-    const deg = (opts.candidatesDeg ?? DEFAULT_CANDIDATES_DEG).slice(0, LABELS.length);
     const bounds = planarBounds(opts.vertices);
-    const [photo, ...renders] = await Promise.all([
-      fetchPhotoBase64(opts.photoUrl),
-      ...deg.map((d) => renderCandidate(opts.vertices, (d * Math.PI) / 180, bounds)),
-    ]);
+    const photo = await fetchPhotoBase64(opts.photoUrl);
     if (!photo) return { ok: false, angleRad: 0, note: "photo fetch failed" };
 
-    const picked = await askGemini(
-      key,
-      photo as PhotoData,
-      renders as Buffer[],
-      ROLL_INSTRUCTION,
-    );
-    if (picked < 0) return { ok: false, angleRad: 0, note: "no clear pick" };
+    const renderAt = (degList: number[]) =>
+      Promise.all(
+        degList.map((d) => renderCandidate(opts.vertices, (d * Math.PI) / 180, bounds)),
+      );
+
+    // Pass 1 — coarse sweep.
+    const coarseRenders = await renderAt(COARSE_ROLL_DEG);
+    const c = await askGemini(key, photo, coarseRenders, instruction);
+    if (c < 0) return { ok: false, angleRad: 0, note: "no clear pick (coarse)" };
+    const coarseWin = COARSE_ROLL_DEG[c];
+
+    // Pass 2 — fine refinement around the coarse winner.
+    const fineDeg = FINE_ROLL_OFFSETS_DEG.map((o) => coarseWin + o);
+    const fineRenders = await renderAt(fineDeg);
+    const f = await askGemini(key, photo, fineRenders, instruction);
+    const win = f >= 0 ? fineDeg[f] : coarseWin;
+    const norm = ((win % 360) + 360) % 360;
 
     return {
       ok: true,
-      angleRad: (deg[picked] * Math.PI) / 180,
-      note: `AI picked ${LABELS[picked]} (${deg[picked]}°)`,
+      angleRad: (win * Math.PI) / 180,
+      note: `AI picked ${norm}° (2-pass)`,
     };
   } catch (err) {
     return {

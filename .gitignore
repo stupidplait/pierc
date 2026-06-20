@@ -69,6 +69,17 @@ mobile/play-store-key.json
 .recovery/
 dev.log
 .playwright-mcp/
+# .kiro mirrors .agents/skills byte-for-byte; .agents is the source of truth.
+# (Run `git rm -r --cached .kiro` once to drop the already-tracked copy.)
+.kiro/
 
 # local backups of exported assets
 *.bak
+
+# scratch dev screenshots dropped in the repo root (design iteration captures)
+/*.jpeg
+/*.jpg
+/*.png
+
+# runtime logs (covers root dev.log above + mobile/expo-*.log)
+*.log

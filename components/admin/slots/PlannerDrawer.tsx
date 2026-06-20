@@ -16,6 +16,7 @@ import { bulkCreateSlots, type BulkSlotState } from "@/lib/admin/slot-actions";
 import { LABEL, SUBMIT } from "@/components/admin/form/styles";
 import { ru } from "@/lib/i18n/ru";
 import { pluralRu } from "@/lib/i18n/plural";
+import { formatDuration } from "@/lib/jewelry/format";
 import { AnimatedNumber } from "@/components/admin/form/AnimatedNumber";
 
 export interface QuickAddPrefill {
@@ -271,7 +272,7 @@ function PlannerForm({
               <SelectContent>
                 {sliceOptions.map((d) => (
                   <SelectItem key={d} value={String(d)}>
-                    {d} мин
+                    {formatDuration(d)}
                   </SelectItem>
                 ))}
               </SelectContent>

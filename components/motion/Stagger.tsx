@@ -16,7 +16,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 
 /**
  * The house "blur-rise" reveal — the same entrance the settings cards use (fade

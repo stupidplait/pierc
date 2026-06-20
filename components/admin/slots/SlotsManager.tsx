@@ -18,7 +18,7 @@ import { PlannerDrawer, type QuickAddPrefill } from "./PlannerDrawer";
 import { CalendarGrid } from "./views/CalendarGrid";
 import { SLOT_STATUS_STYLES, slotStatusLabel } from "./status";
 import { AnimatedNumber } from "@/components/admin/form/AnimatedNumber";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { WordReveal } from "@/components/motion/WordReveal";
 
 interface DrawerState {
   open: boolean;

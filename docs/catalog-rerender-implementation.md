@@ -1,5 +1,9 @@
 # Catalog Rerendering Fixes - Implementation Summary
 
+> **Historical — superseded.** The React Compiler (`reactCompiler: true`) now
+> handles memoization automatically; the manual `useMemo`/`useCallback`/`memo`
+> work summarized here is no longer needed. Kept as an implementation record only.
+
 ## Changes Implemented (2026-05-30)
 
 All 5 critical rerendering issues have been fixed. The catalog should now have significantly better performance.

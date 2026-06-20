@@ -31,7 +31,7 @@ import {
   ENTRANCE_HIDDEN,
   ENTRANCE_SHOW,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { blurReveal } from "@/components/motion/Stagger";
 import { AnimateNumber } from "@/components/ui/AnimateNumber";
 import { Card } from "@/components/shadcn/ui/card";

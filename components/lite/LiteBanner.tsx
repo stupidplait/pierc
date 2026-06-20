@@ -17,7 +17,7 @@ interface LiteBannerProps {
  * Banner shown above the lite-mode catalog. Surfaces the eligibility
  * count so visitors understand why the try-on list might be smaller
  * than the full catalog, and exposes a "Все украшения" toggle that
- * swaps the right-side panel from `<CatalogSidebar>` to
+ * swaps the right-side panel from `<LiteInventoryPanel>` to
  * `<CatalogGridFallback>` for browsing the full catalog.
  *
  * See docs/15-lite-mode.md F9.

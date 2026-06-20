@@ -6,69 +6,11 @@ import { AnimatePresence, m } from "framer-motion";
 import { catalogStrings } from "@/lib/i18n/ru";
 import type { LoaderVariant } from "@/lib/catalog/lab-state";
 import { markSceneReady, useSceneReady } from "@/lib/catalog/scene-ready";
-import { useLoaderPreview } from "@/lib/catalog/loader-preview";
 import { cn } from "@/lib/utils";
 
-/** The animated loader glyph — four switchable styles (?loader=). */
-function LoaderGlyph({
-  variant,
-  progress,
-}: {
-  variant: LoaderVariant;
-  progress?: number;
-}) {
-  if (variant === "bars") {
-    return (
-      <span className="flex h-8 items-end gap-1">
-        {[0, 1, 2, 3].map((i) => (
-          <span
-            key={i}
-            className="loader-bar w-1.5 rounded-full bg-accent"
-            style={{ height: "100%", animationDelay: `${i * 120}ms` }}
-          />
-        ))}
-      </span>
-    );
-  }
-
-  if (variant === "pulse") {
-    return (
-      <span className="relative grid size-9 place-items-center">
-        <span className="absolute inset-0 animate-ping rounded-full bg-accent/40" />
-        <span className="size-3 rounded-full bg-accent" />
-      </span>
-    );
-  }
-
-  if (variant === "ring") {
-    const p =
-      typeof progress === "number"
-        ? Math.max(0, Math.min(100, progress))
-        : null;
-    const C = 2 * Math.PI * 15;
-    return (
-      <svg
-        viewBox="0 0 36 36"
-        className={cn("size-9 -rotate-90", p === null && "animate-spin")}
-        aria-hidden="true"
-      >
-        <circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-line)" strokeWidth="3" />
-        <circle
-          cx="18"
-          cy="18"
-          r="15"
-          fill="none"
-          stroke="var(--color-accent)"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={C}
-          strokeDashoffset={p === null ? C * 0.72 : C * (1 - p / 100)}
-        />
-      </svg>
-    );
-  }
-
-  // spinner (default) — capped ring.
+/** The branded loader glyph. Locked design: loader = "spinner" — the bars /
+ *  pulse / ring glyphs from the design lab were removed. */
+function LoaderGlyph() {
   return (
     <span className="size-9 animate-spin rounded-full border-2 border-line border-t-accent" />
   );
@@ -76,11 +18,12 @@ function LoaderGlyph({
 
 /** Branded spinner — a loader glyph + a mono caption. */
 export function Spinner({
-  variant = "spinner",
   label,
   progress,
   className,
 }: {
+  // `variant` is still accepted so callers can thread the loader axis through,
+  // but the locked design only renders the spinner glyph now.
   variant?: LoaderVariant;
   label?: string;
   progress?: number;
@@ -88,7 +31,7 @@ export function Spinner({
 }) {
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
-      <LoaderGlyph variant={variant} progress={progress} />
+      <LoaderGlyph />
       {label ? (
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mute">
           {label}
@@ -113,11 +56,10 @@ export function CatalogSceneLoader({
 }) {
   const { progress, active } = useProgress();
   const ready = useSceneReady();
-  const preview = useLoaderPreview();
   useEffect(() => {
     if (!active && progress >= 100) markSceneReady();
   }, [active, progress]);
-  const show = !ready || preview;
+  const show = !ready;
 
   return (
     <AnimatePresence>
@@ -133,7 +75,7 @@ export function CatalogSceneLoader({
           <Spinner
             variant={variant}
             label={catalogStrings.showroom.sceneLoading}
-            progress={preview ? undefined : progress}
+            progress={progress}
           />
         </m.div>
       ) : null}

@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { CatalogSidebar } from "@/components/catalog/CatalogSidebar";
+import { LiteInventoryPanel } from "@/components/catalog/LiteInventoryPanel";
 import { CatalogGridFallback } from "@/components/catalog/CatalogGridFallback";
 import { JewelryBookingDrawer } from "@/components/booking/JewelryBookingDrawer";
 import { LiteBanner } from "./LiteBanner";
@@ -284,7 +284,7 @@ export function LiteMode({
         </div>
 
         {view === "tryon" ? (
-          <CatalogSidebar
+          <LiteInventoryPanel
             anchors={anchors}
             jewelry={liteJewelry}
             selectedAnchorId={selectedId}

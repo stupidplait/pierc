@@ -3,48 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendBookingNotifications } from "@/lib/notifications";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { reportError, logger } from "@/lib/observability/logger";
+import { bookingSchema } from "./booking-schema";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Input validation
-// ─────────────────────────────────────────────────────────────────────────────
-
-const bookingSchema = z
-  .object({
-    purpose: z.enum(["appointment", "jewelry", "both"]),
-    items: z.string().optional(), // "id1,id2,id3"
-    serviceId: z.string().optional(),
-    slotId: z.string().optional(),
-    name: z.string().trim().min(1, "Укажите имя"),
-    email: z.string().trim().email("Укажите корректный email"),
-    phone: z.string().trim().min(3, "Укажите телефон"),
-    notes: z.string().trim().optional(),
-  })
-  .superRefine((v, ctx) => {
-    const itemIds: string[] = [];
-    for (const s of (v.items ?? "").split(",")) {
-      const t = s.trim();
-      if (t) itemIds.push(t);
-    }
-
-    if ((v.purpose === "appointment" || v.purpose === "both") && !v.slotId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Выберите время",
-        path: ["slotId"],
-      });
-    }
-    if ((v.purpose === "jewelry" || v.purpose === "both") && itemIds.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Выберите хотя бы одно украшение",
-        path: ["items"],
-      });
-    }
-  });
+// Input validation lives in ./booking-schema (a non-"use server" module) so it's
+// unit-testable; see tests/booking-schema.test.ts.
 
 export type BookingActionState =
   | { ok: true }
@@ -62,6 +29,20 @@ export async function createBooking(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
+  // Throttle public bookings by IP — guards against slot/stock exhaustion,
+  // guest-User spam, and email/Telegram flooding.
+  const ip = await clientIp();
+  const throttle = await rateLimit(`booking:${ip}`, {
+    limit: 8,
+    windowMs: 10 * 60_000,
+  });
+  if (!throttle.ok) {
+    return {
+      ok: false,
+      error: "Слишком много заявок подряд. Попробуйте через несколько минут.",
+    };
+  }
+
   const parsed = bookingSchema.safeParse({
     purpose: formData.get("purpose"),
     items: formData.get("items") ?? "",
@@ -93,21 +74,22 @@ export async function createBooking(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // ── Upsert user. Always treat as guest in v1 — public auth is Task 9. ──
-      const user = await tx.user.upsert({
-        where: { email },
-        update: {
-          // Don't clobber a real (non-guest) user's profile; only fill empties.
-          name: name,
-          phone: phone,
-        },
-        create: {
-          email,
-          name,
-          phone,
-          isGuest: true,
-        },
-      });
+      // ── Resolve the user by email WITHOUT clobbering a registered account. ──
+      // A public (unauthenticated) booking must never rewrite the name/phone of
+      // an existing non-guest user who happens to share this email — otherwise
+      // anyone could overwrite a real customer's profile. We only refresh the
+      // contact fields on guest rows; registered users keep their profile.
+      const existing = await tx.user.findUnique({ where: { email } });
+      const user = !existing
+        ? await tx.user.create({
+            data: { email, name, phone, isGuest: true },
+          })
+        : existing.isGuest
+          ? await tx.user.update({
+              where: { id: existing.id },
+              data: { name, phone },
+            })
+          : existing;
 
       // ── Create appointment if needed. Slot uniqueness is enforced at DB
       //    level by Appointment.slotId @unique — concurrent attempts will
@@ -125,6 +107,11 @@ export async function createBooking(
         }
         if (slot.appointment) {
           throw new BookingError("Это окно уже забронировали. Выберите другое.");
+        }
+        if (slot.startsAt.getTime() <= Date.now()) {
+          // Guard against booking a window whose start time has already passed
+          // (stale picker / direct POST) — isOpen alone doesn't cover this.
+          throw new BookingError("Это время уже прошло. Выберите другое.");
         }
         apt = await tx.appointment.create({
           data: {
@@ -200,6 +187,9 @@ export async function createBooking(
         };
       }
     }
+    // Unexpected failure (not a known business rule or unique-constraint race):
+    // surface it to monitoring so a broken checkout never fails silently.
+    reportError(err, { scope: "booking.createBooking" });
     return {
       ok: false,
       error:
@@ -224,9 +214,12 @@ export async function createBooking(
     after(async () => {
       try {
         const result = await sendBookingNotifications(notifyInput);
-        console.log("[booking] notifications:", result);
+        logger.info("booking notifications dispatched", {
+          ...notifyInput,
+          result,
+        });
       } catch (err) {
-        console.error("[booking] notification dispatch failed:", err);
+        reportError(err, { scope: "booking.notifications", ...notifyInput });
       }
     });
   }

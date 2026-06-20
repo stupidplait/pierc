@@ -17,7 +17,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { Toaster } from "@/components/admin/toast/Toaster";
 import {
   Card,

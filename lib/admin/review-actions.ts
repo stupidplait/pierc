@@ -1,7 +1,7 @@
 "use server";
 
 import { put, del } from "@vercel/blob";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +27,7 @@ function revalidateForReviews(id?: string, jewelryIds: string[] = []) {
   if (id) revalidatePath(`/admin/reviews/${id}/edit`);
   // Public surfaces that might render this review.
   revalidatePath("/about");
+  revalidateTag("reviews", { expire: 0 }); // drop getFeaturedTestimonials() cache
   for (const jid of jewelryIds) {
     revalidatePath(`/catalog/${jid}`);
   }

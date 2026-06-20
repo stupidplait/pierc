@@ -9,17 +9,16 @@ import type {
   AnchorSide,
   BodyPlace,
   EquippedMap,
-  JewelryWire,
-  JewelryType,
   Vec3,
   CameraPreset,
 } from "@/lib/catalog/types";
-import { piercingCountForType } from "@/lib/catalog/types";
 import { Showroom } from "@/components/catalog/Showroom";
 import { CatalogGridFallback } from "@/components/catalog/CatalogGridFallback";
-import { firstPhotoUrl } from "@/lib/jewelry/format";
 import { parseEquippedFromUrl } from "@/lib/catalog/url-state";
-import { getBookingPrefillUser } from "@/lib/public/queries";
+import {
+  getBookingPrefillUser,
+  getPublishedJewelry,
+} from "@/lib/public/queries";
 
 export const metadata: Metadata = {
   title: `${ru.pages.catalog.title} — ${ru.studio.name}`,
@@ -30,6 +29,7 @@ interface CatalogPageProps {
     anchor?: string;
     eq?: string;
     view?: string;
+    inspect?: string;
   }>;
 }
 
@@ -62,22 +62,15 @@ function asCameraPresets(v: unknown): CameraPreset[] {
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const [sp, anchorsDb, jewelryDb, user] = await Promise.all([
+  const [sp, anchorsDb, jewelry, user] = await Promise.all([
     searchParams,
     prisma.anchorPoint.findMany({
       orderBy: [{ place: "asc" }, { name: "asc" }],
     }),
-    prisma.jewelry.findMany({
-      where: { status: "PUBLISHED" },
-      include: {
-        category: { select: { name: true } },
-        anchorBindings: {
-          select: { anchorId: true, order: true },
-          orderBy: { order: "asc" },
-        },
-      },
-      orderBy: [{ updatedAt: "desc" }],
-    }),
+    // Cross-request cached + tag-busted (see getPublishedJewelry). Returns the
+    // full published set already mapped to JewelryWire — the showroom needs all
+    // of it, so it isn't paginated.
+    getPublishedJewelry(),
     getBookingPrefillUser(),
   ]);
 
@@ -89,39 +82,9 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     side: a.side as AnchorSide,
     position: asVec3(a.position),
     rotation: asVec3(a.rotation),
+    ringRotation: a.ringRotation == null ? null : asVec3(a.ringRotation),
     cameraPresets: asCameraPresets(a.cameraPresets),
   }));
-
-  const jewelry: JewelryWire[] = jewelryDb.map((j) => {
-    const bindings = j.anchorBindings.map((b) => ({
-      anchorId: b.anchorId,
-      order: b.order,
-    }));
-    const anchorIdSet = new Set<string>();
-    for (const b of bindings) anchorIdSet.add(b.anchorId);
-    const type = j.type as JewelryType;
-    return {
-      id: j.id,
-      name: j.name,
-      price: j.price.toString(),
-      inStock: j.inStock,
-      photo: firstPhotoUrl(j.photos),
-      glbUrl: j.glbUrl,
-      glbScale: j.glbScale ?? 1,
-      spriteUrl: j.spriteUrl ?? null,
-      categoryName: j.category.name,
-      description: j.description,
-      material: j.material,
-      gauge: j.gauge,
-      size: j.size,
-      color: j.color,
-      stones: j.stones,
-      type,
-      anchorBindings: bindings,
-      anchorIds: Array.from(anchorIdSet),
-      piercingCount: piercingCountForType(type, bindings.length),
-    };
-  });
 
   // Fallback path: explicit ?view=grid
   if (sp.view === "grid") {
@@ -151,6 +114,11 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
   const initialEquipped: EquippedMap = parseEquippedFromUrl(sp.eq, slugToId);
 
+  // Deep-linked inspect overlay: honour ?inspect= only when it points at a piece
+  // in the published set, so a stale link can't open an empty overlay.
+  const initialInspectId =
+    sp.inspect && jewelry.some((j) => j.id === sp.inspect) ? sp.inspect : null;
+
   return (
     <div className="h-svh">
       <Showroom
@@ -158,6 +126,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         jewelry={jewelry}
         initialSelectedId={initialSelectedId}
         initialEquipped={initialEquipped}
+        initialInspectId={initialInspectId}
         user={user}
       />
     </div>

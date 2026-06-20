@@ -157,6 +157,7 @@ function Field({
           className={textareaCls}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          aria-required={required || undefined}
         />
       ) : phone ? (
         <PhoneInput
@@ -165,6 +166,7 @@ function Field({
           autoComplete={autoComplete}
           placeholder={placeholder}
           className={inputCls}
+          aria-required={required || undefined}
         />
       ) : (
         <input
@@ -175,6 +177,7 @@ function Field({
           inputMode={inputMode}
           placeholder={placeholder}
           className={inputCls}
+          aria-required={required || undefined}
         />
       )}
     </label>

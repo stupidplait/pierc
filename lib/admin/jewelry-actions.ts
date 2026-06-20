@@ -1,7 +1,8 @@
 "use server";
 
 import { put, del } from "@vercel/blob";
-import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
@@ -13,6 +14,7 @@ import {
   VALIDATION_SUMMARY,
   type FieldErrors,
 } from "@/lib/admin/jewelry-schema";
+import { suggestScaleFromSizeM } from "@/lib/admin/glb-scale";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -28,6 +30,7 @@ function revalidateForJewelry(id?: string) {
   if (id) revalidatePath(`/admin/jewelry/${id}/edit`);
   revalidatePath("/catalog");
   if (id) revalidatePath(`/catalog/${id}`);
+  revalidateTag("jewelry", { expire: 0 }); // drop getPublishedJewelry() cache now
   revalidatePath("/", "layout"); // featured items affect the landing later
 }
 
@@ -121,6 +124,17 @@ export async function deleteJewelry(formData: FormData): Promise<void> {
 
   const jewelry = await prisma.jewelry.findUnique({ where: { id } });
   if (!jewelry) return;
+
+  // The Jewelry→JewelryBooking relation is onDelete: Restrict to preserve booking
+  // history, so deleting a piece referenced by ANY booking (even cancelled or
+  // fulfilled) would throw a raw FK error → 500. Refuse up front with a friendly
+  // message instead. Admins should unpublish/archive such pieces, not delete them.
+  const bookingCount = await prisma.jewelryBooking.count({
+    where: { jewelryId: id },
+  });
+  if (bookingCount > 0) {
+    redirect("/admin/jewelry?error=has-bookings");
+  }
 
   await prisma.jewelry.delete({ where: { id } });
 
@@ -524,7 +538,7 @@ export async function uploadJewelryGlb(
   try {
     const sizeM = await measureGlbSizeM(opt.bytes);
     if (sizeM) {
-      const suggestion = computeSuggestedScale(sizeM, jewelry.gauge, jewelry.size);
+      const suggestion = suggestScaleFromSizeM(sizeM, jewelry.gauge, jewelry.size);
       if (
         suggestion &&
         suggestion.scale > 0 &&
@@ -668,24 +682,30 @@ export async function nudgeJewelryGlb(
   revalidatePath(`/admin/jewelry/${id}/edit`);
   revalidatePath("/catalog");
   revalidatePath(`/catalog/${id}`);
+  revalidateTag("jewelry", { expire: 0 }); // drop getPublishedJewelry() cache now
   return { ok: true, message: "Ориентация сохранена" };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sprite upload + remove (per-jewelry, transparent PNG for lite-mode try-on)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const SPRITE_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
-
-export async function uploadJewelrySprite(
-  _prev: ActionState,
+// Manual attach-point picker — bake an EXACT `attach:primary` position (the local
+// point the admin clicked on the model in the preview) into the current model.
+// The ultimate backstop when auto-placement (geometry / AI) put the point wrong:
+// the admin clicks the real mount and it's fixed, no re-generation. Baked into the
+// GLB so the renderer needs no change. See lib/admin/glb-pipeline.ts `setGlbAttachPoint`.
+export async function setJewelryAttachPoint(
   formData: FormData,
 ): Promise<ActionState> {
   await assertAdmin();
 
   const id = String(formData.get("id") ?? "");
+  const point: [number, number, number] = [
+    Number(formData.get("x") ?? NaN),
+    Number(formData.get("y") ?? NaN),
+    Number(formData.get("z") ?? NaN),
+  ];
   if (!id) return { ok: false, error: "Не указан id украшения" };
-
+  if (!point.every(Number.isFinite)) {
+    return { ok: false, error: "Некорректная точка крепления" };
+  }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return {
       ok: false,
@@ -694,84 +714,113 @@ export async function uploadJewelrySprite(
     };
   }
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Выберите PNG-файл" };
-  }
-  if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
-    return {
-      ok: false,
-      error: "Поддерживается только формат PNG (для прозрачного фона)",
-    };
-  }
-  if (file.size > SPRITE_MAX_BYTES) {
-    return {
-      ok: false,
-      error: `Размер файла превышает 4 МБ (получено ${(
-        file.size /
-        1024 /
-        1024
-      ).toFixed(1)} МБ)`,
-    };
-  }
-
   const jewelry = await prisma.jewelry.findUnique({
     where: { id },
-    select: { spriteUrl: true },
+    select: { glbUrl: true },
   });
-  if (!jewelry) return { ok: false, error: "Украшение не найдено" };
+  if (!jewelry?.glbUrl)
+    return { ok: false, error: "У украшения нет 3D-модели" };
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const key = `jewelry/${id}/sprite/${Date.now()}-${safeName}`;
-  const blob = await put(key, file, {
+  // Server-side fetch of our own blob — not subject to the cross-origin challenge
+  // that blocks the browser (see lib/jewelry/glb-proxy.ts).
+  const res = await fetch(jewelry.glbUrl);
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: `Не удалось загрузить модель: HTTP ${res.status}`,
+    };
+  }
+  const buffer = await res.arrayBuffer();
+
+  const { setGlbAttachPoint } = await import("@/lib/admin/glb-pipeline");
+  let bytes: Uint8Array;
+  try {
+    bytes = await setGlbAttachPoint(buffer, point);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Не удалось задать точку",
+    };
+  }
+
+  const key = `jewelry/${id}/models/${Date.now()}-attach.glb`;
+  const blob = await put(key, Buffer.from(bytes), {
     access: "public",
     addRandomSuffix: false,
-    contentType: "image/png",
+    contentType: "model/gltf-binary",
   });
 
-  // Best-effort cleanup of the previous sprite so we don't accumulate orphans.
-  if (jewelry.spriteUrl) {
+  // Update the pointer FIRST, then delete the old blob — never leave glbUrl
+  // dangling (the prior delete-before-update order could 404 the catalog proxy).
+  const previousUrl = jewelry.glbUrl;
+  await prisma.jewelry.update({ where: { id }, data: { glbUrl: blob.url } });
+  if (previousUrl !== blob.url) {
     try {
-      await del(jewelry.spriteUrl);
+      await del(previousUrl);
     } catch {
-      // ignore — orphan blob is acceptable
+      // ignore — orphan blob is acceptable; a dangling glbUrl is not
     }
   }
 
-  await prisma.jewelry.update({
-    where: { id },
-    data: { spriteUrl: blob.url },
-  });
-
-  revalidateForJewelry(id);
-  return { ok: true, message: "Спрайт загружен" };
+  revalidatePath(`/admin/jewelry/${id}/edit`);
+  revalidatePath("/catalog");
+  revalidatePath(`/catalog/${id}`);
+  revalidateTag("jewelry", { expire: 0 }); // drop getPublishedJewelry() cache now
+  return { ok: true, message: "Точка крепления сохранена" };
 }
 
-export async function removeJewelrySprite(formData: FormData): Promise<void> {
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-(piece × anchor) orientation nudge — Layer 3 of the ring-orientation
+// system. Stored on JewelryAnchorBinding.rotationOffset and applied in the
+// piece's LOCAL frame by the renderer (place-jewelry.ts orientationForPiece).
+// Unlike nudgeJewelryGlb (which bakes a roll into the GLB, identical at every
+// anchor), this is scoped to ONE anchor — the escape hatch for an asymmetric
+// hoop that needs to sit differently per piercing. Input is in DEGREES:
+//   yDeg = yaw, zDeg = roll about the hole-axis, xDeg = pitch.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function setBindingRotationOffset(
+  formData: FormData,
+): Promise<ActionState> {
   await assertAdmin();
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
 
-  const jewelry = await prisma.jewelry.findUnique({
-    where: { id },
-    select: { spriteUrl: true },
-  });
-  if (!jewelry?.spriteUrl) return;
-
-  await prisma.jewelry.update({
-    where: { id },
-    data: { spriteUrl: null },
-  });
-
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    try {
-      await del(jewelry.spriteUrl);
-    } catch {
-      // ignore
-    }
+  const jewelryId = String(formData.get("jewelryId") ?? "");
+  const anchorId = String(formData.get("anchorId") ?? "");
+  if (!jewelryId || !anchorId) {
+    return { ok: false, error: "Не указан id украшения или точки" };
   }
 
-  revalidateForJewelry(id);
+  const deg = {
+    x: Number(formData.get("xDeg") ?? 0),
+    y: Number(formData.get("yDeg") ?? 0),
+    z: Number(formData.get("zDeg") ?? 0),
+  };
+  if (![deg.x, deg.y, deg.z].every(Number.isFinite)) {
+    return { ok: false, error: "Некорректный поворот" };
+  }
+
+  const D = Math.PI / 180;
+  // All ≈0 → clear the override (back to the per-anchor ring default).
+  const near0 =
+    Math.abs(deg.x) < 0.01 && Math.abs(deg.y) < 0.01 && Math.abs(deg.z) < 0.01;
+
+  const res = await prisma.jewelryAnchorBinding.updateMany({
+    where: { jewelryId, anchorId },
+    data: {
+      rotationOffset: near0
+        ? Prisma.DbNull
+        : { x: deg.x * D, y: deg.y * D, z: deg.z * D },
+    },
+  });
+  if (res.count === 0) {
+    return { ok: false, error: "Эта точка не привязана к украшению" };
+  }
+
+  revalidateForJewelry(jewelryId);
+  return {
+    ok: true,
+    message: near0 ? "Поворот сброшен" : "Поворот сохранён",
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -789,38 +838,6 @@ export interface ScaleAnalysisResult {
   confidence?: number;
   reasoning?: string;
   error?: string;
-}
-
-/**
- * Pure scale suggestion from a measured GLB bounding box (meters) + the piece's
- * real-world gauge/size (mm). `glbScale` maps GLB units → meters so the model
- * lands at its real size: prefer overall `size` vs the largest dimension, fall
- * back to `gauge` (wire/post thickness) vs the thinnest. Returns null when
- * neither metadata field is usable. Shared by the analyzer and the auto-scale
- * applied on manual upload (`uploadJewelryGlb`).
- */
-function computeSuggestedScale(
-  sizeM: { x: number; y: number; z: number },
-  gauge: number | null,
-  size: number | null,
-): { scale: number; confidence: number; reasoning: string } | null {
-  const maxMm = Math.max(sizeM.x, sizeM.y, sizeM.z) * 1000;
-  const minMm = Math.min(sizeM.x, sizeM.y, sizeM.z) * 1000;
-  if (size && maxMm > 0.01) {
-    return {
-      scale: size / maxMm,
-      confidence: 0.85,
-      reasoning: `Модель ${maxMm.toFixed(1)}мм в GLB, должна быть ${size}мм.`,
-    };
-  }
-  if (gauge && minMm > 0.01) {
-    return {
-      scale: gauge / minMm,
-      confidence: 0.6,
-      reasoning: `Толщина модели ${minMm.toFixed(1)}мм в GLB, должна быть ${gauge}мм.`,
-    };
-  }
-  return null;
 }
 
 /**
@@ -881,7 +898,7 @@ export async function analyzeJewelryScale(
       return { ok: false, error: "Не удалось измерить геометрию модели" };
     }
 
-    const suggestion = computeSuggestedScale(
+    const suggestion = suggestScaleFromSizeM(
       sizeM,
       jewelry.gauge,
       jewelry.size,

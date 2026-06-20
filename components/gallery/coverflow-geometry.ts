@@ -1,8 +1,8 @@
 /**
- * coverflow-geometry — pure, framework-free geometry for the Balenciaga
- * coverflow ring. Shared by the entrance SSR style (BalenciagaPortfolio) and
- * the runtime renderer (useCoverflow) so both agree on exactly where every
- * card sits. No React, no DOM — just maths, safe to import anywhere.
+ * coverflow-geometry — pure, framework-free geometry for the gallery coverflow
+ * ring. Shared by the entrance SSR style (GalleryCoverflow) and the runtime
+ * renderer (useCoverflow) so both agree on exactly where every card sits. No
+ * React, no DOM — just maths, safe to import anywhere.
  */
 
 export type CardGeom = { x: number; scale: number; opacity: number; zIndex: number };

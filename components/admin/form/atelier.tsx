@@ -7,7 +7,7 @@ import {
   ENTRANCE_HIDDEN,
   ENTRANCE_SHOW,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import type { ActionState } from "@/lib/admin/content-actions";
 import { ru } from "@/lib/i18n/ru";
 import { FIELD_AREA, FIELD_H, LABEL, SUBMIT } from "./styles";

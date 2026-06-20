@@ -35,12 +35,20 @@ export function BodyModel() {
   );
 }
 
+// Self-hosted Draco decoder (public/draco/) instead of drei's default gstatic
+// CDN — body.glb is Draco-compressed and would otherwise fail under strict CSP,
+// offline, ad-blockers, or the Expo WebView. See public/draco/.
+const DRACO_PATH = "/draco/";
+
 function BodyMesh() {
-  const gltf = useGLTF("/models/body/body.glb");
+  const gltf = useGLTF("/models/body/body.glb", DRACO_PATH);
 
   // Hide all `anchor:*` empties so they don't render or eat picks.
   // Mark the scene as body model for occlusion culling optimization.
   useEffect(() => {
+    // Tagging the drei-cached scene + hiding anchor empties is an intentional,
+    // idiomatic mutation of the loaded GLTF (consumed by occlusion culling).
+    // eslint-disable-next-line react-hooks/immutability -- mutating loaded scene is the documented r3f pattern
     gltf.scene.userData.isBodyModel = true;
     gltf.scene.traverse((obj: Object3D) => {
       if (obj.name.startsWith("anchor:")) {
@@ -62,4 +70,4 @@ function BodyMesh() {
 
 // Eagerly preload the GLB at module import time so the first render can
 // short-circuit the Suspense fallback when the user navigates fast.
-useGLTF.preload("/models/body/body.glb");
+useGLTF.preload("/models/body/body.glb", DRACO_PATH);

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Dummy connection strings: `prisma generate` / `prisma validate` read the
+# datasource env vars but never open a connection here, and lint / typecheck /
+# unit tests need no real database.
+env:
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/pierc?schema=public"
+  DIRECT_URL: "postgresql://user:pass@localhost:5432/pierc?schema=public"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Ensure the Prisma client exists before typecheck even if postinstall
+      # behavior changes.
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npx prisma validate
+      - run: npm test
+      # Full production build: catches React-Compiler bailouts, invalid metadata
+      # exports, and server/client import violations that lint + typecheck miss.
+      # The dummy DATABASE_URL above is sufficient — the build does not connect.
+      - run: npm run build
+      # Informational React/codebase health report — does not fail the build so
+      # pre-existing debt doesn't block PRs; tighten to a score threshold later.
+      - name: React health report (non-blocking)
+        run: npm run doctor
+        continue-on-error: true

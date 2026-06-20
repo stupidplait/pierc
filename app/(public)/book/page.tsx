@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { ru, seoStrings } from "@/lib/i18n/ru";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { Section } from "@/components/ui/Section";
-import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
-import { WordReveal } from "@/components/about/client/WordReveal";
-import { BlockReveal } from "@/components/services/entrance/BlockReveal";
+import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
+import { WordReveal } from "@/components/motion/WordReveal";
+import { BlurReveal } from "@/components/motion/BlurReveal";
 import { BookingForm } from "@/components/booking/BookingForm";
 import { getOpenSlots } from "@/lib/booking/slot-actions";
 import { getBookingPrefillUser } from "@/lib/public/queries";
@@ -90,7 +90,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
       {/* Same drifting-grid + dotted backdrop as the about/faq/services pages —
           fixed behind the content, carrying the single magenta accent dot. The
           content rides above it at z-10. */}
-      <AuthBackdrop />
+      <ContentBackdrop />
 
       <Section className="relative z-10">
         <div className="mx-auto max-w-5xl">
@@ -114,7 +114,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           </header>
 
           {/* Blur-focus the form in on mount, echoing the services cards. */}
-          <BlockReveal delay={0.1}>
+          <BlurReveal trigger="mount" delay={0.1}>
             <BookingForm
               services={services}
               jewelry={jewelry}
@@ -122,7 +122,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
               user={user}
               initialItemIds={initialItemIds}
             />
-          </BlockReveal>
+          </BlurReveal>
         </div>
       </Section>
     </>

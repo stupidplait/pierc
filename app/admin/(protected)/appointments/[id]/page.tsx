@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +18,7 @@ import { AppointmentStatusStepper } from "@/components/admin/appointments/Appoin
 import { Reveal } from "@/components/admin/form/atelier";
 import { Card, CardEyebrow } from "@/components/shadcn/ui/card";
 import { Separator } from "@/components/shadcn/ui/separator";
-import { formatPrice } from "@/lib/jewelry/format";
+import { formatDuration, formatPrice } from "@/lib/jewelry/format";
 
 const RU_DT = new Intl.DateTimeFormat("ru-RU", {
   weekday: "long",
@@ -36,20 +37,9 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const a = await prisma.appointment.findUnique({
-    where: { id },
-    select: { user: { select: { name: true } } },
-  });
-  return {
-    title: a?.user?.name ?? ru.admin.appointments.detail.title,
-  };
-}
-
-export default async function AdminAppointmentDetailPage({ params }: Props) {
-  const { id } = await params;
-  const appt = await prisma.appointment.findUnique({
+// Dedup the row read across generateMetadata + the page body within one request.
+const getAppointment = cache((id: string) =>
+  prisma.appointment.findUnique({
     where: { id },
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },
@@ -60,7 +50,20 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
         orderBy: { createdAt: "asc" },
       },
     },
-  });
+  }),
+);
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const a = await getAppointment(id);
+  return {
+    title: a?.user?.name ?? ru.admin.appointments.detail.title,
+  };
+}
+
+export default async function AdminAppointmentDetailPage({ params }: Props) {
+  const { id } = await params;
+  const appt = await getAppointment(id);
   if (!appt) notFound();
 
   const t = ru.admin.appointments;
@@ -130,7 +133,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
                   <span className="text-mute">
                     {" · "}
                     {formatPrice(appt.service.price.toString())} ·{" "}
-                    {appt.service.durationMin} мин
+                    {formatDuration(appt.service.durationMin)}
                   </span>
                 </p>
               ) : (

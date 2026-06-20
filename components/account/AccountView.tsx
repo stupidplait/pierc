@@ -2,14 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { motion, MotionConfig, type Variants } from "framer-motion";
+import { m, MotionConfig, type Variants } from "framer-motion";
 import { ru } from "@/lib/i18n/ru";
 import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 import { signOutPublicAction } from "@/lib/user/auth-actions";
 import { disconnectTelegram, devToggleTelegram } from "@/lib/user/profile-actions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EditProfileDrawer } from "@/components/account/EditProfileDrawer";
-import { AuthBackdrop } from "@/components/landing/auth/AuthBackdrop";
+import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
 import { Section } from "@/components/ui/Section";
 import { useIsApp } from "@/lib/hooks/useIsApp";
 import {
@@ -18,7 +18,7 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { Feed } from "@/components/account/feed/Feed";
 import { FeedHeading } from "@/components/account/feed/shared";
 import type {
@@ -114,17 +114,17 @@ export function AccountView({
 
   return (
     <MotionConfig reducedMotion="user">
-      <AuthBackdrop />
+      <ContentBackdrop />
 
       <Section className="relative z-10">
-        <motion.div
+        <m.div
           variants={container}
           initial="hidden"
           animate="show"
           className="grid gap-8 lg:grid-cols-[22rem_1fr]"
         >
           {/* ── Rail: identity + contact + telegram + actions ── */}
-          <motion.aside
+          <m.aside
             variants={item}
             className={`${SURFACE} flex h-fit flex-col gap-7 p-7 sm:p-10`}
           >
@@ -238,10 +238,10 @@ export function AccountView({
                 ))}
               </nav>
             ) : null}
-          </motion.aside>
+          </m.aside>
 
           {/* ── Feed ── */}
-          <motion.div variants={item} className={`${SURFACE} p-7 sm:p-10`}>
+          <m.div variants={item} className={`${SURFACE} p-7 sm:p-10`}>
             {empty ? (
               <>
                 <FeedHeading label={t.activityHeading} count={total} />
@@ -255,8 +255,8 @@ export function AccountView({
                 total={total}
               />
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </Section>
     </MotionConfig>
   );

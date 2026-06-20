@@ -36,6 +36,9 @@ export function GlbPreview({
   quaternion,
   showAttach = false,
   lockCamera = false,
+  pickMode = false,
+  onPick,
+  pickedPoint = null,
 }: {
   url: string;
   className?: string;
@@ -46,6 +49,10 @@ export function GlbPreview({
   showAttach?: boolean;
   /** Lock the camera face-on (orientation-editing mode). */
   lockCamera?: boolean;
+  /** Click the model to set a new attach point (returns local-space hit). */
+  pickMode?: boolean;
+  onPick?: (point: [number, number, number]) => void;
+  pickedPoint?: [number, number, number] | null;
 }) {
   const webgl2 = useWebGL2Supported();
 
@@ -75,6 +82,9 @@ export function GlbPreview({
             quaternion={quaternion}
             showAttach={showAttach}
             lockCamera={lockCamera}
+            pickMode={pickMode}
+            onPick={onPick}
+            pickedPoint={pickedPoint}
           />
         </GlbPreviewBoundary>
       ) : null}

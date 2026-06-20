@@ -6,6 +6,7 @@
 // so we use inline styles for safety.
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/observability/report-client";
 
 export default function GlobalError({
   error,
@@ -15,7 +16,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[global-error]", error);
+    reportClientError(error, { boundary: "global" });
   }, [error]);
 
   return (
@@ -65,7 +66,7 @@ export default function GlobalError({
               lineHeight: 1.5,
             }}
           >
-            Мы уже знаем об ошибке. Попробуйте обновить страницу.
+            Произошла непредвиденная ошибка. Попробуйте обновить страницу.
           </p>
           <button
             type="button"

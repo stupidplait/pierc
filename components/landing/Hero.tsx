@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Preloader from "@/components/scene/Preloader";
 import { useScrollBus } from "@/lib/hooks/useScrollBus";
+import { useWebGL2Supported } from "@/lib/catalog/use-webgl2";
 
 const WireframeRoom = dynamic(() => import("@/components/scene/WireframeRoom"), {
   ssr: false,
@@ -26,6 +27,10 @@ export function Hero({ activeJewelry, transitionProgress, swapDirection, ch2Titl
   const scrollPhaseRef = useRef(0);
   const [sceneReady, setSceneReady] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  // Don't mount the heaviest WebGL scene on devices without WebGL2 — show a
+  // branded static hero instead of a blank/erroring canvas. `null` = still
+  // detecting (client-only), so we optimistically keep the 3D path.
+  const webgl2 = useWebGL2Supported();
 
   useEffect(() => {
     const html = document.documentElement;
@@ -59,6 +64,25 @@ export function Hero({ activeJewelry, transitionProgress, swapDirection, ch2Titl
   const handleDismissStart = useCallback(() => {
     setRevealed(true);
   }, []);
+
+  // WebGL2 unavailable → static branded fallback (no infinite render loop, no
+  // blank canvas). The catalog has its own LiteMode fallback; the landing just
+  // needs a graceful, on-brand static hero.
+  if (webgl2 === false) {
+    return (
+      <section
+        aria-label="PiercerKZN — hero"
+        className="relative flex min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden bg-scene-bg px-6 text-center"
+      >
+        <h1 className="font-display text-4xl font-medium leading-tight tracking-tight text-ink sm:text-6xl">
+          PiercerKZN
+        </h1>
+        <p className="mt-4 max-w-md text-balance text-sm text-mute sm:text-base">
+          Студия пирсинга в Казани с 3D-примеркой украшений
+        </p>
+      </section>
+    );
+  }
 
   return (
     <>

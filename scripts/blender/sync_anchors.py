@@ -22,7 +22,7 @@ WHAT IT DOES
   • Converts Blender (Z-up) → glTF (Y-up) coords.
   • Updates `prisma/seed-data/anchors.json` (positions + camera target;
     preserves rotation, name, place, side, fov — only the moved bits change).
-  • Updates `components/scene/WireframeRoom.tsx` (CH2_VISIBLE_ANCHORS).
+  • Updates `components/scene/wireframe-room/anchors.ts` (CH2_VISIBLE_ANCHORS).
   • Re-exports `public/models/body/body.glb`.
 
 It is idempotent — running it twice in a row makes no further changes.
@@ -40,7 +40,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PROJECT_ROOT = HERE.parent.parent  # scripts/blender/sync_anchors.py → repo root
 ANCHORS_JSON = PROJECT_ROOT / "prisma" / "seed-data" / "anchors.json"
-WIREFRAME_TSX = PROJECT_ROOT / "components" / "scene" / "WireframeRoom.tsx"
+ANCHORS_TS = PROJECT_ROOT / "components" / "scene" / "wireframe-room" / "anchors.ts"
 BODY_GLB = PROJECT_ROOT / "public" / "models" / "body" / "body.glb"
 
 # ───────────────────────────────────────────────────────────
@@ -114,11 +114,11 @@ if unknown_in_blend:
     print(f"  WARN: {len(unknown_in_blend)} empties in .blend with no JSON entry: {sorted(unknown_in_blend)}")
 
 # ───────────────────────────────────────────────────────────
-# 3. Update components/scene/WireframeRoom.tsx CH2_VISIBLE_ANCHORS
+# 3. Update components/scene/wireframe-room/anchors.ts CH2_VISIBLE_ANCHORS
 # Format of each entry:
 #   { slug: "left-ear-lobe", name: "...", position: { x: 0.075, y: 1.557, z: -0.025 }, rotation: {...} },
 
-with open(WIREFRAME_TSX, "r", encoding="utf-8") as f:
+with open(ANCHORS_TS, "r", encoding="utf-8") as f:
     src = f.read()
 
 # Pattern: match any line that has a slug AND a position object.
@@ -149,13 +149,13 @@ new_src, replacements = LINE_RE.subn(repl, src)
 
 if replacements > 0:
     if new_src != src:
-        with open(WIREFRAME_TSX, "w", encoding="utf-8") as f:
+        with open(ANCHORS_TS, "w", encoding="utf-8") as f:
             f.write(new_src)
-        print(f"  WireframeRoom.tsx: rewrote {replacements} anchor entries")
+        print(f"  anchors.ts: rewrote {replacements} anchor entries")
     else:
-        print(f"  WireframeRoom.tsx: {replacements} entries already in sync")
+        print(f"  anchors.ts: {replacements} entries already in sync")
 else:
-    print(f"  WireframeRoom.tsx: no anchor entries matched (regex may need updating)")
+    print(f"  anchors.ts: no anchor entries matched (regex may need updating)")
 
 # ───────────────────────────────────────────────────────────
 # 4. Re-export body.glb

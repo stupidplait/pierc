@@ -4,7 +4,9 @@ import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { verifyReviewToken } from "./token";
 
 export type SubmitReviewState =
@@ -34,6 +36,16 @@ export async function submitReviewFromMagicLink(
   _prev: SubmitReviewState,
   formData: FormData,
 ): Promise<SubmitReviewState> {
+  // Throttle review submissions by IP to blunt spam against the magic-link form.
+  const ip = await clientIp();
+  const throttle = await rateLimit(`review:${ip}`, {
+    limit: 5,
+    windowMs: 10 * 60_000,
+  });
+  if (!throttle.ok) {
+    return { ok: false, error: "Слишком много попыток. Попробуйте позже." };
+  }
+
   const parsed = submitSchema.safeParse({
     token: formData.get("token"),
     rating: formData.get("rating") ?? "5",
@@ -120,28 +132,39 @@ export async function submitReviewFromMagicLink(
     photoUrl = blob.url;
   }
 
-  // Atomic-ish: create review + flip reviewedAt. The race between two
-  // submissions on the same token is bounded — second one will trip
-  // the reviewedAt guard above on its own re-fetch.
-  await prisma.$transaction(async (tx) => {
-    await tx.review.create({
-      data: {
-        rating: parsed.data.rating,
-        text: parsed.data.text,
-        authorName: parsed.data.authorName,
-        photoUrl,
-        status: "PENDING",
-        appointmentId,
-        jewelryItems: {
-          connect: safeJewelryIds.map((id) => ({ id })),
+  // Atomic: create review + flip reviewedAt. Single-use is now enforced at the
+  // DB level by Review.appointmentId @unique — a concurrent second submission
+  // (that slipped past the reviewedAt re-fetch above) fails with P2002, which
+  // we translate to the same friendly "already reviewed" message.
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.review.create({
+        data: {
+          rating: parsed.data.rating,
+          text: parsed.data.text,
+          authorName: parsed.data.authorName,
+          photoUrl,
+          status: "PENDING",
+          appointmentId,
+          jewelryItems: {
+            connect: safeJewelryIds.map((id) => ({ id })),
+          },
         },
-      },
+      });
+      await tx.appointment.update({
+        where: { id: appointmentId },
+        data: { reviewedAt: new Date() },
+      });
     });
-    await tx.appointment.update({
-      where: { id: appointmentId },
-      data: { reviewedAt: new Date() },
-    });
-  });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return { ok: false, error: "Отзыв уже оставлен по этой ссылке." };
+    }
+    throw err;
+  }
 
   revalidatePath("/admin/reviews");
   redirect("/review/thanks");

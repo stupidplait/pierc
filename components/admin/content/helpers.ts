@@ -1,4 +1,5 @@
 import { FAQ_CATEGORIES } from "@/components/faq/faqData";
+import { formatDuration } from "@/lib/jewelry/format";
 import type {
   ServiceRow,
   FaqRow,
@@ -17,7 +18,7 @@ export function serviceMeta(s: ServiceRow): string | undefined {
   return (
     [
       s.price ? `${s.price} ₽` : null,
-      s.durationMin ? `${s.durationMin} мин` : null,
+      s.durationMin ? formatDuration(s.durationMin) : null,
     ]
       .filter(Boolean)
       .join(" · ") || undefined

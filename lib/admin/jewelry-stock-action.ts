@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "./auth-helpers";
@@ -51,6 +51,7 @@ export async function adjustJewelryStock(
   revalidatePath("/catalog");
   revalidatePath(`/catalog/${id}`);
   revalidatePath("/admin"); // low-stock card
+  revalidateTag("jewelry", { expire: 0 }); // drop getPublishedJewelry() cache now
 
   return { ok: true };
 }

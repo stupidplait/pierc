@@ -30,6 +30,7 @@ interface AdminJewelryPageProps {
     status?: string;
     featured?: string;
     lowStock?: string;
+    error?: string;
   }>;
 }
 
@@ -49,6 +50,7 @@ export default async function AdminJewelryPage({
     : "";
   const featured = sp.featured === "1";
   const lowStock = sp.lowStock === "1";
+  const deleteError = sp.error;
 
   // Filters shared by both the list query and the per-status counts. Hide
   // never-saved drafts — empty-name ⟺ an abandoned legacy draft (pre-lazy-create;
@@ -81,6 +83,10 @@ export default async function AdminJewelryPage({
         anchorBindings: { select: { anchorId: true } },
       },
       orderBy: [{ updatedAt: "desc" }],
+      // Cap the payload — this is the one admin list that grows unboundedly (every
+      // piece ever created, drafts included). Matches the catalog/admin list caps;
+      // the count strip below is computed via groupBy so totals stay accurate.
+      take: 500,
     }),
     prisma.jewelryCategory.findMany({ orderBy: { order: "asc" } }),
     prisma.jewelry.groupBy({
@@ -122,6 +128,16 @@ export default async function AdminJewelryPage({
   return (
     <div className="mx-auto w-full max-w-6xl">
       <CatalogHeader />
+
+      {deleteError === "has-bookings" ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
+          Нельзя удалить украшение с историей записей. Снимите его с публикации
+          или архивируйте вместо удаления.
+        </div>
+      ) : null}
 
       <JewelryCatalog
         q={q}

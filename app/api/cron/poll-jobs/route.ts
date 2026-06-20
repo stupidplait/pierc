@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getProvider, pickNextAutoProvider } from "@/lib/three-gen";
 import type { ProviderId } from "@/lib/three-gen";
 import { asPhotos, firstPhotoUrl } from "@/lib/jewelry/format";
+import { authorizeCron } from "@/lib/cron-auth";
+import { safeAssetFetch } from "@/lib/security/safe-fetch";
 
 // Vercel Cron — polls every in-flight GenerationJob, applies the same
 // state transitions as the admin "Обновить статус" button:
@@ -26,8 +28,15 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60; // seconds — Tripo + blob upload can be slow
 
+// Stop *starting* new jobs once we're this close to maxDuration. Each processJob
+// commits its own DB updates inline, so partial progress is preserved and the
+// un-started jobs simply retry on the next tick (oldest-first) instead of risking
+// a mid-flight function kill. Re-host work (download + optimizeGlb + blob put) can
+// take several seconds per job, so we leave ~10s of headroom.
+const TIME_BUDGET_MS = 50_000;
+
 export async function GET(request: Request) {
-  if (!authorize(request)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -43,7 +52,12 @@ export async function GET(request: Request) {
     note?: string;
   }> = [];
 
+  const startedAt = Date.now();
   for (const job of jobs) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) {
+      results.push({ id: job.id, status: "deferred_time_budget" });
+      break; // remaining PROCESSING jobs are picked up on the next tick
+    }
     if (!job.providerJobId) {
       results.push({ id: job.id, status: "skipped_no_provider_id" });
       continue;
@@ -63,13 +77,6 @@ export async function GET(request: Request) {
     processed: jobs.length,
     results,
   });
-}
-
-function authorize(request: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) return true; // dev / unconfigured mode
-  const auth = request.headers.get("authorization") ?? "";
-  return auth === `Bearer ${expected}`;
 }
 
 interface JobRow {
@@ -110,7 +117,15 @@ async function processJob(
           photoUrl: firstPhotoUrl(jewelry.photos),
         }
       : jewelry?.type === "RING"
-        ? { type: "RING", gauge: jewelry.gauge, size: jewelry.size }
+        ? {
+            type: "RING",
+            gauge: jewelry.gauge,
+            size: jewelry.size,
+            // Enables the AI roll/mount tiebreaker for asymmetric hoops on the
+            // CRON path too (was STUD-only here — the manual poll action always
+            // passed it, so cron-finalized rings silently skipped the AI step).
+            photoUrl: firstPhotoUrl(jewelry.photos),
+          }
         : undefined;
 
   // SUCCEEDED — re-host (+optimize +place) the GLB on our blob storage.
@@ -226,7 +241,13 @@ async function markJobFailed(job: JobRow, errorMessage: string): Promise<void> {
 async function rehostGlb(
   externalUrl: string,
   jewelryId: string,
-  normalize?: { type?: string | null; gauge?: number | null; size?: number | null },
+  normalize?: {
+    type?: string | null;
+    gauge?: number | null;
+    size?: number | null;
+    /** Product photo for the Gemini roll/mount tiebreaker (STUD + asymmetric RING). */
+    photoUrl?: string | null;
+  },
 ): Promise<{
   url: string;
   before: number;
@@ -242,7 +263,9 @@ async function rehostGlb(
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("BLOB_READ_WRITE_TOKEN not configured");
   }
-  const res = await fetch(externalUrl);
+  // Guarded fetch: refuse internal/loopback/link-local targets (SSRF defense in
+  // depth — externalUrl comes from a provider poll response).
+  const res = await safeAssetFetch(externalUrl);
   if (!res.ok) {
     throw new Error(`Failed to download GLB: HTTP ${res.status}`);
   }
@@ -251,8 +274,21 @@ async function rehostGlb(
   // Optimize on the way in (meshopt + WebP textures) so the catalog never
   // serves the raw multi-MB provider output, and auto-place STUD pieces.
   // Best-effort — falls back to the original bytes on failure. See glb-pipeline.ts.
-  const { optimizeGlb } = await import("@/lib/admin/glb-pipeline");
+  const { optimizeGlb, measureGlbSizeM } = await import("@/lib/admin/glb-pipeline");
   const opt = await optimizeGlb(buffer, normalize ? { normalize } : {});
+
+  // Unified scale: measure the FINAL (oriented, compressed) GLB's real bbox and
+  // derive glbScale via the shared formula — the SAME measurement + rule the
+  // manual upload + analyzer use, so a piece gets one scale regardless of path.
+  let placement = opt.placement;
+  if (placement?.applied && normalize && (normalize.gauge || normalize.size)) {
+    const { suggestScaleFromSizeM } = await import("@/lib/admin/glb-scale");
+    const sizeM = await measureGlbSizeM(opt.bytes);
+    const s = sizeM
+      ? suggestScaleFromSizeM(sizeM, normalize.gauge ?? null, normalize.size ?? null)
+      : null;
+    if (s) placement = { ...placement, suggestedScale: s.scale };
+  }
 
   const key = `jewelry/${jewelryId}/models/${Date.now()}-auto.glb`;
   const blob = await put(key, Buffer.from(opt.bytes), {
@@ -265,6 +301,6 @@ async function rehostGlb(
     before: opt.before,
     after: opt.after,
     optimized: opt.optimized,
-    placement: opt.placement,
+    placement,
   };
 }

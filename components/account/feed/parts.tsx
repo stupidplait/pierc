@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { ru } from "@/lib/i18n/ru";
 import {
   cancelMyAppointment,
@@ -114,7 +114,7 @@ export function AppointmentAccordion({
       </div>
       <AnimatePresence initial={false}>
         {open ? (
-          <motion.div
+          <m.div
             id={contentId}
             key="pieces"
             initial={{ height: 0, opacity: 0 }}
@@ -149,7 +149,7 @@ export function AppointmentAccordion({
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </m.div>
         ) : null}
       </AnimatePresence>
     </div>

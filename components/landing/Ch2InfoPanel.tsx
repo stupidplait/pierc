@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { m, useScroll, useTransform } from "framer-motion";
 import type { RefObject } from "react";
 
 /**
@@ -52,7 +52,7 @@ export function Ch2InfoPanel({
                        flex items-center justify-start
                        px-[clamp(24px,4vw,64px)] z-[3]"
         >
-            <motion.div
+            <m.div
                 style={{ opacity, x }}
                 className="max-w-[clamp(260px,28vw,380px)] flex flex-col gap-3 text-[#1a1a1a]"
             >
@@ -72,7 +72,7 @@ export function Ch2InfoPanel({
                 <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[#1a1a1a]/45 mt-1">
                     18G&nbsp;·&nbsp;1.0&nbsp;мм
                 </span>
-            </motion.div>
+            </m.div>
         </div>
     );
 }

@@ -22,11 +22,11 @@ import {
   ENTRANCE_SHOW,
   ENTRANCE_STAGGER,
   REVEAL_EASE,
-} from "@/components/services/entrance/config";
+} from "@/components/motion/entrance";
 import { CARD, GHOST } from "@/components/admin/form/styles";
 import { NumberInput } from "@/components/admin/form/NumberInput";
 import { BackButton } from "@/components/admin/BackButton";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { WordReveal } from "@/components/motion/WordReveal";
 import {
   ReadinessChecklist,
   ReadinessRing,
@@ -537,19 +537,7 @@ export function JewelryForm({
   ];
   const readinessDone = readinessItems.filter((i) => i.done).length;
   const readinessTotal = readinessItems.length;
-  const readinessPct = Math.round((readinessDone / readinessTotal) * 100);
   const tone = readinessTone(readinessItems);
-  const someRequiredMissing = readinessItems.some(
-    (i) => i.kind === "required" && !i.done,
-  );
-  const someRecommendedMissing = readinessItems.some(
-    (i) => i.kind === "recommended" && !i.done,
-  );
-  const nudge = someRequiredMissing
-    ? cl.nudgeRequired
-    : someRecommendedMissing
-      ? cl.nudgeRecommended
-      : cl.allDone;
 
   const checklistLabels = {
     groupRequired: cl.groupRequired,
@@ -562,11 +550,6 @@ export function JewelryForm({
     warn: "text-warn",
     accent: "text-accent",
     success: "text-success",
-  } as const;
-  const TONE_BAR = {
-    warn: "bg-warn",
-    accent: "bg-accent",
-    success: "bg-success",
   } as const;
 
   // ── Field nodes ──────────────────────────────────────────────────────────

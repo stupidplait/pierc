@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/notifications/telegram";
 import { verifyTelegramLinkToken } from "@/lib/telegram/link-token";
+import { reportError } from "@/lib/observability/logger";
 
 // Telegram Bot webhook. Handles the account-linking deep-link:
 //   user opens t.me/<bot>?start=<token> → Telegram sends us /start <token> →
@@ -25,7 +26,14 @@ interface TgUpdate {
 
 export async function POST(request: Request) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (expected) {
+  if (!expected) {
+    // Fail closed in production: an unconfigured secret would let anyone POST
+    // /start <token>. Link tokens are independently signed + short-lived, but
+    // we still refuse here. Dev is left open for local webhook testing.
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ ok: false }, { status: 401 });
+    }
+  } else {
     const got = request.headers.get("x-telegram-bot-api-secret-token");
     if (got !== expected) {
       return NextResponse.json({ ok: false }, { status: 401 });
@@ -64,7 +72,7 @@ export async function POST(request: Request) {
             text: "✅ Telegram подключён. Будем присылать подтверждения и статусы ваших записей.",
           });
         } catch (err) {
-          console.error("[tg webhook] link failed:", err);
+          reportError(err, { scope: "telegram.webhook.link", userId });
         }
       } else {
         await sendTelegram({

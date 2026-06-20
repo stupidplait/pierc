@@ -80,7 +80,6 @@ export const ru = {
       },
     },
     about: {
-      eyebrow: "Студия пирсинга",
       title: "О студии",
       lead: "Студия пирсинга, где украшения подбираются под вас, а каждое решение остаётся за вами.",
       stub: "Подробный текст о мастере и студии скоро появится здесь.",
@@ -124,6 +123,8 @@ export const ru = {
       ],
 
       reviewsEyebrow: "Отзывы",
+      reviewsHeading: "Что говорят клиенты",
+      reviewsLead: "Реальные впечатления тех, кто уже был у нас.",
 
       contactsEyebrow: "Контакты",
       contactsHeading: "Контакты",
@@ -133,11 +134,6 @@ export const ru = {
       address: "Адрес",
       hours: "Часы работы",
       directions: "Проложить маршрут",
-
-      // Закрывающий призыв к действию.
-      ctaHeading: "Готовы записаться?",
-      ctaLead:
-        "Выберите удобное время — подтвердим запись и ответим на вопросы до визита.",
       ctaLabel: "Записаться",
     },
     services: {
@@ -167,6 +163,11 @@ export const ru = {
       title: "Галерея",
       lead: "Работы студии.",
       stub: "Появится здесь, когда мы загрузим первую партию фотографий.",
+      // Coverflow a11y labels (BalenciagaPortfolio).
+      sectionLabel: "Галерея работ студии",
+      listLabel: "Работы студии",
+      carousel: "карусель",
+      workFallback: "Работа студии {n} из {m}",
     },
     book: {
       title: "Запись",
@@ -192,7 +193,6 @@ export const ru = {
         heading: "Какая услуга?",
         lead: "Выберите пирсинг, на который записываетесь.",
         empty: "Услуги пока не добавлены — можно продолжить без выбора.",
-        durationMin: "{n} мин",
       },
       jewelryStep: {
         heading: "Какие украшения возьмём?",
@@ -383,6 +383,11 @@ export const ru = {
       generic: "Не удалось войти. Попробуйте ещё раз.",
       noAccount: "Ещё нет аккаунта?",
       signUpLink: "Создать",
+      errors: {
+        emailRequired: "Укажите email.",
+        emailInvalid: "Укажите корректный email.",
+        passwordRequired: "Введите пароль.",
+      },
     },
     signUp: {
       title: "Регистрация",
@@ -405,15 +410,29 @@ export const ru = {
         nameRequired: "Укажите имя.",
         emailInvalid: "Укажите корректный email.",
         passwordTooShort: "Пароль должен быть от 8 символов.",
+        emailRequired: "Укажите email.",
+        passwordRequired: "Введите пароль.",
         emailTaken: "Этот email уже зарегистрирован. Попробуйте войти.",
         generic: "Не удалось создать аккаунт. Попробуйте ещё раз.",
       },
       guestUpgradeHint:
         "Если вы раньше бронировали как гость с этим email, история сохранится за вашим новым аккаунтом.",
     },
+    authForm: {
+      showPassword: "Показать пароль",
+      hidePassword: "Скрыть пароль",
+      capsLock: "Включён Caps Lock",
+      strengthLabel: "Надёжность пароля",
+      strengthWeak: "Слабый",
+      strengthMedium: "Средний",
+      strengthStrong: "Надёжный",
+    },
   },
 
   common: {
+    skipToContent: "Перейти к содержанию",
+    pageSections: "Разделы страницы",
+    durationMin: "{n} мин",
     loading: "Загрузка…",
     error: "Что-то пошло не так",
     skip: "Пропустить",
@@ -1163,6 +1182,9 @@ export const catalogStrings = {
     pcs: "шт.",
   },
   showroom: {
+    stageLabel: "3D-примерочная: выберите зону и украшения на панели рядом",
+    collapse: "Свернуть",
+    expand: "Развернуть",
     anchorPickerLabel: "Где будем примерять?",
     anchorAll: "Показать все",
     trayHeading: "Подобрано",
@@ -1376,10 +1398,6 @@ export const seoStrings = {
 // Public-facing strings for customer reviews / testimonials.
 // See docs/16-reviews.md.
 export const reviewsStrings = {
-  about: {
-    heading: "Что говорят клиенты",
-    lead: "Реальные впечатления тех, кто уже был у нас.",
-  },
   jewelry: {
     heading: "Отзывы об этом украшении",
     empty: "Отзывов об этом украшении пока нет.",

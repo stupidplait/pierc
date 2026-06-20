@@ -1,9 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
-import { Box3, Vector3 } from "three";
+import { Box3, DoubleSide, Vector3 } from "three";
 import type { Group, Mesh } from "three";
 
 /** Geometry summary read off the loaded GLB — surfaced in the admin inspector
@@ -25,6 +25,9 @@ function Piece({
   onStats,
   quaternion,
   showAttach = false,
+  pickMode = false,
+  onPick,
+  pickedPoint = null,
 }: {
   url: string;
   onStats?: (stats: GlbStats) => void;
@@ -32,6 +35,11 @@ function Piece({
   quaternion?: [number, number, number, number];
   /** Render a marker at the `attach:primary` empty (where it meets the piercing). */
   showAttach?: boolean;
+  /** Click the model to set a new attach point (returns the local-space hit). */
+  pickMode?: boolean;
+  onPick?: (point: [number, number, number]) => void;
+  /** The currently-picked local point, drawn as a marker (pre-save). */
+  pickedPoint?: [number, number, number] | null;
 }) {
   const gltf = useGLTF(url) as unknown as { scene: Group };
   const cloned = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -66,8 +74,14 @@ function Piece({
     onStats?.(stats);
   }, [stats, onStats]);
 
-  // Locate attach:primary (the skin-contact point) and size a marker to the model.
-  const attach = useMemo(() => {
+  // Marker radius, sized to the model so it reads at any scale.
+  const markerR = useMemo(() => {
+    const diag = new Box3().setFromObject(cloned).getSize(new Vector3()).length();
+    return Math.max(diag * 0.05, 1e-4);
+  }, [cloned]);
+
+  // Locate the current attach:primary (the skin-contact point).
+  const attachPos = useMemo(() => {
     if (!showAttach) return null;
     let pos: Vector3 | null = null;
     cloned.traverse((o) => {
@@ -79,23 +93,71 @@ function Piece({
         pos = o.position.clone();
       }
     });
-    if (!pos) return null;
-    const diag = new Box3().setFromObject(cloned).getSize(new Vector3()).length();
-    return { pos: pos as Vector3, r: Math.max(diag * 0.05, 1e-4) };
+    return pos as Vector3 | null;
   }, [cloned, showAttach]);
+
+  // Click → convert the world-space hit into the model's LOCAL frame (the frame
+  // attach nodes + readAttachLocals use), so the picked point bakes correctly.
+  const handlePick = (e: ThreeEvent<MouseEvent>) => {
+    if (!pickMode || !onPick) return;
+    e.stopPropagation();
+    const local = cloned.worldToLocal(e.point.clone());
+    onPick([local.x, local.y, local.z]);
+  };
 
   return (
     <Center>
       <group quaternion={quaternion ?? [0, 0, 0, 1]}>
-        <primitive object={cloned} />
-        {attach ? (
+        <primitive
+          object={cloned}
+          {...(pickMode ? { onClick: handlePick } : {})}
+        />
+        {attachPos ? (
           // renderOrder + depthTest:false draws the marker ON TOP — the attach
           // point sits at the neck/center, often buried inside the geometry, so
           // a depth-tested marker would be invisible.
-          <mesh position={attach.pos} renderOrder={999}>
-            <sphereGeometry args={[attach.r, 16, 16]} />
+          <mesh position={attachPos} renderOrder={999}>
+            <sphereGeometry args={[markerR, 16, 16]} />
             <meshBasicMaterial
               color="#fe017e"
+              toneMapped={false}
+              depthTest={false}
+              depthWrite={false}
+              transparent
+            />
+          </mesh>
+        ) : null}
+        {attachPos ? (
+          // Seating cue at the attach point: a faint "skin" disc (the plane that
+          // meets the body, perpendicular to the local +Z = outward) and a green
+          // outward tick. The decorative side should sit on the +Z side of the
+          // disc — if the gem pokes through to the back, it's facing INTO the body.
+          // Depth-tested so it reads as part of the model, not an overlay.
+          <group position={attachPos}>
+            <mesh>
+              <circleGeometry args={[markerR * 3, 40]} />
+              <meshBasicMaterial
+                color="#9aa0a6"
+                transparent
+                opacity={0.16}
+                side={DoubleSide}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh position={[0, 0, markerR * 2.5]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[markerR * 0.12, markerR * 0.12, markerR * 5, 8]} />
+              <meshBasicMaterial color="#22c55e" toneMapped={false} />
+            </mesh>
+          </group>
+        ) : null}
+        {pickedPoint ? (
+          // The freshly-picked point (pre-save), distinct cyan so it reads apart
+          // from the current pink attach marker.
+          <mesh position={pickedPoint} renderOrder={1000}>
+            <sphereGeometry args={[markerR * 1.1, 16, 16]} />
+            <meshBasicMaterial
+              color="#22d3ee"
               toneMapped={false}
               depthTest={false}
               depthWrite={false}
@@ -127,6 +189,9 @@ export function GlbPreviewScene({
   quaternion,
   showAttach = false,
   lockCamera = false,
+  pickMode = false,
+  onPick,
+  pickedPoint = null,
 }: {
   url: string;
   onStats?: (stats: GlbStats) => void;
@@ -135,6 +200,11 @@ export function GlbPreviewScene({
   /** When editing orientation, lock the camera face-on so the only rotation is
    *  the model's (driven by drag) — no orbit-camera-vs-model-rotate confusion. */
   lockCamera?: boolean;
+  /** Click the model to set a new attach point (orbit stays on so the admin can
+   *  rotate to the mount first). */
+  pickMode?: boolean;
+  onPick?: (point: [number, number, number]) => void;
+  pickedPoint?: [number, number, number] | null;
 }) {
   return (
     <Canvas
@@ -161,6 +231,9 @@ export function GlbPreviewScene({
             onStats={onStats}
             quaternion={quaternion}
             showAttach={showAttach}
+            pickMode={pickMode}
+            onPick={onPick}
+            pickedPoint={pickedPoint}
           />
         </Bounds>
       </Suspense>

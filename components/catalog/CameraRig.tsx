@@ -15,6 +15,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { MathUtils, Spherical, Vector3 } from "three";
 import type { AnchorWire, JewelryWire } from "@/lib/catalog/types";
+import { clamp, computeFrame } from "@/lib/catalog/compute-frame";
+import { orbitState } from "@/lib/catalog/orbit-state";
 
 interface CameraRigProps {
   anchor: AnchorWire | null;
@@ -37,13 +39,6 @@ const DEFAULT_POS = new Vector3(0, 1.25, 1.6);
 const DEFAULT_TARGET = new Vector3(0, 1.05, 0);
 const DEFAULT_FOV = 35;
 
-// When framing a multi-anchor piece, the camera distance is computed from
-// the bbox span × this multiplier. Roughly: distance such that the bbox fits
-// within the camera frustum at the configured FOV with comfortable margin.
-const MULTI_FRAME_DISTANCE_MULT = 2.4;
-const MULTI_FRAME_MIN_DISTANCE = 0.1;
-const MULTI_FRAME_MAX_DISTANCE = 0.6;
-
 // Constrained user orbit: drag rotates the camera around the framed target,
 // clamped to ±ORBIT_LIMIT (azimuth + polar) from the current preset so the
 // piece never leaves frame. Resets to the preset when the focused anchor changes.
@@ -58,6 +53,10 @@ const MOVE_DAMP = 2.6;
 // Reusable scratch so the per-frame arc math doesn't allocate.
 const _arcSph = new Spherical();
 const _arcOffset = new Vector3();
+// Reusable scratch for per-frame camera placement (drag-orbit + tween) so the
+// hot path doesn't allocate a Vector3 + Spherical every frame.
+const _placeOffset = new Vector3();
+const _placeSph = new Spherical();
 
 /** Place the camera on a sphere around `look`, offset by the user's clamped
  *  azimuth/polar orbit. Pure — no closure over component state. */
@@ -68,8 +67,8 @@ function placeCamera(
   az: number,
   polar: number,
 ) {
-  const offset = basePos.clone().sub(look);
-  const sph = new Spherical().setFromVector3(offset);
+  const offset = _placeOffset.copy(basePos).sub(look);
+  const sph = _placeSph.setFromVector3(offset);
   sph.theta += az;
   sph.phi = clamp(sph.phi + polar, 0.12, Math.PI - 0.12);
   sph.makeSafe();
@@ -156,6 +155,7 @@ export function CameraRig({
     let moved = 0;
     const onDown = (e: PointerEvent) => {
       draggingRef.current = true;
+      orbitState.dragging = true; // gate dot hover so the orbit stays smooth
       lastX = e.clientX;
       lastY = e.clientY;
       moved = 0;
@@ -184,6 +184,8 @@ export function CameraRig({
     };
     const onUp = () => {
       draggingRef.current = false;
+      orbitState.dragging = false;
+      invalidate(); // kick the ease-out so the camera glides to a stop on release
     };
     el.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
@@ -255,7 +257,14 @@ export function CameraRig({
   }, [frame, camera, invalidate, anchor]);
 
   useFrame((_, delta) => {
-    if (!isMovingRef.current && !draggingRef.current) return;
+    // Keep the demand loop alive while the user orbit is still easing toward its
+    // target — otherwise releasing the drag (draggingRef → false, isMovingRef
+    // already false) early-returns and the camera FREEZES mid-ease instead of
+    // gliding to a smooth stop.
+    const orbitEasing =
+      Math.abs(azRef.current - targetAzRef.current) > 1e-4 ||
+      Math.abs(polarRef.current - targetPolarRef.current) > 1e-4;
+    if (!isMovingRef.current && !draggingRef.current && !orbitEasing) return;
     const dt = Math.min(delta, 0.05);
 
     // Advance the arc tween (cinematic ease-out), then sweep position around
@@ -328,91 +337,4 @@ export function CameraRig({
   });
 
   return null;
-}
-
-interface Frame {
-  position: Vector3;
-  target: Vector3;
-  fov: number;
-}
-
-/**
- * Computes the framing for the camera based on selected anchor + equipped
- * jewelry. Returns null when nothing is selected (caller falls back to the
- * default body-shot).
- *
- * Single-anchor: returns the anchor's first preset verbatim.
- * Multi-anchor: target = centroid of all endpoints, position = preset's
- *   anchor-relative offset rebased on the centroid + scaled distance to fit
- *   the bbox.
- */
-function computeFrame(
-  anchor: AnchorWire | null,
-  equippedAnchors: AnchorWire[] | null,
-  equippedJewelry: JewelryWire | null,
-): Frame | null {
-  if (!anchor || !anchor.cameraPresets[0]) return null;
-  const preset = anchor.cameraPresets[0];
-  const presetPos = new Vector3(
-    preset.position.x,
-    preset.position.y,
-    preset.position.z,
-  );
-  const presetTarget = new Vector3(
-    preset.target.x,
-    preset.target.y,
-    preset.target.z,
-  );
-  const presetFov = preset.fov;
-
-  // Single-anchor path: use the preset verbatim.
-  const isMulti =
-    equippedJewelry !== null &&
-    equippedAnchors !== null &&
-    equippedAnchors.length >= 2 &&
-    equippedJewelry.piercingCount >= 2;
-  if (!isMulti) {
-    return { position: presetPos, target: presetTarget, fov: presetFov };
-  }
-
-  // Multi-anchor path: centre on the centroid, expand distance to fit bbox.
-  const centroid = new Vector3();
-  for (const a of equippedAnchors!) {
-    centroid.add(new Vector3(a.position.x, a.position.y, a.position.z));
-  }
-  centroid.divideScalar(equippedAnchors!.length);
-
-  // Bbox diagonal across all endpoints — what we need to fit on screen.
-  let maxSpan = 0;
-  for (let i = 0; i < equippedAnchors!.length; i += 1) {
-    for (let j = i + 1; j < equippedAnchors!.length; j += 1) {
-      const a = equippedAnchors![i].position;
-      const b = equippedAnchors![j].position;
-      const d = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-      if (d > maxSpan) maxSpan = d;
-    }
-  }
-
-  // The preset's offset from its anchor — direction the camera should sit
-  // relative to the centroid. We preserve the angle, just rescale distance.
-  const presetOffset = presetPos.clone().sub(presetTarget);
-  const presetDist = presetOffset.length() || 0.3;
-
-  const desiredDist = clamp(
-    maxSpan * MULTI_FRAME_DISTANCE_MULT,
-    MULTI_FRAME_MIN_DISTANCE,
-    MULTI_FRAME_MAX_DISTANCE,
-  );
-  const newDist = Math.max(presetDist, desiredDist);
-  const newOffset = presetOffset.multiplyScalar(newDist / presetDist);
-
-  return {
-    position: centroid.clone().add(newOffset),
-    target: centroid,
-    fov: presetFov,
-  };
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v));
 }

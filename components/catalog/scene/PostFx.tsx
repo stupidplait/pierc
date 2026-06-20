@@ -12,7 +12,7 @@ import { useSceneColors } from "@/lib/theme/use-scene-colors";
  *   - landing  → mirrors the new-design scene's Bloom params for a 1:1 look
  *   - subtle   → no postprocessing at all (clean, restrained)
  *
- * Rendered as the last child of CatalogStage's <Canvas>. Reduced-motion users
+ * Rendered as the last child of ShowroomStage's <Canvas>. Reduced-motion users
  * keep bloom (it's static) — only the env's ambient motion is what we freeze.
  *
  * Theme tuning (bloom threshold/intensity, vignette darkness) is applied

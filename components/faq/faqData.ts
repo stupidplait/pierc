@@ -1,5 +1,5 @@
 // Pure, client-safe FAQ helpers. No Prisma / server-only imports here — the
-// scroll-spy client island (FaqInstrumentIndex) imports from this module, so it
+// scroll-spy client island (FaqContent) imports from this module, so it
 // must stay free of `next/server` and `@/lib/prisma`.
 //
 // `FAQItem.category` (a nullable key like "prep") is the source of truth for
@@ -118,6 +118,11 @@ export const OTHER_CATEGORY: FaqCategory = {
   keywords: [],
 };
 
+// Includes OTHER_CATEGORY so a row with a stored "other" key still renders under
+// "Другое". Note the deliberate asymmetry with isFaqCategoryKey() below, which
+// EXCLUDES "other": the admin picker never offers it and the save path stores
+// null for it, so a persisted "other" key can only arise from a manual DB edit —
+// and when it does, it groups harmlessly here.
 const CATEGORY_BY_KEY = new Map<string, FaqCategory>(
   [...FAQ_CATEGORIES, OTHER_CATEGORY].map((c) => [c.key, c]),
 );

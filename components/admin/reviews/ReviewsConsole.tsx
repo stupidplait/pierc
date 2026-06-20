@@ -10,10 +10,10 @@ import {
   type ReviewItem,
   type ReviewStatus,
 } from "@/lib/admin/reviews-view";
-import { REVEAL_EASE } from "@/components/services/entrance/config";
+import { REVEAL_EASE } from "@/components/motion/entrance";
 import { blurReveal } from "@/components/motion/Stagger";
 import { AnimateNumber } from "@/components/ui/AnimateNumber";
-import { WordReveal } from "@/components/about/client/WordReveal";
+import { WordReveal } from "@/components/motion/WordReveal";
 import { VariantSwitcher } from "@/components/admin/content/VariantSwitcher";
 import { ReviewsWall, type CardVariant } from "./ReviewsWall";
 import { ru } from "@/lib/i18n/ru";

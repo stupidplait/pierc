@@ -67,8 +67,14 @@ model AnchorPoint {
   side            AnchorSide             @default(CENTER)
   // { x, y, z } in body.glb local space (Y-up)
   position        Json
-  // { x, y, z } default jewelry orientation (Euler XYZ rad)
+  // { x, y, z } default jewelry orientation (Euler XYZ rad). Aims a piece's
+  // canonical +Z at the skin's outward normal — correct for posts/studs.
   rotation        Json
+  // { x, y, z } RING-family orientation override (Euler XYZ rad). A hoop must
+  // hang + face the viewer, which the post `rotation` gets wrong on laterally-
+  // facing anchors (ear/hip/ankle). Null → renderer derives a hoop frame from
+  // `rotation` (deriveRingRotation in lib/catalog/place-jewelry.ts).
+  ringRotation    Json?
   // [{ name, position, target, fov }, ...]
   cameraPresets   Json
   // Replaces the old implicit M2M to Jewelry. See JewelryAnchorBinding
@@ -206,6 +212,12 @@ model JewelryAnchorBinding {
   // rows have order=0; for multi-anchor types, order distinguishes
   // attach:primary (0), attach:secondary (1), etc.
   order     Int         @default(0)
+  // { x, y, z } per-(piece × anchor) local orientation nudge (Euler XYZ rad):
+  // z = roll about the hole-axis, y = yaw, x = pitch. Admin escape hatch from
+  // the review screen for asymmetric hoops / artistic tuning. Null → none.
+  // Lives on the binding (not the GLB) so one piece can sit right on many
+  // anchors. See place-jewelry.ts orientationForPiece().
+  rotationOffset Json?
   createdAt DateTime    @default(now())
 
   @@unique([jewelryId, anchorId, order])
@@ -264,7 +276,11 @@ model AvailabilitySlot {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  @@index([startsAt])
+  // Composite covers both the getOpenSlots startsAt filter (leading-column
+  // prefix) and the createSlot/bulkCreateSlots `startsAt < end AND endsAt >
+  // start` range scan. A DB-level overlap EXCLUDE constraint is added out of
+  // band (see prisma/sql/001_slot_overlap_exclusion.sql + `npm run db:constraints`).
+  @@index([startsAt, endsAt])
   @@index([isOpen])
 }
 
@@ -363,6 +379,8 @@ model Service {
   appointments Appointment[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([published, order])
 }
 
 model FAQItem {
@@ -386,6 +404,8 @@ model GalleryPhoto {
   order     Int      @default(0)
   published Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  @@index([published, order])
 }
 
 // ───── Reviews & testimonials ─────
@@ -425,9 +445,9 @@ model Review {
   updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
 
+  @@unique([appointmentId])
   @@index([status])
   @@index([featured])
-  @@index([appointmentId])
 }
 
 // ───── Settings (singleton) ─────
@@ -441,4 +461,19 @@ model Settings {
   telegramUrl      String?
   telegramChatId   String?
   workingHoursHint String?
+}
+
+// ───── Rate limiting ─────
+
+// Fixed-window rate-limit counters. One row per (key, window-start); the id is
+// "<key>:<windowStartMs>". lib/rate-limit.ts upserts and atomically increments
+// `count`; expired rows are pruned by the expire-reservations cron. Backs the
+// throttles on public login / booking / review-submit.
+model RateLimit {
+  id        String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

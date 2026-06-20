@@ -42,7 +42,11 @@ export function buildLocalBusinessJsonLd(
 
   const json: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+    // HealthAndBeautyBusiness is a LocalBusiness subtype that maps a piercing
+    // studio more precisely; @id gives the entity a stable node identity other
+    // pages / structured data can reference.
+    "@type": "HealthAndBeautyBusiness",
+    "@id": `${base}/#business`,
     name: studioName,
     url: `${base}/`,
     image: `${base}/og/home.jpg`,
@@ -54,6 +58,7 @@ export function buildLocalBusinessJsonLd(
     json.address = {
       "@type": "PostalAddress",
       streetAddress: s.contactAddress,
+      addressCountry: "RU",
     };
   }
   if (s?.workingHoursHint) {
@@ -67,6 +72,87 @@ export function buildLocalBusinessJsonLd(
   if (sameAs.length > 0) json.sameAs = sameAs;
 
   return json;
+}
+
+/**
+ * Build a `FAQPage` JSON-LD payload from the published Q&A rows so search
+ * engines can surface the Q&A. `inLanguage: "ru"` matches the all-Russian
+ * content. Serialize for embedding with {@link jsonLdScript}.
+ */
+export function buildFaqJsonLd(
+  items: ReadonlyArray<{ question: string; answer: string }>,
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    inLanguage: "ru",
+    mainEntity: items.map((q) => ({
+      "@type": "Question",
+      name: q.question,
+      acceptedAnswer: { "@type": "Answer", text: q.answer },
+    })),
+  };
+}
+
+/**
+ * Build an `OfferCatalog` JSON-LD payload from the published services so search
+ * engines can read the studio's priced offerings (consistency with the
+ * LocalBusiness + FAQPage schemas). Each entry is an Offer for a Service tied to
+ * the business via `provider` @id; `price` is the RAW decimal string, never the
+ * formatted "₽" display value. Returns null when there's nothing to publish.
+ * Serialize for embedding with {@link jsonLdScript}.
+ */
+export function buildServicesJsonLd(
+  services: ReadonlyArray<{
+    name: string;
+    description: string | null;
+    price: string;
+  }>,
+  baseUrl: string,
+): Record<string, unknown> | null {
+  const base = baseUrl.replace(/\/$/, "");
+  if (!base || services.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    name: ru.studio.name,
+    inLanguage: "ru",
+    itemListElement: services.map((s) => ({
+      "@type": "Offer",
+      priceCurrency: "RUB",
+      price: s.price,
+      itemOffered: {
+        "@type": "Service",
+        name: s.name,
+        ...(s.description ? { description: s.description } : {}),
+        provider: { "@id": `${base}/#business` },
+      },
+    })),
+  };
+}
+
+/**
+ * Build an `ImageGallery` JSON-LD payload from the published gallery photos so
+ * image search can surface the studio's work. Each photo is an ImageObject with
+ * its contentUrl + (when present) the caption as name/caption. Returns null when
+ * there's nothing to publish. Serialize with {@link jsonLdScript}.
+ */
+export function buildGalleryJsonLd(
+  photos: ReadonlyArray<{ url: string; caption: string | null }>,
+): Record<string, unknown> | null {
+  if (photos.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ImageGallery",
+    name: ru.studio.name,
+    inLanguage: "ru",
+    image: photos.map((p) => ({
+      "@type": "ImageObject",
+      contentUrl: p.url,
+      ...(p.caption ? { name: p.caption, caption: p.caption } : {}),
+    })),
+  };
 }
 
 /**

@@ -1,17 +1,8 @@
 import { ServiceBookButton } from "@/components/booking/ServiceBookButton";
 import { Badge } from "@/components/shadcn/ui/badge";
 import { Card } from "@/components/shadcn/ui/card";
+import { formatDuration, formatPrice } from "@/lib/jewelry/format";
 import type { BookingUser, WizardService } from "@/lib/booking/wizard-types";
-
-const priceFormatter = new Intl.NumberFormat("ru-RU", {
-  style: "currency",
-  currency: "RUB",
-  maximumFractionDigits: 0,
-});
-
-export function formatRub(price: string | number): string {
-  return priceFormatter.format(Number(price));
-}
 
 interface ServiceCardProps {
   service: WizardService;
@@ -20,11 +11,10 @@ interface ServiceCardProps {
   className?: string;
 }
 
-// The service card the studio already likes, lifted verbatim out of the
-// services page so every redesign variant renders the identical surface:
-// rounded card + layered shadow, name + mono price on one row, the duration as
-// a chip, a two-line clamped (and height-reserved) blurb, and a subtle hover
-// lift. Shared so the cards stay pixel-identical across all five layouts.
+// The grid cell for /services: rounded card + layered shadow, name + mono price
+// on one row, the duration as a chip, a two-line clamped (height-reserved)
+// blurb, and a subtle hover lift. Rendered by ServiceGrid; the flagship service
+// uses the wider FeaturedServiceCard.
 export function ServiceCard({
   service,
   user,
@@ -36,11 +26,14 @@ export function ServiceCard({
       className={`group flex h-full flex-col p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/40 sm:p-6 ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-xl font-medium text-ink">
+        {/* h2 (not h3): each service is a top-level section under the page h1 —
+            the flagship FeaturedServiceCard is also an h2, so grid cards are its
+            peers, not orphaned h3s nested under it (WCAG 1.3.1). */}
+        <h2 className="font-display text-xl font-medium text-ink">
           {service.name}
-        </h3>
+        </h2>
         <span className="shrink-0 font-mono text-base font-medium tabular-nums text-ink">
-          {formatRub(service.price)}
+          {formatPrice(service.price)}
         </span>
       </div>
       {service.description ? (
@@ -57,7 +50,7 @@ export function ServiceCard({
           variant="quiet"
           className="rounded-full text-[11px] font-normal uppercase tracking-widest"
         >
-          {service.durationMin} мин
+          {formatDuration(service.durationMin)}
         </Badge>
         <ServiceBookButton service={service} user={user} label={bookLabel} />
       </div>

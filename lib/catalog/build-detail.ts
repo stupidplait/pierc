@@ -16,7 +16,7 @@ export interface SpecSource {
 /**
  * Build the spec ledger rows for a piece — only rows that have a value, plus
  * an always-present stock row. Single source of truth for both the standalone
- * detail page ([id]/page.tsx) and the in-catalog InspectOverlay.
+ * detail page ([id]/page.tsx) and the in-catalog DetailModal.
  */
 export function buildSpecs(src: SpecSource): DetailSpec[] {
   const attrs = catalogStrings.attributes;

@@ -79,7 +79,7 @@ export function JewelrySelect({
                   type="button"
                   onClick={() => onToggle(j.id)}
                   aria-label={`${t.jewelryRemove}: ${j.name}`}
-                  className="flex size-4 items-center justify-center rounded-full text-mute transition-colors hover:text-ink"
+                  className="-m-2 flex size-8 items-center justify-center rounded-full p-2 text-mute transition-colors hover:text-ink"
                 >
                   <svg
                     width="10"

@@ -1,13 +1,13 @@
 import type { ru } from "@/lib/i18n/ru";
 import type { TestimonialCardData } from "@/components/public/TestimonialCard";
 
-/** Exact (readonly) shape of the About page's RU strings, incl. variant copy. */
+/** Exact (readonly) shape of the About page's RU strings (`ru.pages.about`). */
 export type AboutStrings = (typeof ru)["pages"]["about"];
 
 /**
- * Everything the About page fetches/derives once in the server component,
- * handed to whichever design variant is selected via `?v=`. Variants are
- * presentational — they never fetch or touch i18n directly, they read `t`.
+ * Everything the About page derives once in the server component and hands to
+ * the AboutContent orchestrator. Presentational leaves read this typed contract
+ * (mostly `t`) and never fetch or touch i18n directly.
  */
 export interface AboutData {
   /** Studio-story paragraphs, split on blank lines (may be empty). */
@@ -17,9 +17,8 @@ export interface AboutData {
   address: string | null;
   hours: string | null;
   testimonials: TestimonialCardData[];
-  /** `ru.pages.about` — all page copy. */
+  /** `ru.pages.about` — all page copy, incl. the reviews heading/lead. */
   t: AboutStrings;
-  /** Reviews-section heading/lead (live under a separate i18n namespace). */
-  reviewsHeading: string;
-  reviewsLead: string;
+  /** Nav label for the secondary hero CTA (`ru.nav.services`). */
+  servicesLabel: string;
 }

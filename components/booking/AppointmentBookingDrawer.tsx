@@ -8,8 +8,7 @@ import type {
   WizardService,
   WizardSlot,
 } from "@/lib/booking/wizard-types";
-import { ru } from "@/lib/i18n/ru";
-import { formatPrice } from "@/lib/jewelry/format";
+import { formatDuration, formatPrice } from "@/lib/jewelry/format";
 
 interface Extras {
   slots: WizardSlot[];
@@ -37,7 +36,7 @@ export function AppointmentBookingDrawer({
   extras,
   loading,
 }: AppointmentBookingDrawerProps) {
-  const subtitle = `${formatPrice(service.price)} · ${ru.pages.book.serviceStep.durationMin.replace("{n}", String(service.durationMin))}`;
+  const subtitle = `${formatPrice(service.price)} · ${formatDuration(service.durationMin)}`;
 
   return (
     <Drawer open={open} onClose={onClose} title={service.name} subtitle={subtitle}>

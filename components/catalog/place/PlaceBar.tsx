@@ -10,7 +10,7 @@ import {
 import { catalogStrings } from "@/lib/i18n/ru";
 import { useLenisScroll } from "@/lib/catalog/use-lenis-scroll";
 import { cn } from "@/lib/utils";
-import { ZoneList, type PlaceSelectorProps } from "./ZoneList";
+import { PlaceList, type PlaceSelectorProps } from "./PlaceList";
 
 /**
  * PlaceBar — a slim floating zone pill, bottom-center. Shows the active zone
@@ -28,7 +28,7 @@ export function PlaceBar({
   const selected = anchors.find((a) => a.id === selectedAnchorId) ?? null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-20 hidden justify-center px-4 lg:flex">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -54,7 +54,7 @@ export function PlaceBar({
           data-lenis-prevent
           className="no-scrollbar max-h-[60vh] w-72 overflow-y-auto p-3"
         >
-          <ZoneList
+          <PlaceList
             anchors={anchors}
             selectedAnchorId={selectedAnchorId}
             onSelectAnchor={onSelectAnchor}

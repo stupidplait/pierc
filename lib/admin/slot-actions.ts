@@ -15,6 +15,15 @@ function revalidateForSlots() {
   revalidatePath("/book");
 }
 
+// The DB-level EXCLUDE constraint (prisma/sql/001_slot_overlap_exclusion.sql)
+// raises Postgres error 23P01 when a concurrent insert overlaps an existing
+// window after slipping past the read-then-write check below. Detect it so the
+// admin gets the friendly conflict message instead of an unhandled 500.
+function isOverlapViolation(err: unknown): boolean {
+  const s = String(err);
+  return s.includes("availabilityslot_no_overlap") || s.includes("23P01");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Create — single slot at a time. Bulk-create deferred to a later polish task.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +71,14 @@ export async function createSlot(
   if (conflict) {
     return { ok: false, error: "Окно пересекается с существующим" };
   }
-  await prisma.availabilitySlot.create({ data: { startsAt, endsAt, isOpen } });
+  try {
+    await prisma.availabilitySlot.create({ data: { startsAt, endsAt, isOpen } });
+  } catch (err) {
+    if (isOverlapViolation(err)) {
+      return { ok: false, error: "Окно пересекается с существующим" };
+    }
+    throw err;
+  }
   revalidateForSlots();
   return { ok: true, message: "Слот создан" };
 }
@@ -183,13 +199,24 @@ export async function bulkCreateSlots(
     return { ok: true, created: 0, skipped: candidates.length };
   }
 
-  await prisma.availabilitySlot.createMany({
-    data: fresh.map((c) => ({
-      startsAt: c.startsAt,
-      endsAt: c.endsAt,
-      isOpen,
-    })),
-  });
+  try {
+    await prisma.availabilitySlot.createMany({
+      data: fresh.map((c) => ({
+        startsAt: c.startsAt,
+        endsAt: c.endsAt,
+        isOpen,
+      })),
+    });
+  } catch (err) {
+    if (isOverlapViolation(err)) {
+      return {
+        ok: false,
+        error:
+          "Часть окон пересекается с существующими — обновите страницу и повторите.",
+      };
+    }
+    throw err;
+  }
 
   revalidateForSlots();
   return {

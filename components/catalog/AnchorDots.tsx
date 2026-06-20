@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { type Group, type Mesh } from "three";
+import { useReducedMotion } from "framer-motion";
+import { type Group } from "three";
 import * as THREE from "three";
 import type { AnchorWire } from "@/lib/catalog/types";
 import type { DotsVariant } from "@/lib/catalog/lab-state";
+import { orbitState } from "@/lib/catalog/orbit-state";
 
 interface AnchorDotsProps {
   anchors: AnchorWire[];
@@ -26,15 +28,20 @@ export function AnchorDots({
   onHover,
   variant = "ring",
 }: AnchorDotsProps) {
-  // Belt-and-suspenders: if the canvas unmounts while a dot is hovered
-  // (e.g. route change), reset the global cursor that pointerOver sets.
+  // Cursor is driven off the single hovered anchor id (NOT per-dot pointerover/
+  // pointerout mutations) so it can't get stuck as `pointer` when a hovered dot
+  // rotates behind the body — its pointerout never fires, but the hover is
+  // cleared in the dot's frame loop, which flows through here. Resets on unmount.
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.style.cursor = hoveredId ? "pointer" : "";
     return () => {
-      if (typeof document !== "undefined") {
-        document.body.style.cursor = "";
-      }
+      document.body.style.cursor = "";
     };
-  }, []);
+  }, [hoveredId]);
+
+  // Resolve reduced-motion once and thread it down (vs. a subscription per dot).
+  const reduced = useReducedMotion() ?? false;
 
   return (
     <group>
@@ -46,6 +53,7 @@ export function AnchorDots({
           selected={selectedId === a.id}
           hovered={hoveredId === a.id}
           dimmed={selectedId !== null && selectedId !== a.id}
+          reduced={reduced}
           onSelect={onSelect}
           onHover={onHover}
         />
@@ -54,8 +62,12 @@ export function AnchorDots({
   );
 }
 
-// Temp vector for world position calculations
+// Module-scoped scratch vectors reused across every dot's per-frame occlusion
+// math — avoids allocating fresh Vector3s each frame (steady GC churn on mobile
+// while the turntable keeps the demand loop rendering).
 const tempVec = new THREE.Vector3();
+const tempToCam = new THREE.Vector3();
+const tempStart = new THREE.Vector3();
 
 const ACCENT = "#fe017e";
 // Marker sizes in body-local metres (the body renders at real ~1.7 m scale).
@@ -77,6 +89,7 @@ interface DotProps {
   selected: boolean;
   hovered: boolean;
   dimmed: boolean;
+  reduced: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -87,11 +100,12 @@ function Dot({
   selected,
   hovered,
   dimmed,
+  reduced,
   onSelect,
   onHover,
 }: DotProps) {
   const groupRef = useRef<Group | null>(null);
-  const pulseRef = useRef<Mesh | null>(null);
+  const scaleRef = useRef(1);
   const { camera, scene, invalidate } = useThree();
 
   // Per-dot raycaster (BVH-accelerated) for occlusion against the body only.
@@ -125,9 +139,10 @@ function Dot({
     invalidate();
   }, [scene, invalidate]);
 
-  useFrame(({ clock }) => {
+  useFrame((_, delta) => {
     const g = groupRef.current;
     if (!g) return;
+    const dt = Math.min(delta, 0.05);
 
     // Billboard — always face the camera.
     g.quaternion.copy(camera.quaternion);
@@ -140,12 +155,14 @@ function Dot({
     const worldPos = tempVec.setFromMatrixPosition(g.matrixWorld);
     const body = bodyMeshesRef.current;
     if (body && body.length > 0) {
-      const toCam = camera.position.clone().sub(worldPos);
+      const toCam = tempToCam.copy(camera.position).sub(worldPos);
       const dist = toCam.length();
-      const dir = toCam.divideScalar(dist || 1);
+      const dir = toCam.divideScalar(dist || 1); // normalized in place
       // Start a touch toward the camera so the dot's own surface patch doesn't
       // register as a blocker (the source of the flicker on the visible side).
-      const start = worldPos.clone().addScaledVector(dir, OCCLUSION_START_OFFSET);
+      const start = tempStart
+        .copy(worldPos)
+        .addScaledVector(dir, OCCLUSION_START_OFFSET);
       const raycaster = raycasterRef.current;
       raycaster.set(start, dir);
       raycaster.far = dist - OCCLUSION_START_OFFSET;
@@ -157,44 +174,51 @@ function Dot({
       isOccludedRef.current = false;
     }
     g.visible = !isOccludedRef.current;
+    // If this dot rotated behind the body while hovered, drop the hover so the
+    // pointer cursor (driven off hoveredId) doesn't stick on a now-hidden dot.
+    if (isOccludedRef.current && hovered) onHover(null);
 
-    // Hover scale — invalidate on transitions so the demand loop catches it.
-    g.scale.setScalar(hovered && !isOccludedRef.current ? 1.35 : 1);
+    // Smooth hover scale (1 → 1.3), eased so the dot doesn't snap on hover. The
+    // selected dot never scales — only its border turns accent.
+    const targetScale =
+      hovered && !isOccludedRef.current && !selected ? 1.3 : 1;
+    if (reduced) {
+      scaleRef.current = targetScale;
+    } else {
+      scaleRef.current = THREE.MathUtils.damp(
+        scaleRef.current,
+        targetScale,
+        16,
+        dt,
+      );
+      if (Math.abs(scaleRef.current - targetScale) > 0.001) invalidate();
+    }
+    g.scale.setScalar(scaleRef.current);
     if (hovered !== lastHoveredRef.current) {
       lastHoveredRef.current = hovered;
       invalidate();
     }
-
-    // Pulse marker — expanding ring; keep the loop alive while it animates.
-    if (variant === "pulse" && pulseRef.current && !selected) {
-      const t = (clock.elapsedTime % 1.6) / 1.6;
-      const s = 1 + t * 1.8;
-      pulseRef.current.scale.setScalar(s);
-      const mat = pulseRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = (1 - t) * 0.55 * (dimmed ? 0.4 : 1);
-      invalidate();
-    }
   });
-
-  const opacity = dimmed ? 0.4 : 1;
-  const coreColor = hovered ? "#ffffff" : ACCENT;
 
   return (
     <group
       ref={groupRef}
       position={[anchor.position.x, anchor.position.y, anchor.position.z]}
       onPointerDown={(e) => {
+        if (isOccludedRef.current) return; // hidden behind the body → not clickable
         e.stopPropagation();
         onSelect(anchor.id);
       }}
       onPointerOver={(e) => {
+        // Skip hover while drag-orbiting (keeps the orbit smooth — no re-render
+        // churn), for occluded dots behind the body, or for the already-selected
+        // (active) dot — it shouldn't grow or show a pointer cursor.
+        if (orbitState.dragging || isOccludedRef.current || selected) return;
         e.stopPropagation();
         onHover(anchor.id);
-        document.body.style.cursor = "pointer";
       }}
       onPointerOut={() => {
         onHover(null);
-        document.body.style.cursor = "";
       }}
     >
       {/* Invisible-but-pickable hit target — large so the gap between core and
@@ -205,155 +229,132 @@ function Dot({
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Marker hidden when this anchor is selected — the equipped jewelry is
-          the indicator. The hit target above stays so it's still clickable. */}
-      {!selected ? (
-        <Marker
-          variant={variant}
-          opacity={opacity}
-          coreColor={coreColor}
-          hovered={hovered}
-          pulseRef={pulseRef}
-        />
-      ) : null}
+      {/* Core + border marker. When selected, the core fades out and the border
+          turns accent (the equipped jewelry, if any, sits inside). The hit
+          target above stays so the spot is always clickable. */}
+      <Marker
+        variant={variant}
+        selected={selected}
+        hovered={hovered}
+        dimmed={dimmed}
+        reduced={reduced}
+      />
     </group>
   );
 }
 
+// Marker palette — module-scoped THREE.Color targets so the per-frame tween
+// doesn't allocate. Core sits accent (white on hover); the border ring sits
+// neutral grey, turning accent when the anchor is hovered or selected.
+const _white = new THREE.Color("#ffffff");
+const _accent = new THREE.Color(ACCENT);
+const _grey = new THREE.Color("#9a9a9a");
+
+/** Ease colour `c` toward `target` in place; returns true while still moving. */
+function approachColor(c: THREE.Color, target: THREE.Color, a: number): boolean {
+  if (
+    Math.abs(c.r - target.r) < 0.004 &&
+    Math.abs(c.g - target.g) < 0.004 &&
+    Math.abs(c.b - target.b) < 0.004
+  ) {
+    c.copy(target);
+    return false;
+  }
+  c.lerp(target, a);
+  return true;
+}
+
+// The anchor-dot marker: a filled core inside a hairline border ring. Every state
+// change (idle · hover · selected) cross-fades smoothly — colours AND opacity are
+// eased per frame, never snapped. Selected = the core fades out and the border
+// turns accent, leaving just an accent ring around the (possibly equipped) spot.
 function Marker({
   variant,
-  opacity,
-  coreColor,
+  selected,
   hovered,
-  pulseRef,
+  dimmed,
+  reduced,
 }: {
   variant: DotsVariant;
-  opacity: number;
-  coreColor: string;
+  selected: boolean;
   hovered: boolean;
-  pulseRef: React.RefObject<Mesh | null>;
+  dimmed: boolean;
+  reduced: boolean;
 }) {
-  const ringColor = hovered ? ACCENT : "#9a9a9a";
+  const coreMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const ringMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const { invalidate } = useThree();
 
-  if (variant === "solid") {
-    // A clean filled disc with a hairline dark rim for contrast on light skin.
-    return (
-      <>
-        <mesh renderOrder={1000}>
-          <circleGeometry args={[RING_INNER, 32]} />
-          <meshBasicMaterial
-            color={coreColor}
-            toneMapped={false}
-            depthTest={false}
-            transparent
-            opacity={opacity}
-          />
-        </mesh>
-        <mesh renderOrder={999}>
-          <ringGeometry args={[RING_INNER, RING_INNER * 1.18, 32]} />
-          <meshBasicMaterial
-            color="#0a0a0a"
-            toneMapped={false}
-            depthTest={false}
-            transparent
-            opacity={opacity * 0.5}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      </>
-    );
-  }
+  const base = dimmed ? 0.4 : 1;
+  const targetCoreColor = hovered ? _white : _accent;
+  const targetCoreOpacity = selected ? 0 : base;
+  const targetRingColor = selected || hovered ? _accent : _grey;
+  const targetRingOpacity = selected || hovered ? base : base * 0.6;
 
-  if (variant === "reticle") {
-    // Four ticks around a centre gap — a targeting reticle.
-    const tickLen = RING_OUTER * 1.4;
-    const tickW = RING_OUTER * 0.28;
-    const gap = RING_INNER * 1.2;
-    const ticks: Array<[number, number, number]> = [
-      [0, gap + tickLen / 2, 0],
-      [0, -(gap + tickLen / 2), 0],
-      [gap + tickLen / 2, 0, Math.PI / 2],
-      [-(gap + tickLen / 2), 0, Math.PI / 2],
-    ];
-    return (
-      <>
-        <mesh renderOrder={1000}>
-          <circleGeometry args={[CORE * 0.9, 16]} />
-          <meshBasicMaterial
-            color={coreColor}
-            toneMapped={false}
-            depthTest={false}
-            transparent
-            opacity={opacity}
-          />
-        </mesh>
-        {ticks.map((t, i) => (
-          <mesh key={i} position={[t[0], t[1], 0]} rotation={[0, 0, t[2]]} renderOrder={1000}>
-            <planeGeometry args={[tickW, tickLen]} />
-            <meshBasicMaterial
-              color={hovered ? ACCENT : "#c8c8c8"}
-              toneMapped={false}
-              depthTest={false}
-              transparent
-              opacity={opacity}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        ))}
-      </>
-    );
-  }
+  useFrame((_, delta) => {
+    const core = coreMatRef.current;
+    const ring = ringMatRef.current;
+    if (!core || !ring) return;
 
-  if (variant === "pulse") {
-    // Core dot + an expanding ring animated in Dot's useFrame via pulseRef.
-    return (
-      <>
-        <mesh renderOrder={1001}>
-          <circleGeometry args={[CORE * 1.2, 20]} />
-          <meshBasicMaterial
-            color={coreColor}
-            toneMapped={false}
-            depthTest={false}
-            transparent
-            opacity={opacity}
-          />
-        </mesh>
-        <mesh ref={pulseRef} renderOrder={1000}>
-          <ringGeometry args={[RING_INNER, RING_OUTER, 36]} />
-          <meshBasicMaterial
-            color={ACCENT}
-            toneMapped={false}
-            depthTest={false}
-            transparent
-            opacity={0}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      </>
-    );
-  }
+    if (reduced) {
+      core.color.copy(targetCoreColor);
+      core.opacity = targetCoreOpacity;
+      core.visible = targetCoreOpacity > 0.01;
+      ring.color.copy(targetRingColor);
+      ring.opacity = targetRingOpacity;
+      return;
+    }
 
-  // Default — "ring": filled core + hairline outline ring.
+    // Frame-rate-independent ease factor.
+    const a = 1 - Math.exp(-14 * Math.min(delta, 0.05));
+    let moving = false;
+
+    if (approachColor(core.color, targetCoreColor, a)) moving = true;
+    if (Math.abs(core.opacity - targetCoreOpacity) > 0.004) {
+      core.opacity += (targetCoreOpacity - core.opacity) * a;
+      moving = true;
+    } else {
+      core.opacity = targetCoreOpacity;
+    }
+    core.visible = core.opacity > 0.01;
+
+    if (approachColor(ring.color, targetRingColor, a)) moving = true;
+    if (Math.abs(ring.opacity - targetRingOpacity) > 0.004) {
+      ring.opacity += (targetRingOpacity - ring.opacity) * a;
+      moving = true;
+    } else {
+      ring.opacity = targetRingOpacity;
+    }
+
+    if (moving) invalidate();
+  });
+
+  if (variant !== "ring") return null;
+  // Static initial props = the idle look. The useFrame above OWNS colour/opacity
+  // after mount, so these must not be state-derived — r3f would otherwise
+  // re-apply (snap) them on every re-render and fight the tween.
   return (
     <>
       <mesh renderOrder={1000}>
         <sphereGeometry args={[CORE, 14, 14]} />
         <meshBasicMaterial
-          color={coreColor}
+          ref={coreMatRef}
+          color={ACCENT}
           toneMapped={false}
           depthTest={false}
           transparent
-          opacity={opacity}
+          opacity={1}
         />
       </mesh>
       <mesh renderOrder={1000}>
         <ringGeometry args={[RING_INNER, RING_OUTER, 40]} />
         <meshBasicMaterial
-          color={ringColor}
+          ref={ringMatRef}
+          color="#9a9a9a"
           toneMapped={false}
           depthTest={false}
           transparent
-          opacity={hovered ? opacity : opacity * 0.6}
+          opacity={0.6}
           side={THREE.DoubleSide}
         />
       </mesh>

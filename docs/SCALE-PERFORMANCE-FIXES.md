@@ -1,5 +1,9 @@
 # Scale System - Performance Fixes
 
+> **Historical — superseded.** Written before the React Compiler was enabled
+> (`reactCompiler: true` in `next.config.ts`). Any manual memoization advice here
+> is now redundant; kept as a record of the original investigation.
+
 ## Issues Fixed
 
 ### 1. ❌ **React Hook Warning**
