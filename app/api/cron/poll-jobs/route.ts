@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getProvider, pickNextAutoProvider } from "@/lib/three-gen";
 import type { ProviderId } from "@/lib/three-gen";
 import { asPhotos, firstPhotoUrl } from "@/lib/jewelry/format";
 import { authorizeCron } from "@/lib/cron-auth";
 import { safeAssetFetch } from "@/lib/security/safe-fetch";
+import type { QualityVerdict } from "@/lib/admin/glb-quality-vision";
 
 // Vercel Cron — polls every in-flight GenerationJob, applies the same
 // state transitions as the admin "Обновить статус" button:
@@ -126,7 +127,16 @@ async function processJob(
             // passed it, so cron-finalized rings silently skipped the AI step).
             photoUrl: firstPhotoUrl(jewelry.photos),
           }
-        : undefined;
+        : jewelry?.type === "BARBELL"
+          ? {
+              type: "BARBELL",
+              gauge: jewelry.gauge,
+              size: jewelry.size,
+              // No glbScale for a bar — scale is derived from the two anchors;
+              // photoUrl still drives the quality gate.
+              photoUrl: firstPhotoUrl(jewelry.photos),
+            }
+          : undefined;
 
   // SUCCEEDED — re-host (+optimize +place) the GLB on our blob storage.
   let hosted: Awaited<ReturnType<typeof rehostGlb>>;
@@ -136,6 +146,13 @@ async function processJob(
     const msg = err instanceof Error ? err.message : "rehost failed";
     await markJobFailed(job, msg);
     return { id: job.id, status: "rehost_failed", note: msg };
+  }
+
+  // AI quality gate (mirrors the admin poll action): a confident reject auto-retries
+  // the next provider; an exhausted chain keeps the model for manual review.
+  const { qualityRejected } = await import("@/lib/admin/glb-quality-vision");
+  if (qualityRejected(hosted.quality)) {
+    return await handleQualityReject(job, hosted);
   }
 
   const autoScale =
@@ -223,6 +240,79 @@ async function handleFailedPoll(
   };
 }
 
+async function handleQualityReject(
+  job: JobRow,
+  hosted: Awaited<ReturnType<typeof rehostGlb>>,
+): Promise<{ id: string; status: string; note?: string }> {
+  const v = hosted.quality!;
+  const issuesText = v.issues.length ? ` issues: ${v.issues.join("; ")}` : "";
+  const next = pickNextAutoProvider(job.provider as ProviderId);
+  if (next) {
+    const photoUrls = asPhotos(job.inputPhotos).map((p) => p.url);
+    const startResult = await next.start({ photoUrls });
+    if (startResult.ok) {
+      // Drop the rejected blob, fail this attempt, queue the next provider.
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          await del(hosted.url);
+        } catch {
+          /* best-effort */
+        }
+      }
+      await prisma.generationJob.update({
+        where: { id: job.id },
+        data: {
+          status: "FAILED",
+          errorMessage: `low quality (score ${v.score})${issuesText}`,
+          completedAt: new Date(),
+        },
+      });
+      await prisma.generationJob.create({
+        data: {
+          jewelryId: job.jewelryId,
+          provider: next.id,
+          providerJobId: startResult.providerJobId,
+          status: "PROCESSING",
+          inputPhotos: job.inputPhotos as object,
+          startedAt: new Date(),
+        },
+      });
+      return {
+        id: job.id,
+        status: "quality_retry",
+        note: `${next.id} (score ${v.score})`,
+      };
+    }
+  }
+
+  // No fallback (or it refused to start): keep the hosted model for manual review
+  // rather than discard a possibly-salvageable mesh. Mirrors the admin "keep + flag".
+  const autoScale =
+    hosted.placement?.applied && hosted.placement.suggestedScale
+      ? hosted.placement.suggestedScale
+      : undefined;
+  await prisma.generationJob.update({
+    where: { id: job.id },
+    data: {
+      status: "SUCCEEDED",
+      resultGlbUrl: hosted.url,
+      completedAt: new Date(),
+    },
+  });
+  await prisma.jewelry.update({
+    where: { id: job.jewelryId },
+    data: {
+      status: "PENDING_REVIEW",
+      ...(autoScale ? { glbScale: autoScale } : {}),
+    },
+  });
+  return {
+    id: job.id,
+    status: "quality_kept_for_review",
+    note: `score ${v.score}${issuesText}`,
+  };
+}
+
 async function markJobFailed(job: JobRow, errorMessage: string): Promise<void> {
   await prisma.generationJob.update({
     where: { id: job.id },
@@ -259,6 +349,7 @@ async function rehostGlb(
     suggestedScale: number | null;
     note: string;
   };
+  quality?: QualityVerdict;
 }> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("BLOB_READ_WRITE_TOKEN not configured");
@@ -280,8 +371,16 @@ async function rehostGlb(
   // Unified scale: measure the FINAL (oriented, compressed) GLB's real bbox and
   // derive glbScale via the shared formula — the SAME measurement + rule the
   // manual upload + analyzer use, so a piece gets one scale regardless of path.
+  // Only single-anchor types get a glbScale — multi-anchor (BARBELL) scale is
+  // derived by the renderer from the two-anchor span, so leave it untouched.
+  const singleAnchor = normalize?.type === "STUD" || normalize?.type === "RING";
   let placement = opt.placement;
-  if (placement?.applied && normalize && (normalize.gauge || normalize.size)) {
+  if (
+    placement?.applied &&
+    singleAnchor &&
+    normalize &&
+    (normalize.gauge || normalize.size)
+  ) {
     const { suggestScaleFromSizeM } = await import("@/lib/admin/glb-scale");
     const sizeM = await measureGlbSizeM(opt.bytes);
     const s = sizeM
@@ -302,5 +401,6 @@ async function rehostGlb(
     after: opt.after,
     optimized: opt.optimized,
     placement,
+    quality: opt.quality,
   };
 }

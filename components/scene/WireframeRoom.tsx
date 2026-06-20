@@ -287,13 +287,13 @@ export default function WireframeRoom({
                     />
 
                     {/* ВЫБЕРИ — chapter divider title between hero and
-                    Chapter 1. Placed at z=-10 — closer to the camera
-                    than the ring's exhibit position (z=-12) so the
-                    text reads as a floating title *in front of* the
-                    ring, not behind it. y=+1.0 lifts it above the
-                    ring so the two don't overlap. */}
+                    Chapter 1. Placed at z=-14 — *behind* the ring's
+                    exhibit position (z=-12) so the exhibit ring + podium
+                    occlude it and it reads as a backdrop title the
+                    foreground objects sit in front of (depthTest=true
+                    on the text material handles the occlusion). */}
                     <AnimatedChooseText
-                        z={-10}
+                        z={-14}
                         color={colors.luminous}
                         fontUrl={fontUrl}
                         scrollPhase={scrollPhase}

@@ -15,6 +15,11 @@ import {
   type FieldErrors,
 } from "@/lib/admin/jewelry-schema";
 import { suggestScaleFromSizeM } from "@/lib/admin/glb-scale";
+import {
+  PARAMETRIC_SHAPES,
+  type ParametricShape,
+  type MaterialColor,
+} from "@/lib/admin/parametric-shapes";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -592,6 +597,130 @@ export async function removeJewelryGlb(formData: FormData): Promise<void> {
   revalidateForJewelry(id);
 }
 
+// Parametric self-serve generation — build a finding's GLB from a form (gauge /
+// length / diameter / material / gem) entirely server-side, no Blender. The
+// builder (lib/admin/parametric-glb.ts) re-implements the 6 Blender shapes with
+// three.js geometry, emitting a real-metre GLB with attach:* nodes + PBR, so it
+// seats exactly like the Blender pieces (glbScale = 1). Compressed via the same
+// optimizeGlb pass as a manual upload (no `normalize` → no AI reorient/quality gate).
+export async function generateParametricJewelryGlb(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await assertAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "Не указан id украшения" };
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return {
+      ok: false,
+      error:
+        "Хранилище Vercel Blob не настроено. Установите BLOB_READ_WRITE_TOKEN в .env.",
+    };
+  }
+
+  const shape = String(formData.get("shape") ?? "");
+  const materialColor = String(formData.get("materialColor") ?? "");
+
+  const { buildParametricGlb, buildHybridGlb } = await import(
+    "@/lib/admin/parametric-glb"
+  );
+  const def = PARAMETRIC_SHAPES.find((d) => d.shape === shape);
+  if (!def) return { ok: false, error: "Неизвестная форма" };
+
+  // Hybrid: fuse the piece's CURRENT (AI-generated) model onto the parametric
+  // finding as the decorative top. Only post-type shapes have a top mount.
+  const hybrid = String(formData.get("hybrid") ?? "") === "1";
+  const HYBRID_SHAPES = new Set(["labret_stud", "nose_stud_l"]);
+
+  // Pull only this shape's declared fields off the form, coercing numbers.
+  const params: Record<string, number | string> = {};
+  for (const f of def.fields) {
+    const raw = formData.get(f.key);
+    if (raw == null || raw === "") continue;
+    if (f.kind === "number") {
+      const n = Number(raw);
+      if (Number.isFinite(n)) params[f.key] = n;
+    } else {
+      params[f.key] = String(raw);
+    }
+  }
+
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id },
+    select: { glbUrl: true },
+  });
+  if (!jewelry) return { ok: false, error: "Украшение не найдено" };
+
+  if (hybrid && !HYBRID_SHAPES.has(shape)) {
+    return { ok: false, error: "ИИ-верх доступен только для лабрета и нострила." };
+  }
+  if (hybrid && !jewelry.glbUrl) {
+    return {
+      ok: false,
+      error: "Сначала сгенерируйте ИИ-модель — она станет верхом для гибрида.",
+    };
+  }
+
+  let bytes: Uint8Array;
+  try {
+    const input = {
+      shape: shape as ParametricShape,
+      materialColor: materialColor as MaterialColor,
+      params,
+    };
+    let built: Uint8Array;
+    if (hybrid) {
+      const topRes = await fetch(jewelry.glbUrl!);
+      if (!topRes.ok) {
+        return {
+          ok: false,
+          error: `Не удалось загрузить ИИ-верх: HTTP ${topRes.status}`,
+        };
+      }
+      built = await buildHybridGlb(input, await topRes.arrayBuffer());
+    } else {
+      built = await buildParametricGlb(input);
+    }
+    const { optimizeGlb } = await import("@/lib/admin/glb-pipeline");
+    const opt = await optimizeGlb(built);
+    bytes = opt.bytes;
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Не удалось построить модель",
+    };
+  }
+
+  const key = `jewelry/${id}/models/${Date.now()}-${shape}.glb`;
+  const blob = await put(key, Buffer.from(bytes), {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: "model/gltf-binary",
+  });
+
+  // Point at the new blob first, then drop the old one (never a dangling URL).
+  const previousUrl = jewelry.glbUrl;
+  await prisma.jewelry.update({
+    where: { id },
+    data: { glbUrl: blob.url, glbScale: 1 }, // parametric output is real-metre scale
+  });
+  if (previousUrl && previousUrl !== blob.url) {
+    try {
+      await del(previousUrl);
+    } catch {
+      /* orphan blob is acceptable; a dangling glbUrl is not */
+    }
+  }
+
+  revalidateForJewelry(id);
+  return {
+    ok: true,
+    message: hybrid
+      ? "Гибрид (параметрическая основа + ИИ-верх) построен и опубликован."
+      : "Параметрическая модель построена и опубликована.",
+  };
+}
+
 // Manual orientation nudge — bake the exact orientation the admin set by
 // dragging/rolling the model in the preview (a quaternion) into the current
 // model. The fallback when auto-placement got the pose wrong (or no Gemini key).
@@ -706,6 +835,12 @@ export async function setJewelryAttachPoint(
   if (!point.every(Number.isFinite)) {
     return { ok: false, error: "Некорректная точка крепления" };
   }
+  // Which endpoint to set: primary by default, secondary for the other end of a
+  // 2-anchor bar (BARBELL). Anything else falls back to primary.
+  const name =
+    String(formData.get("slot") ?? "primary") === "secondary"
+      ? "attach:secondary"
+      : "attach:primary";
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return {
       ok: false,
@@ -735,7 +870,7 @@ export async function setJewelryAttachPoint(
   const { setGlbAttachPoint } = await import("@/lib/admin/glb-pipeline");
   let bytes: Uint8Array;
   try {
-    bytes = await setGlbAttachPoint(buffer, point);
+    bytes = await setGlbAttachPoint(buffer, point, name);
   } catch (err) {
     return {
       ok: false,

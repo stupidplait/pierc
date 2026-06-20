@@ -4,6 +4,13 @@
 
 This system automatically analyzes Tripo-generated 3D models and suggests optimal scale values based on the jewelry's physical dimensions (gauge/size fields).
 
+> **Related:** scale + attach are the *placement* half of AI correction. The
+> *quality* half — does the generated mesh actually look right — is the Gemini
+> quality gate in `lib/admin/glb-quality-vision.ts` (renders the mesh from
+> several angles and asks a vision model for an accept/reject verdict, with a
+> confident reject auto-retrying the next provider). See
+> [`docs/18-replicate-3d.md`](./18-replicate-3d.md) § "AI quality gate".
+
 ## How It Works
 
 ### 1. **Attachment Points**

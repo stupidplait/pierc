@@ -30,6 +30,15 @@ prisma/seed-data/jewelry.json     ← source of truth (committed)
 `npm run jewelry:rebuild` chains the last two steps so iterating after a
 Blender build is one command.
 
+> **Self-serve alternative (no Blender).** The same 6 shapes are re-implemented in
+> pure TypeScript in `lib/admin/parametric-glb.ts` (three.js geometry + gltf-transform,
+> matching every convention here), driven from the admin jewelry page via the
+> `ParametricGenerator` form + `generateParametricJewelryGlb` action — a real-metre
+> GLB (glbScale = 1) that seats identically, no Blender or MCP. A **hybrid** mode
+> (`buildHybridGlb`) fuses the piece's current AI model onto a parametric post as the
+> decorative top (exact-scale finding + AI charm). The Blender pipeline below remains
+> the high-fidelity path for the committed seed catalog.
+
 ## Manifest schema
 
 Each entry in `prisma/seed-data/jewelry.json`:

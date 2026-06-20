@@ -1,0 +1,830 @@
+/* ============================================================================
+   «ВИТРИНА» — Kinetic Bento Showcase
+   Local palette derived from the app theme tokens so it re-skins automatically
+   in light/dark. We only add a few variant-local vars (glass tints, glow) on
+   top of the global --bg / --ink / --accent system.
+   ============================================================================ */
+
+.root {
+  --vt-accent: var(--accent);
+  --vt-on-accent: var(--on-primary);
+
+  /* Tile glass — a faint elevated wash that sits between --bg and --bg-elev. */
+  --vt-tile: color-mix(in oklab, var(--bg-elev) 88%, var(--accent) 4%);
+  --vt-tile-2: color-mix(in oklab, var(--bg-elev) 94%, transparent);
+  --vt-line: var(--ink-line);
+  --vt-line-strong: var(--ink-line-strong);
+
+  /* Accent glow — visible in dark, restrained in light. */
+  --vt-glow: color-mix(in oklab, var(--accent) 26%, transparent);
+  --vt-glow-soft: color-mix(in oklab, var(--accent) 12%, transparent);
+
+  position: relative;
+  min-height: 100svh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+:global(.theme-light) .root {
+  --vt-tile: color-mix(in oklab, var(--bg-elev) 96%, var(--accent) 2%);
+  --vt-tile-2: var(--bg);
+  --vt-glow: color-mix(in oklab, var(--accent) 14%, transparent);
+  --vt-glow-soft: color-mix(in oklab, var(--accent) 6%, transparent);
+}
+
+.display {
+  font-family: var(--font-vitrina-display), var(--font-onest), sans-serif;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+
+.mono {
+  font-family: var(--font-vitrina-mono), var(--font-jetbrains-mono), monospace;
+}
+
+/* ── Atmosphere: grain + gradient mesh ───────────────────────────────────── */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.mesh {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(40% 50% at 18% 12%, var(--vt-glow-soft) 0%, transparent 60%),
+    radial-gradient(38% 44% at 86% 78%, var(--vt-glow-soft) 0%, transparent 62%),
+    radial-gradient(50% 50% at 50% 110%, var(--vt-glow-soft) 0%, transparent 55%);
+  filter: blur(8px);
+  opacity: 0.9;
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+:global(.theme-light) .grain {
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+}
+
+/* faint grid wash anchored under content */
+.gridwash {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--ink-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-line) 1px, transparent 1px);
+  background-size: 72px 72px;
+  opacity: 0.4;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 72%);
+}
+
+/* ── Custom cursor dot (pointer-fine only) ───────────────────────────────── */
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  background: var(--vt-glow-soft);
+  pointer-events: none;
+  will-change: transform;
+  transition: width 0.18s ease, height 0.18s ease, background-color 0.18s ease,
+    border-color 0.18s ease, opacity 0.2s ease;
+  mix-blend-mode: normal;
+}
+.cursorActive {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+}
+@media (hover: none), (pointer: coarse) {
+  .cursor {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    display: none;
+  }
+}
+
+/* ── Shell layout ────────────────────────────────────────────────────────── */
+.shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 56px);
+}
+
+/* ── Bento hero grid ─────────────────────────────────────────────────────── */
+.hero {
+  padding-top: clamp(84px, 13vh, 150px);
+  padding-bottom: clamp(48px, 8vh, 96px);
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(112px, auto);
+  gap: clamp(10px, 1.1vw, 16px);
+}
+
+.tile {
+  position: relative;
+  border: 1px solid var(--vt-line);
+  border-radius: clamp(16px, 1.6vw, 26px);
+  background: var(--vt-tile);
+  overflow: hidden;
+  will-change: transform;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease,
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tile::after {
+  /* sheen that follows pointer via --mx / --my custom props */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    220px 220px at var(--mx, 50%) var(--my, 50%),
+    var(--vt-glow) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.tile:hover {
+  border-color: var(--vt-line-strong);
+  box-shadow: 0 24px 60px -32px var(--vt-glow);
+}
+.tile:hover::after {
+  opacity: 1;
+}
+
+.tilePad {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: clamp(16px, 1.6vw, 26px);
+}
+
+/* tile spans (desktop) */
+.brandTile { grid-column: span 7; grid-row: span 3; }
+.threeTile { grid-column: span 5; grid-row: span 4; }
+.statsTile { grid-column: span 4; grid-row: span 2; }
+.marqueeTile { grid-column: span 3; grid-row: span 2; }
+.reviewTile { grid-column: span 4; grid-row: span 3; }
+.locationTile { grid-column: span 3; grid-row: span 3; }
+.ctaTile { grid-column: span 5; grid-row: span 2; }
+
+/* ── Brand tile internals ────────────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.eyebrowDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--vt-glow-soft);
+}
+.wordmark {
+  margin-top: auto;
+  font-size: clamp(40px, 8.4vw, 116px);
+  font-weight: 700;
+}
+.wordmarkAccent {
+  color: var(--accent);
+}
+.heroSub {
+  margin-top: clamp(12px, 1.6vw, 22px);
+  max-width: 38ch;
+  font-size: clamp(13px, 1.1vw, 16px);
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+/* ── 3D tile ─────────────────────────────────────────────────────────────── */
+.canvasHost {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.canvasHost canvas {
+  touch-action: pan-y;
+}
+.threeFallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 60% at 50% 42%, var(--vt-glow-soft) 0%, transparent 70%),
+    var(--vt-tile-2);
+}
+.threeBadge {
+  position: absolute;
+  z-index: 3;
+  bottom: clamp(14px, 1.4vw, 22px);
+  left: clamp(14px, 1.4vw, 22px);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.threeLabel {
+  position: absolute;
+  z-index: 3;
+  top: clamp(14px, 1.4vw, 22px);
+  left: clamp(14px, 1.4vw, 22px);
+  right: clamp(14px, 1.4vw, 22px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.swatchRow {
+  position: absolute;
+  z-index: 3;
+  bottom: clamp(14px, 1.4vw, 22px);
+  right: clamp(14px, 1.4vw, 22px);
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--vt-line-strong);
+  background: var(--vt-tile-2);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatchOn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--vt-glow-soft);
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Stats tile ──────────────────────────────────────────────────────────── */
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(10px, 1.4vw, 20px);
+  height: 100%;
+  align-content: center;
+}
+.statNum {
+  font-size: clamp(26px, 3vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.statLabel {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ── Marquee tile ────────────────────────────────────────────────────────── */
+.marqueeTileInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  background: var(--accent);
+  color: var(--vt-on-accent);
+}
+.marqueeViewport {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.marqueeTrack {
+  display: inline-flex;
+  gap: 28px;
+  padding-left: 28px;
+  animation: vt-marquee 14s linear infinite;
+  will-change: transform;
+}
+.marqueeItem {
+  font-size: clamp(15px, 1.5vw, 22px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+}
+.marqueeStar {
+  font-weight: 400;
+  opacity: 0.7;
+}
+@keyframes vt-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marqueeTrack { animation: none; }
+}
+
+/* ── Review tile ─────────────────────────────────────────────────────────── */
+.reviewQuote {
+  font-size: clamp(16px, 1.5vw, 22px);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+.reviewMeta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 18px;
+}
+.reviewAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--vt-on-accent);
+  background: var(--accent);
+}
+.stars {
+  color: var(--accent);
+  letter-spacing: 2px;
+  font-size: 13px;
+}
+
+/* ── Location tile ───────────────────────────────────────────────────────── */
+.locMap {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--ink-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ink-line) 1px, transparent 1px);
+  background-size: 26px 26px;
+  opacity: 0.55;
+}
+.locPin {
+  position: absolute;
+  top: 38%;
+  left: 56%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 6px var(--vt-glow-soft), 0 0 0 12px var(--vt-glow-soft);
+}
+
+/* ── CTA tile ────────────────────────────────────────────────────────────── */
+.ctaTileInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  background:
+    linear-gradient(120deg, var(--vt-tile) 0%, color-mix(in oklab, var(--accent) 9%, var(--vt-tile)) 100%);
+}
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── Magnetic buttons ────────────────────────────────────────────────────── */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(13px, 1.1vw, 16px) clamp(20px, 1.8vw, 30px);
+  border-radius: 999px;
+  font-size: clamp(13px, 1vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.btnInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  will-change: transform;
+}
+.btnPrimary {
+  background: var(--accent);
+  color: var(--vt-on-accent);
+  border: 1px solid var(--accent);
+}
+.btnPrimary:hover {
+  box-shadow: 0 18px 44px -18px var(--vt-glow);
+}
+.btnGhost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--vt-line-strong);
+}
+.btnGhost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── Section scaffolding ─────────────────────────────────────────────────── */
+.section {
+  position: relative;
+  z-index: 1;
+  padding-block: clamp(60px, 10vh, 130px);
+  scroll-margin-top: 80px;
+}
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: clamp(28px, 4vh, 56px);
+}
+.sectionTitle {
+  font-size: clamp(28px, 5vw, 64px);
+  font-weight: 700;
+}
+.sectionKicker {
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 14px;
+}
+
+/* ── Services grid ───────────────────────────────────────────────────────── */
+.serviceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: clamp(10px, 1.1vw, 16px);
+}
+.serviceCard {
+  position: relative;
+  border: 1px solid var(--vt-line);
+  border-radius: clamp(14px, 1.4vw, 22px);
+  background: var(--vt-tile);
+  padding: clamp(18px, 1.8vw, 28px);
+  overflow: hidden;
+  transition: border-color 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.serviceCard:hover {
+  border-color: var(--accent);
+  transform: translateY(-4px);
+}
+.serviceNum {
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+}
+.serviceName {
+  margin-top: 16px;
+  font-size: clamp(18px, 2vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.serviceDesc {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+.serviceMeta {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink-muted);
+  padding-top: 14px;
+  border-top: 1px solid var(--vt-line);
+}
+.servicePrice {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ── Catalog horizontal rail ─────────────────────────────────────────────── */
+.rail {
+  display: flex;
+  gap: clamp(12px, 1.4vw, 20px);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 18px;
+  margin: 0 calc(-1 * clamp(16px, 4vw, 56px));
+  padding-inline: clamp(16px, 4vw, 56px);
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar { display: none; }
+.railCard {
+  position: relative;
+  flex: 0 0 min(78vw, 320px);
+  scroll-snap-align: start;
+  border: 1px solid var(--vt-line);
+  border-radius: clamp(16px, 1.5vw, 24px);
+  background: var(--vt-tile);
+  overflow: hidden;
+  transition: border-color 0.3s ease;
+}
+.railCard:hover { border-color: var(--vt-line-strong); }
+.railThumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background:
+    radial-gradient(60% 60% at 50% 45%, var(--vt-glow-soft) 0%, transparent 70%),
+    var(--vt-tile-2);
+  display: grid;
+  place-items: center;
+}
+.railRing {
+  width: 56%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 6px solid color-mix(in oklab, var(--ink) 70%, transparent);
+  box-shadow: inset 0 0 24px -8px var(--vt-glow);
+}
+.railBody {
+  padding: clamp(16px, 1.4vw, 22px);
+}
+.railName {
+  font-size: clamp(15px, 1.4vw, 19px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.railSpec {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.railTag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vt-on-accent);
+  background: var(--accent);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.railHint {
+  display: none;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+@media (hover: none) {
+  .railHint { display: inline; }
+}
+
+/* ── FAQ accordion ───────────────────────────────────────────────────────── */
+.faqWrap {
+  border-top: 1px solid var(--vt-line);
+}
+.faqItem {
+  border-bottom: 1px solid var(--vt-line);
+}
+.faqBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  padding: clamp(18px, 2.4vh, 28px) 4px;
+  cursor: pointer;
+  font-size: clamp(16px, 2vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.faqBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.faqIcon {
+  flex: 0 0 auto;
+  transition: transform 0.3s ease, color 0.3s ease;
+  color: var(--ink-muted);
+}
+.faqIconOpen {
+  transform: rotate(45deg);
+  color: var(--accent);
+}
+.faqPanel {
+  overflow: hidden;
+}
+.faqAnswer {
+  padding: 0 4px clamp(20px, 2.6vh, 30px);
+  max-width: 64ch;
+  font-size: clamp(14px, 1.2vw, 16px);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+/* ── Final CTA ───────────────────────────────────────────────────────────── */
+.finalCta {
+  position: relative;
+  z-index: 1;
+  padding-block: clamp(80px, 16vh, 200px);
+  text-align: center;
+}
+.finalGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(50% 60% at 50% 50%, var(--vt-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+.finalTitle {
+  position: relative;
+  font-size: clamp(40px, 11vw, 150px);
+  font-weight: 700;
+}
+.finalSub {
+  position: relative;
+  margin: clamp(18px, 2.4vh, 30px) auto 0;
+  max-width: 46ch;
+  font-size: clamp(14px, 1.3vw, 18px);
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+.finalRow {
+  position: relative;
+  margin-top: clamp(28px, 4vh, 48px);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+}
+
+/* ── Footer line ─────────────────────────────────────────────────────────── */
+.footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--vt-line);
+  padding-block: clamp(28px, 4vh, 48px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ── Sticky chapter rail (progress) ──────────────────────────────────────── */
+.chapterRail {
+  position: fixed;
+  z-index: 40;
+  right: clamp(14px, 1.6vw, 26px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-end;
+}
+.chapterDot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink-muted);
+  padding: 4px 0;
+}
+.chapterLabel {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 0.25s ease, transform 0.25s ease, color 0.25s ease;
+  white-space: nowrap;
+}
+.chapterDot:hover .chapterLabel,
+.chapterDotActive .chapterLabel {
+  opacity: 1;
+  transform: translateX(0);
+}
+.chapterTick {
+  width: 26px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vt-line-strong);
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+.chapterDotActive .chapterTick {
+  width: 42px;
+  background: var(--accent);
+}
+.chapterDot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.chapterDotActive .chapterLabel { color: var(--ink); }
+@media (max-width: 920px) {
+  .chapterRail { display: none; }
+}
+
+/* ── Responsive collapse to single column ────────────────────────────────── */
+@media (max-width: 980px) {
+  .bento {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .brandTile { grid-column: span 6; grid-row: span 3; }
+  .threeTile { grid-column: span 6; grid-row: span 4; }
+  .statsTile { grid-column: span 3; grid-row: span 2; }
+  .marqueeTile { grid-column: span 3; grid-row: span 2; }
+  .reviewTile { grid-column: span 6; grid-row: span 2; }
+  .locationTile { grid-column: span 3; grid-row: span 2; }
+  .ctaTile { grid-column: span 3; grid-row: span 2; }
+}
+
+@media (max-width: 600px) {
+  .bento {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+  .brandTile,
+  .threeTile,
+  .statsTile,
+  .marqueeTile,
+  .reviewTile,
+  .locationTile,
+  .ctaTile {
+    grid-column: span 1;
+    grid-row: auto;
+  }
+  .threeTile { min-height: 320px; }
+  .marqueeTile { min-height: 88px; }
+  .locationTile { min-height: 180px; }
+}
+
+/* Initial hidden state for the load reveal (JS adds .ready to play it). */
+.preload .tile,
+.preload .heroSub {
+  opacity: 0;
+}

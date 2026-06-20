@@ -1,0 +1,316 @@
+/* ════════════════════════════════════════════════════════════════════
+   «ХРОМ» — LIQUID METAL. Cinematic, dark-first, theme-aware via the app
+   --bg / --ink / --scene-* tokens (so light mode is a polished-chrome
+   white studio, dark is a void). All visual atmosphere (grain, mesh,
+   custom cursor, chrome type) lives here scoped to .root.
+   ════════════════════════════════════════════════════════════════════ */
+
+.root {
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  background: var(--bg);
+  color: var(--ink);
+  overflow-x: clip;
+  /* hide the native cursor only where the custom one is active (pointer
+     devices). Touch devices fall back to default + no custom cursor. */
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root[data-cursor="on"] {
+    cursor: none;
+  }
+  .root[data-cursor="on"] a,
+  .root[data-cursor="on"] button {
+    cursor: none;
+  }
+}
+
+/* ── fixed canvas layer (behind all DOM) ─────────────────────────────── */
+.canvasLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* the DOM content scrolls over the fixed canvas */
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── gradient-mesh + grain atmosphere over the canvas ────────────────── */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: var(--chrom-atmo-blend, screen);
+  opacity: var(--chrom-atmo-opacity, 0.6);
+}
+
+.atmosphere::before {
+  /* drifting cool/warm metal mesh */
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(40% 40% at 18% 22%, color-mix(in oklab, var(--accent) 55%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 82% 30%, color-mix(in oklab, var(--chrom-warm, #ffb27a) 40%, transparent), transparent 72%),
+    radial-gradient(50% 50% at 50% 88%, color-mix(in oklab, var(--accent) 35%, transparent), transparent 75%);
+  filter: blur(40px);
+  animation: meshDrift 24s ease-in-out infinite alternate;
+}
+
+@keyframes meshDrift {
+  0% { transform: translate3d(-2%, -1%, 0) scale(1.05); }
+  100% { transform: translate3d(3%, 2%, 0) scale(1.15); }
+}
+
+/* fine film grain — fixed, multiply on light / overlay on dark for tooth */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: var(--chrom-grain-opacity, 0.07);
+  background-image: var(--chrom-grain-url);
+  background-size: 180px 180px;
+  mix-blend-mode: var(--chrom-grain-blend, overlay);
+}
+
+/* scanline / interlace veil for the cinematic register */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: var(--chrom-scan-opacity, 0.05);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    var(--ink) 3px,
+    transparent 4px
+  );
+}
+
+/* ── custom cursor (chrome bead + ring) ──────────────────────────────── */
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  pointer-events: none;
+  will-change: transform;
+  mix-blend-mode: difference;
+}
+
+.cursorRing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 1px solid #fff;
+  border-radius: 999px;
+  will-change: transform;
+  transition: width 0.2s ease, height 0.2s ease, margin 0.2s ease;
+}
+
+.cursorDot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  background: #fff;
+  border-radius: 999px;
+}
+
+/* ── typographic primitives ──────────────────────────────────────────── */
+.display {
+  font-family: var(--font-chrom-display), var(--font-onest), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.86;
+}
+
+/* liquid-chrome text fill — animated metallic gradient + subtle emboss */
+.chromeText {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--ink) 92%, var(--accent)) 0%,
+    var(--ink) 18%,
+    color-mix(in oklab, var(--ink) 40%, var(--bg)) 46%,
+    var(--ink) 60%,
+    color-mix(in oklab, var(--accent) 70%, var(--ink)) 78%,
+    color-mix(in oklab, var(--ink) 70%, var(--bg)) 100%
+  );
+  background-size: 100% 240%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: chromeFlow 9s ease-in-out infinite alternate;
+}
+
+@keyframes chromeFlow {
+  0% { background-position: 50% 0%; }
+  100% { background-position: 50% 100%; }
+}
+
+.kicker {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: clamp(10px, 1.1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.34em;
+  color: var(--ink-muted);
+}
+
+/* magnetic / metal CTA */
+.cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: clamp(14px, 1.6vw, 18px) clamp(24px, 3vw, 34px);
+  border-radius: 999px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: clamp(12px, 1.3vw, 14px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.ctaPrimary {
+  color: var(--on-primary);
+  background:
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--accent) 85%, white) 0%,
+      var(--accent) 45%,
+      color-mix(in oklab, var(--accent) 70%, black) 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 40%, transparent),
+    0 14px 40px -12px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.ctaPrimary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cta:hover {
+  transform: translateY(-2px);
+}
+
+.cta:hover.ctaPrimary::after {
+  transform: translateX(120%);
+}
+
+.ctaGhost {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ink-line-strong);
+  backdrop-filter: blur(6px);
+}
+
+.ctaGhost:hover {
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+.cta:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+
+/* hero text legibility scrim — anchored bottom-left over the bright canvas
+   so the wordmark + body copy stay readable on small screens. */
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 12% 70%,
+    color-mix(in oklab, var(--bg) 78%, transparent) 0%,
+    color-mix(in oklab, var(--bg) 40%, transparent) 38%,
+    transparent 66%
+  );
+}
+
+/* glass section card */
+.card {
+  position: relative;
+  border-radius: 22px;
+  background: color-mix(in oklab, var(--bg-elev) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ink-line);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+/* hairline numeric labels */
+.tag {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* marquee */
+.marquee {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: marqueeMove 28s linear infinite;
+}
+
+.marqueeItem {
+  font-family: var(--font-chrom-display), var(--font-onest), sans-serif;
+  font-weight: 700;
+  font-size: clamp(40px, 9vw, 130px);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  padding-right: 0.5em;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in oklab, var(--ink) 45%, transparent);
+}
+
+.marqueeItemFill {
+  color: var(--ink);
+  -webkit-text-stroke: 0;
+}
+
+@keyframes marqueeMove {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+/* reduced motion — kill ambient loops */
+@media (prefers-reduced-motion: reduce) {
+  .atmosphere::before,
+  .chromeText,
+  .marquee {
+    animation: none !important;
+  }
+  .cta {
+    transition: none;
+  }
+}

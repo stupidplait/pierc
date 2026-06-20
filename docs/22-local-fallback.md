@@ -4,8 +4,11 @@
 > (Replicate, Tripo3D) run out of credits — generation runs on **owned
 > hardware** instead of failing.
 >
-> **Status:** ⬜ **seam only.** The provider stub and auto-chain wiring exist;
-> the actual worker is deferred until a GPU + local model is chosen.
+> **Status:** 🟡 **server side built; GPU worker deferred.** The `local` provider
+> (real `start`/`poll`), the claim + result API endpoints, and the auto-chain
+> wiring all exist. Only the GPU worker script that drives them is left to run —
+> it needs a model + a machine (see "To build later"). Everything stays gated on
+> `LOCAL_3D_WORKER=1` (off by default), so the live flow is unchanged until then.
 
 ## Goal
 
@@ -14,22 +17,32 @@ When Replicate and Tripo3D are both exhausted or unconfigured, a
 rather than dead-end — at **zero marginal cost**, by reusing a machine we
 already own.
 
-## What's wired today (the seam)
+## What's built today (server side)
 
-- `ProviderId` includes `"local"` ([types.ts](../lib/three-gen/types.ts)).
-- [`local.ts`](../lib/three-gen/local.ts) is a stub provider:
-  - `isAvailable()` is gated on `LOCAL_3D_WORKER=1` — **off by default**, so
-    the live auto-chain behaves exactly as before.
-  - `start()` / `poll()` return an explicit "not implemented" until the
-    worker is built (no silent hangs).
-- It sits at the **tail** of `AUTO_PRIORITY`
-  (`replicate → tripo3d → local`) in [index.ts](../lib/three-gen/index.ts),
-  so the fallthrough order is already correct — the chain will reach `local`
-  automatically once it's enabled and implemented.
+- [`local.ts`](../lib/three-gen/local.ts) is a **real provider**, gated on
+  `LOCAL_3D_WORKER=1` (off by default):
+  - `start()` mints a claimable `providerJobId` (`local:queued:<uuid>`) with NO
+    external call. The caller stores it on a normal `GenerationJob` row
+    (status `PROCESSING`), exactly like any provider — no schema change.
+  - `poll()` reads the row's status; finalization happens in the result endpoint,
+    so the poll loop only ever sees a local job as "still processing" (or FAILED).
+- [`POST /api/local-jobs/claim`](../app/api/local-jobs/claim/route.ts) — Bearer
+  `LOCAL_WORKER_SECRET` (fail-closed). Atomically claims the oldest unclaimed
+  local job via a **compare-and-swap on its providerJobId**
+  (`local:queued:*` → `local:run:*`), so two workers never grab the same job and
+  no `claimedAt` column is needed.
+- [`POST /api/local-jobs/[id]/result`](../app/api/local-jobs/[id]/result/route.ts)
+  — accepts a multipart `glb` file (or an `error` string), runs the SAME
+  `optimizeGlb` + type-driven normalize (attach injection + Gemini tiebreaker +
+  quality gate) as the managed providers, re-hosts on Vercel Blob, and finalizes
+  the job directly (SUCCEEDED + jewelry PENDING_REVIEW).
+- It sits at the **tail** of `AUTO_PRIORITY` (`replicate → tripo3d → local`) in
+  [index.ts](../lib/three-gen/index.ts), so the chain reaches `local` only after
+  the paid providers are exhausted.
 
-That means finishing this feature is purely "build the worker + implement
-the two methods + flip `LOCAL_3D_WORKER=1`" — no surgery on the pipeline,
-the cron, or the admin UI.
+That means finishing this feature is purely "run a GPU worker that calls the two
+endpoints + flip `LOCAL_3D_WORKER=1`" — no further surgery on the pipeline, the
+cron, or the admin UI.
 
 ## Intended architecture — pull-based worker
 
@@ -39,14 +52,16 @@ So the worker **pulls** work rather than receiving pushes.
 
 ```
 Vercel (Next.js + Prisma)                    ← unchanged, free
-  start(): credits==0 → GenerationJob{ provider:'local', status:'QUEUED' }
+  start(): chain reaches local → GenerationJob{ provider:'local',
+           status:'PROCESSING', providerJobId:'local:queued:<uuid>' }
                                    │
         ┌──────────────────────────┘   (no external API call to start)
         ▼
   Your machine (GPU) runs a small loop that PULLS:
     1. POST /api/local-jobs/claim   (Bearer LOCAL_WORKER_SECRET)
-         → atomically claims oldest QUEUED local job, marks PROCESSING,
-           returns { jobId, inputPhotos }
+         → atomically claims the oldest unclaimed local job via a
+           compare-and-swap on its providerJobId (local:queued:* → local:run:*);
+           returns { id, jewelryId, providerJobId, photoUrls }
     2. download photo → run local model (TripoSR / InstantMesh /
        Stable-Fast-3D) → produce .glb
     3. POST /api/local-jobs/<id>/result  (multipart .glb, or a URL)
@@ -66,18 +81,22 @@ already shows that naturally via the existing PROCESSING/queued panel.
 
 ## To build later (checklist)
 
-- [ ] Pick the local model + runtime (TripoSR / InstantMesh / Stable-Fast-3D).
-- [ ] `start()` in `local.ts`: insert/return a claimable job instead of the
-      stub error. (Decide: reuse `GenerationJob` as-is — likely yes, no
-      schema change — vs. add a `claimedAt`/`workerId` column for locking.)
-- [ ] `POST /api/local-jobs/claim` — atomic claim (e.g.
-      `UPDATE … WHERE status='QUEUED' … RETURNING` or a row lock) behind a
+- [x] `start()` / `poll()` in `local.ts` — claimable job id + status read-back
+      (reuses `GenerationJob` as-is, no schema change; the CAS on `providerJobId`
+      is the lock).
+- [x] `POST /api/local-jobs/claim` — atomic compare-and-swap claim behind a
       `LOCAL_WORKER_SECRET` bearer.
-- [ ] `POST /api/local-jobs/[id]/result` — accept the `.glb`, re-host on
-      Blob (reuse the `rehostGlb` logic), set terminal status.
-- [ ] `poll()` in `local.ts`: read the job row's status back.
-- [ ] Worker script (Node or Python) running the claim→generate→upload loop.
-- [ ] Set `LOCAL_3D_WORKER=1` + `LOCAL_WORKER_SECRET` once the above runs.
+- [x] `POST /api/local-jobs/[id]/result` — accept the `.glb`, re-host +
+      `optimizeGlb` (with type-driven normalize), set the terminal status.
+- [x] **Worker script** — [`scripts/local-worker/`](../scripts/local-worker/)
+      (`worker.mjs` + `README.md` + `generate_triposr.py`): a dependency-free Node
+      claim→download→generate→result loop with TWO backends — `GENERATOR=fal`
+      (managed, no GPU, runnable immediately) or `GENERATOR=command` (your own
+      GPU model via TripoSR / SF3D / TRELLIS) for true credit-zero.
+- [ ] **Run it** (deployment): pick the model/host — fal.ai now, or TripoSR/SF3D/
+      TRELLIS on your Windows GPU (free, PC on) or Modal serverless ($30/mo free
+      credits, scale-to-zero) — set the env (see the README), run the worker, and
+      flip `LOCAL_3D_WORKER=1` + `LOCAL_WORKER_SECRET`.
 
 ## Note on scale
 

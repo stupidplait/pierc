@@ -176,11 +176,16 @@ renderer reads only `attach:primary`; when worn through 2 holes
 AI generation (Replicate, Tripo3D) produces meshes with arbitrary geometry
 and no attach metadata. Two consequences:
 
-1. **AI is restricted to STUD / RING types.** Multi-anchor types require
-   precise endpoint placement that AI can't reliably produce — admin must
-   use the parametric pipeline or upload a hand-modeled `.glb`. Enforced in
-   both UI (`<JewelryModelManager>` hides the auto-gen panel for multi-anchor
-   types) and server (`startJewelryGeneration` rejects them with a 4xx).
+1. **AI is restricted to STUD / RING and straight/curved BARBELL** (the
+   `isAiGeneratableType` allow-list in `lib/catalog/types.ts`). For a BARBELL,
+   `normalizeBarbellDocument` (`lib/admin/glb-normalize.ts`) recovers the two ball
+   ends via PCA and injects `attach:primary`/`attach:secondary`; the multi-anchor
+   renderer derives scale from the two-anchor span (no `glbScale`). The remaining
+   multi-anchor types — `CIRCULAR_BARBELL` (horseshoe), `ORBITAL`, `CHAIN_LADDER` —
+   need endpoint placement AI can't reliably produce (a horseshoe's tips are at the
+   gap, not the PCA extremes), so they stay parametric-only. Enforced in both UI
+   (`<JewelryModelManager>` hides the auto-gen panel) and server
+   (`startJewelryGeneration` rejects them with a 4xx).
 2. **AI GLBs without `attach:primary` use the legacy fallback:** mesh placed
    at `anchor.position` with `anchor.rotation`. This is fine if the mesh's
    origin happens to be near the post tip; for AI pieces where that isn't
@@ -326,16 +331,15 @@ needed, switch the section to a sortable list.)
 
 ## Future work
 
-- **3D point-picker for AI-generated GLBs.** When AI returns a stud whose
-  origin isn't at the post tip, the admin currently has no way to mark
-  where attach:primary should be. A small drei-based 3D viewer with a
-  click-to-set-point gizmo, writing back to the stored GLB via gltf-transform
-  in a server action, would close that gap.
-- **Constrained third DOF for asymmetric multi-anchor pieces.** Add support
-  for `attach:up` reference empty so the renderer can fully constrain the
-  bar's rotation around its long axis — needed only for pieces where one
-  side of the bar visually differs from the other (e.g. an industrial with a
-  gem cluster on one ball).
+- ✅ **3D point-picker for AI-generated GLBs — DONE.** `GlbInspector` has a
+  "Поставить точку" mode (click-to-set gizmo) backed by `setJewelryAttachPoint` →
+  `setGlbAttachPoint`; for multi-anchor (BARBELL) pieces a Конец 1 / Конец 2 toggle
+  chooses whether the pick writes `attach:primary` or `attach:secondary`.
+- ✅ **Constrained third DOF (`attach:up`) — DONE.** `readAttachUp` +
+  `placeMultiAnchor` (lib/catalog/place-jewelry.ts) roll the piece about the bar so
+  a GLB's optional `attach:up` reference aligns with world up — for asymmetric
+  multi-anchor pieces. With no `attach:up` node the roll is left free (fine for
+  symmetric bars).
 - **CHAIN_LADDER per-segment rendering.** Currently the renderer uses just
   the first two attach points for any 2+ binding piece. A real corset
   rendering would render N-1 short barbell segments, each spanning two

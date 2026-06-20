@@ -63,14 +63,14 @@ export function AnimatedWordmark({
             font={fontUrl}
             sdfGlyphSize={128}
             fillOpacity={1}
-            renderOrder={100}
+            renderOrder={-10}
         >
             PIERCERKZN
             <meshBasicMaterial
                 color={color}
                 transparent
                 opacity={1}
-                depthTest={false}
+                depthTest={true}
                 depthWrite={false}
             />
         </Text>
@@ -78,11 +78,12 @@ export function AnimatedWordmark({
 }
 
 /**
- * AnimatedChooseText — "ВЫБЕРИ" rendered as a 3D Text mesh between
- * the camera and the exhibit ring. Reads as a floating chapter-divider
- * title sitting *in front of* the ring rather than behind it, framing
- * the exhibit beneath. Glows via toneMapped=false + HDR-pushed colour
- * (the existing bloom pass picks it up).
+ * AnimatedChooseText — "ВЫБЕРИ" rendered as a 3D Text mesh BEHIND the
+ * exhibit ring. Reads as a backdrop chapter-divider title that the
+ * exhibit (ring + podium) sits *in front of*, framing the brand beat.
+ * Glows via toneMapped=false + HDR-pushed colour (the existing bloom
+ * pass picks it up); depthTest=true so the foreground geometry occludes
+ * it correctly.
  *
  * Visibility is a wide beat centred on the ChooseIntro apex (sp=0.5):
  *   • fade-in:   sp 0.25 → 0.42  (smoothstep ramp-up)
@@ -151,11 +152,11 @@ export function AnimatedChooseText({
         <Text
             ref={ref}
             position={[-12, 0.0, z]}
-            // Sits in front of the ring's exhibit position (z=-12) at
-            // z=-10, with y=+1.0 lifting it above the ring as a chapter
-            // title floating over the exhibit. fontSize 1.4 is sized to
-            // fit the frame at ~5 units distance from the Ch1 camera.
-            fontSize={1.4}
+            // Sits BEHIND the ring's exhibit position (z=-12), at z=-14,
+            // so the ring + podium occlude it — a backdrop chapter title
+            // the foreground exhibit stands in front of. Enlarged to read
+            // at the greater distance from the Ch1 camera.
+            fontSize={1.9}
             letterSpacing={0.04}
             color={brightColor}
             anchorX="center"
@@ -163,7 +164,7 @@ export function AnimatedChooseText({
             font={fontUrl}
             sdfGlyphSize={128}
             fillOpacity={1}
-            renderOrder={100}
+            renderOrder={-10}
         >
             ВЫБЕРИ
             <meshBasicMaterial
@@ -171,7 +172,7 @@ export function AnimatedChooseText({
                 transparent
                 opacity={0}
                 toneMapped={false}
-                depthTest={false}
+                depthTest={true}
                 depthWrite={false}
             />
         </Text>
@@ -254,7 +255,7 @@ export function AnimatedPrimerText({
             font={fontUrl}
             sdfGlyphSize={128}
             fillOpacity={1}
-            renderOrder={100}
+            renderOrder={-10}
         >
             ПРИМЕРЬ
             <meshBasicMaterial
@@ -262,7 +263,7 @@ export function AnimatedPrimerText({
                 transparent
                 opacity={0}
                 toneMapped={false}
-                depthTest={false}
+                depthTest={true}
                 depthWrite={false}
             />
         </Text>
@@ -349,7 +350,7 @@ export function AnimatedReserveText({
             font={fontUrl}
             sdfGlyphSize={128}
             fillOpacity={1}
-            renderOrder={100}
+            renderOrder={-10}
         >
             ЗАБРОНИРУЙ
             <meshBasicMaterial
@@ -357,7 +358,7 @@ export function AnimatedReserveText({
                 transparent
                 opacity={0}
                 toneMapped={false}
-                depthTest={false}
+                depthTest={true}
                 depthWrite={false}
             />
         </Text>

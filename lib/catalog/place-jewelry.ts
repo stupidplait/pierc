@@ -6,12 +6,13 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import type {
-  AnchorWire,
-  EquippedMap,
-  JewelryType,
-  JewelryWire,
-  Vec3,
+import {
+  isSingleAnchorType,
+  type AnchorWire,
+  type EquippedMap,
+  type JewelryType,
+  type JewelryWire,
+  type Vec3,
 } from "@/lib/catalog/types";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -42,22 +43,35 @@ export function groupEquipped(
     const j = jewelryById.get(jewelryId);
     if (!j) continue;
 
-    // Resolve anchor records and sort by their JewelryAnchorBinding.order so
-    // primary lands at attach:primary, secondary at attach:secondary, etc.
-    // Bindings whose anchor isn't in this jewelry's binding list (shouldn't
-    // happen, but be defensive) get pushed to the end.
-    const orderByAnchor = new Map<string, number>();
-    for (const b of j.anchorBindings) orderByAnchor.set(b.anchorId, b.order);
-
     const resolved = anchorIds
       .map((id) => anchorsById.get(id))
-      .filter((a): a is AnchorWire => Boolean(a))
-      .sort(
-        (a, b) =>
-          (orderByAnchor.get(a.id) ?? 99) - (orderByAnchor.get(b.id) ?? 99),
-      );
-
+      .filter((a): a is AnchorWire => Boolean(a));
     if (resolved.length === 0) continue;
+
+    // Compat-list types (STUD/RING): each anchor the piece is worn on is an
+    // INDEPENDENT instance — emit one single-anchor piece per anchor. Bucketing
+    // them into a single multi-anchor piece (the bug) routed a stud worn on two
+    // holes through placeMultiAnchor → its <2-attach-point fallback rendered it
+    // ONCE at the primary anchor with a hardcoded scale 1.0 (ignoring glbScale
+    // and the per-binding nudge), so it vanished from the other anchor and lost
+    // its scale/orientation. Each instance now places via placeSingleAnchor with
+    // the piece's glbScale + that binding's rotationOffset.
+    if (isSingleAnchorType(j.type)) {
+      for (const a of resolved) pieces.push({ jewelry: j, anchors: [a] });
+      continue;
+    }
+
+    // Fixed multi-anchor types (BARBELL/CIRCULAR_BARBELL/ORBITAL/CHAIN_LADDER):
+    // one mesh spans all bound anchors. Sort by JewelryAnchorBinding.order so
+    // primary lands at attach:primary, secondary at attach:secondary, etc.
+    // Anchors not in this jewelry's binding list (shouldn't happen, but be
+    // defensive) get pushed to the end.
+    const orderByAnchor = new Map<string, number>();
+    for (const b of j.anchorBindings) orderByAnchor.set(b.anchorId, b.order);
+    resolved.sort(
+      (a, b) =>
+        (orderByAnchor.get(a.id) ?? 99) - (orderByAnchor.get(b.id) ?? 99),
+    );
     pieces.push({ jewelry: j, anchors: resolved });
   }
   return pieces;
@@ -118,6 +132,17 @@ export function readAttachLocals(scene: Object3D): Vector3[] {
     else break; // first missing name terminates — attach points are dense.
   }
   return out;
+}
+
+/** The `attach:up` reference point, or null. It's NOT an ordered endpoint (so it's
+ *  excluded from ATTACH_NAMES / readAttachLocals); it's a roll constraint for
+ *  asymmetric multi-anchor pieces — see placeMultiAnchor. */
+export function readAttachUp(scene: Object3D): Vector3 | null {
+  let up: Vector3 | null = null;
+  scene.traverse((obj) => {
+    if (attachSlug(obj) === "up") up = obj.position.clone();
+  });
+  return up;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -250,6 +275,7 @@ export function placeMultiAnchor(
   group: Group,
   anchors: AnchorWire[],
   attachLocals: Vector3[],
+  attachUp?: Vector3 | null,
 ) {
   if (anchors.length < 2 || attachLocals.length < 2) {
     // Fall back to 1-anchor placement if the GLB is missing the required
@@ -289,6 +315,26 @@ export function placeMultiAnchor(
   const worldDirNorm = worldDir.clone().divideScalar(worldLen);
 
   const quat = new Quaternion().setFromUnitVectors(meshDirNorm, worldDirNorm);
+
+  // Optional third-DOF constraint: if the GLB carries an `attach:up` reference,
+  // roll the piece about the bar axis so its local "up" lines up with world up —
+  // needed for asymmetric multi-anchor pieces (e.g. an industrial with a gem on
+  // one ball). Without it the roll is left free (fine for symmetric bars).
+  if (attachUp) {
+    const localUp = attachUp.clone().sub(meshA);
+    localUp.addScaledVector(meshDirNorm, -localUp.dot(meshDirNorm)); // ⟂ to the bar
+    const desiredUp = WORLD_UP.clone().addScaledVector(
+      worldDirNorm,
+      -WORLD_UP.dot(worldDirNorm),
+    ); // world up ⟂ to the bar
+    if (localUp.lengthSq() > 1e-12 && desiredUp.lengthSq() > 1e-12) {
+      const rotatedUp = localUp.applyQuaternion(quat).normalize();
+      desiredUp.normalize();
+      const cross = new Vector3().crossVectors(rotatedUp, desiredUp);
+      const angle = Math.atan2(cross.dot(worldDirNorm), rotatedUp.dot(desiredUp));
+      quat.premultiply(new Quaternion().setFromAxisAngle(worldDirNorm, angle));
+    }
+  }
 
   // Position so that meshA, after rotation+scale, lands at worldA.
   //   world = position + quat * (mesh * scale)

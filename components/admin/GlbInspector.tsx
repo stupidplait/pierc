@@ -39,6 +39,7 @@ export function GlbInspector({
   scale,
   scaleJewelryId,
   candidateJobId,
+  multiAnchor = false,
 }: {
   url: string;
   /** Optional caption above the preview (e.g. "Новая — на проверке"). */
@@ -58,6 +59,9 @@ export function GlbInspector({
   /** Forwarded to the scale control's auto-suggest so it measures THIS generation
    *  candidate instead of the published model. */
   candidateJobId?: string;
+  /** When true (multi-anchor piece, e.g. BARBELL), the point-picker offers a
+   *  primary/secondary toggle so the admin can fix either bar end. */
+  multiAnchor?: boolean;
 }) {
   const t = ru.admin.jewelry.model;
   const [stats, setStats] = useState<GlbStats | null>(null);
@@ -79,6 +83,8 @@ export function GlbInspector({
   const [picked, setPicked] = useState<[number, number, number] | null>(null);
   const [savingPick, startSavePick] = useTransition();
   const [pickError, setPickError] = useState<string | null>(null);
+  // Which attach point the pick writes (multi-anchor pieces only).
+  const [pickSlot, setPickSlot] = useState<"primary" | "secondary">("primary");
 
   const finalQ = useMemo(
     () =>
@@ -126,6 +132,7 @@ export function GlbInspector({
     fd.set("x", String(picked[0]));
     fd.set("y", String(picked[1]));
     fd.set("z", String(picked[2]));
+    fd.set("slot", pickSlot);
     startSavePick(async () => {
       const res = await setJewelryAttachPoint(fd);
       // On success the parent remounts (new url) → picked resets to null.
@@ -171,6 +178,13 @@ export function GlbInspector({
           save={savePick}
           saving={savingPick}
           error={pickError}
+          multiAnchor={multiAnchor}
+          slot={pickSlot}
+          setSlot={(s) => {
+            setPickSlot(s);
+            setPicked(null);
+            setPickError(null);
+          }}
         />
       )}
     </div>
@@ -407,15 +421,40 @@ function PickControls({
   save,
   saving,
   error,
+  multiAnchor,
+  slot,
+  setSlot,
 }: {
   picked: [number, number, number] | null;
   clear: () => void;
   save: () => void;
   saving: boolean;
   error: string | null;
+  multiAnchor: boolean;
+  slot: "primary" | "secondary";
+  setSlot: (s: "primary" | "secondary") => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
+      {multiAnchor ? (
+        <div className="flex items-center gap-1.5 text-xs text-mute">
+          <span>Конец:</span>
+          {(["primary", "secondary"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSlot(s)}
+              className={`flex h-6 items-center rounded-md border px-2 text-xs transition-colors ${
+                slot === s
+                  ? "border-ink bg-ink text-bg"
+                  : "border-ink/15 text-ink hover:border-ink/40"
+              }`}
+            >
+              {s === "primary" ? "Конец 1" : "Конец 2"}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <p className="text-[11px] leading-snug text-mute">
         Покрутите модель и кликните по месту крепления к пирсингу — голубая точка.
         Затем нажмите «Сохранить».
