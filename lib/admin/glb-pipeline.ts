@@ -49,6 +49,7 @@ import {
   normalizeStudDocument,
   normalizeRingDocument,
   normalizeBarbellDocument,
+  measureRingBandFromDoc,
   collectMeshVertices,
   bakeRoll,
   bakeHeadFlip,
@@ -414,6 +415,26 @@ export async function measureGlbSizeM(
     };
     if (size.x <= 0 && size.y <= 0 && size.z <= 0) return null;
     return size;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Measure a RING's band (outer + tube diameter, meters), EXCLUDING any pendant/charm,
+ * by fitting the load-bearing circle — the scale-correct dimension for a hoop, where
+ * the whole-bbox max axis would be the pendant-inflated height. Returns null when no
+ * band can be isolated (caller falls back to `measureGlbSizeM`). See
+ * lib/admin/glb-normalize.ts `measureRingBandFromDoc`.
+ */
+export async function measureRingBandM(
+  input: ArrayBuffer | Uint8Array,
+): Promise<{ outerDiameterM: number; tubeDiameterM: number } | null> {
+  try {
+    const src = input instanceof Uint8Array ? input : new Uint8Array(input);
+    const io = await getIO();
+    const doc = await io.readBinary(src);
+    return measureRingBandFromDoc(doc);
   } catch {
     return null;
   }

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useProgress } from "@react-three/drei";
 import { AnimatePresence, m } from "framer-motion";
-import { catalogStrings } from "@/lib/i18n/ru";
 import type { LoaderVariant } from "@/lib/catalog/lab-state";
 import { markSceneReady, useSceneReady } from "@/lib/catalog/scene-ready";
+import { CatalogLoadingScreen } from "./CatalogLoadingScreen";
 import { cn } from "@/lib/utils";
 
 /** The branded loader glyph. Locked design: loader = "spinner" — the bars /
@@ -16,7 +15,12 @@ function LoaderGlyph() {
   );
 }
 
-/** Branded spinner — a loader glyph + a mono caption. */
+/**
+ * Branded spinner — a loader glyph + a mono caption, on a transparent surface.
+ * Used by the detail-page GLB viewer (CatalogGlbViewer) over its own backdrop.
+ * The full-stage scene cover uses <CatalogLoadingScreen> instead (same glyph on
+ * an opaque bg-bg surface).
+ */
 export function Spinner({
   label,
   progress,
@@ -45,40 +49,48 @@ export function Spinner({
 }
 
 /**
- * CatalogSceneLoader — full-stage cover shown while the body model + initial
- * assets load (drei `useProgress`), then fades out and never returns (later
- * jewelry GLBs load behind the live scene). Also shows on a manual preview.
+ * CatalogSceneLoader — full-stage cover shown while the body model loads, then
+ * fades out and never returns (later jewelry GLBs load behind the live scene
+ * behind their own per-piece placeholders).
+ *
+ * Readiness is driven by {@link useSceneReady}, which `<BodyModel onReady>`
+ * flips the instant the body is in the scene graph. We deliberately do NOT gate
+ * on drei's `useProgress`: that store is a module-level singleton shared with
+ * the landing page's r3f canvases, and navigating in from the landing can leave
+ * it in a state the catalog never resolves (body.glb resolves from cache with
+ * no fresh progress events) — which used to strand this cover on a permanent
+ * spinner. A timeout backstop guarantees the cover can never outlive the scene
+ * even if the mount signal is somehow missed.
  */
-export function CatalogSceneLoader({
-  variant = "spinner",
-}: {
-  variant?: LoaderVariant;
-}) {
-  const { progress, active } = useProgress();
+export function CatalogSceneLoader() {
   const ready = useSceneReady();
+
+  // Safety net: reveal the scene after a generous timeout no matter what, so a
+  // missed ready-signal (e.g. body.glb 404s and its Suspense never resolves)
+  // can never freeze the page on a loader. The normal landing->catalog case is
+  // already handled instantly by the body-mount signal (a cached body commits
+  // immediately), so this only ever fires on genuine asset failure — hence it's
+  // set above a slow-mobile body load + Draco decode rather than aggressively.
+  // `markSceneReady` is idempotent, so a late real signal is harmless.
   useEffect(() => {
-    if (!active && progress >= 100) markSceneReady();
-  }, [active, progress]);
-  const show = !ready;
+    const t = setTimeout(markSceneReady, 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <AnimatePresence>
-      {show ? (
+      {ready ? null : (
         <m.div
           key="scene-loader"
-          className="absolute inset-0 z-30 grid place-items-center bg-bg"
+          className="absolute inset-0 z-30"
           initial={false}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <Spinner
-            variant={variant}
-            label={catalogStrings.showroom.sceneLoading}
-            progress={progress}
-          />
+          <CatalogLoadingScreen />
         </m.div>
-      ) : null}
+      )}
     </AnimatePresence>
   );
 }

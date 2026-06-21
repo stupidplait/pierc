@@ -83,6 +83,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     position: asVec3(a.position),
     rotation: asVec3(a.rotation),
     ringRotation: a.ringRotation == null ? null : asVec3(a.ringRotation),
+    hoopSeat: a.hoopSeat === "captive" ? "captive" : "dangle",
     cameraPresets: asCameraPresets(a.cameraPresets),
   }));
 

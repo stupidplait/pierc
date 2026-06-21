@@ -1,8 +1,16 @@
 """Seamless hoop / clicker.
 
 Origin: centre of ring.
-Outward axis: +Z (ring lies in the XY plane).
-attach:primary: top of the band (+Y) — where the hoop crosses the piercing.
+Outward axis: glTF +Z (the renderer's body-outward / ring HOLE axis).
+attach:primary: glTF +Y (top of the band) — where the hoop crosses the piercing.
+
+IMPORTANT — Blender→glTF axis flip. The exporter (export_yup=True) maps Blender
++Z → glTF +Y. So a torus left in Blender's default XY plane (hole Blender +Z)
+exports with hole-axis glTF +Y — i.e. the ring lies FLAT, which the catalog camera
+sees edge-on (a flat sliver). To land the hole on glTF +Z (what the RING convention
+in lib/catalog/place-jewelry.ts expects), we STAND THE RING UP: rotate the torus
++90° about X so its hole points Blender -Y → glTF +Z, and put the band-top attach
+at Blender +Z → glTF +Y.
 
 Params (all millimeters):
     diameterMm  — outer diameter of the ring (typical: 6, 8, 10, 12)
@@ -17,6 +25,7 @@ Anatomy:
 
 from __future__ import annotations
 
+import math
 import sys
 import os
 
@@ -48,21 +57,25 @@ def build(params: dict, material_color: str) -> tuple[bpy.types.Object, ...]:
         minor_r_mm=minor_r_mm,
         major_segments=48,
         minor_segments=12,
+        # Stand the ring UP: the default torus lies in Blender's XY plane (hole
+        # Blender +Z → glTF +Y, lying flat). Rotating +90° about X aims the hole
+        # along Blender -Y → glTF +Z — the renderer's hole/outward axis.
+        rotation=(math.radians(90.0), 0.0, 0.0),
     )
     obj.name = "seamless_hoop"
 
-    apply_transforms(obj)
+    apply_transforms(obj)  # bake the rotation into the mesh
 
     mat = make_metal_material(f"metal_{material_color}", material_color)
     assign_material(obj, mat)
 
-    # Attach point: TOP of the band (+Y, on the wire centerline), where a hoop
-    # crosses the piercing — so the renderer hangs the ring DOWN from the anchor.
-    # The empty's local +Z still points OUT of the ring face. For ORBITAL usage
-    # (one ring through 2 piercings), an additional `attach:secondary` would be
-    # added at the opposite point of the torus; not yet supported.
+    # Attach point: TOP of the band, at Blender +Z·major_r → glTF +Y after the yup
+    # export — where the hoop crosses the piercing. The renderer seats this point on
+    # the anchor (and, for ear-cartilage anchors flagged hoopSeat="captive", centers
+    # the ring there instead of hanging it). For ORBITAL usage (one ring through 2
+    # piercings) an `attach:secondary` at the opposite point would be added; n/a yet.
     attach_primary = add_attach_empty(
-        "attach:primary", location=(0.0, major_r_mm / 1000.0, 0.0)
+        "attach:primary", location=(0.0, 0.0, major_r_mm / 1000.0)
     )
 
     return obj, attach_primary

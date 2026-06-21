@@ -1,20 +1,6 @@
-// Shared shape for the admin-dashboard Status Board. The server page builds
-// these from live Prisma counts.
+// Shared shapes for the admin dashboard. The server page builds these from live
+// Prisma data. `MetricTone` is reused by the v2 metric cards (see v2/types.ts).
 export type MetricTone = "primary" | "warn" | "neutral";
-
-export interface Metric {
-  key: string;
-  href: string;
-  /** Full title (used where space allows). */
-  title: string;
-  /** Compact label for the activity-feed rows. */
-  titleShort: string;
-  lead: string;
-  count: number;
-  tone: MetricTone;
-  /** count > 0 on an actionable tone — drives the accent ping / warn glyph. */
-  urgent: boolean;
-}
 
 export interface QuickAction {
   /** Navigation target. Omitted for action-driven items (use `action`). */

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
 import { asPhotos, type JewelryPhoto } from "@/lib/jewelry/format";
+import { fetchBlobBytes, BlobFetchError } from "@/lib/jewelry/blob-bytes";
 import {
   ATTACH_RULES,
   fieldErrorsFromZod,
@@ -14,7 +15,7 @@ import {
   VALIDATION_SUMMARY,
   type FieldErrors,
 } from "@/lib/admin/jewelry-schema";
-import { suggestScaleFromSizeM } from "@/lib/admin/glb-scale";
+import { suggestScale, suggestScaleFromSizeM } from "@/lib/admin/glb-scale";
 import {
   PARAMETRIC_SHAPES,
   type ParametricShape,
@@ -37,6 +38,44 @@ function revalidateForJewelry(id?: string) {
   if (id) revalidatePath(`/catalog/${id}`);
   revalidateTag("jewelry", { expire: 0 }); // drop getPublishedJewelry() cache now
   revalidatePath("/", "layout"); // featured items affect the landing later
+}
+
+/**
+ * Load a model blob's bytes for a server-side mutation (orientation nudge, attach
+ * picker, hybrid rebuild, scale analysis). Uses the resilient shared fetch
+ * (lib/jewelry/blob-bytes.ts): it reuses the bytes the admin's preview just
+ * streamed (same-process cache) and retries the transient Vercel Blob Security
+ * Checkpoint instead of failing on the first 403. A naked `fetch(glbUrl)` here was
+ * why the point-picker / rotate "Save" failed with "HTTP 403" — the blob host
+ * challenges server-side fetches too, not just the browser. `noun` names the asset
+ * in the error message (e.g. "модель", "ИИ-верх").
+ */
+async function loadGlbForMutation(
+  url: string,
+  noun = "модель",
+): Promise<{ ok: true; buffer: ArrayBuffer } | { ok: false; error: string }> {
+  try {
+    // ≤3 retries × 600ms linear backoff ≈ 3.6s worst case — bounded so the action
+    // stays under the serverless timeout; the cache hit (preview just loaded it)
+    // makes the common case instant, so retries only run on an active checkpoint.
+    const { body } = await fetchBlobBytes(url, { retries: 3, retryDelayMs: 600 });
+    return { ok: true, buffer: body };
+  } catch (err) {
+    if (err instanceof BlobFetchError && err.checkpoint) {
+      return {
+        ok: false,
+        error:
+          "Хранилище моделей временно недоступно (анти-абуз защита Vercel Blob). Подождите несколько секунд и повторите.",
+      };
+    }
+    const detail =
+      err instanceof BlobFetchError && err.status != null
+        ? `HTTP ${err.status}`
+        : err instanceof Error
+          ? err.message
+          : "ошибка сети";
+    return { ok: false, error: `Не удалось загрузить ${noun}: ${detail}` };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -670,14 +709,9 @@ export async function generateParametricJewelryGlb(
     };
     let built: Uint8Array;
     if (hybrid) {
-      const topRes = await fetch(jewelry.glbUrl!);
-      if (!topRes.ok) {
-        return {
-          ok: false,
-          error: `Не удалось загрузить ИИ-верх: HTTP ${topRes.status}`,
-        };
-      }
-      built = await buildHybridGlb(input, await topRes.arrayBuffer());
+      const loaded = await loadGlbForMutation(jewelry.glbUrl!, "ИИ-верх");
+      if (!loaded.ok) return { ok: false, error: loaded.error };
+      built = await buildHybridGlb(input, loaded.buffer);
     } else {
       built = await buildParametricGlb(input);
     }
@@ -765,16 +799,11 @@ export async function nudgeJewelryGlb(
   if (!jewelry?.glbUrl)
     return { ok: false, error: "У украшения нет 3D-модели" };
 
-  // Server-side fetch of our own blob — not subject to the cross-origin challenge
-  // that blocks the browser (see lib/jewelry/glb-proxy.ts).
-  const res = await fetch(jewelry.glbUrl);
-  if (!res.ok) {
-    return {
-      ok: false,
-      error: `Не удалось загрузить модель: HTTP ${res.status}`,
-    };
-  }
-  const buffer = await res.arrayBuffer();
+  // Re-download the current model resiliently (shared cache + checkpoint retry) —
+  // see loadGlbForMutation. A naked fetch here hit the blob host's 403 too.
+  const loaded = await loadGlbForMutation(jewelry.glbUrl);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const buffer = loaded.buffer;
 
   const { nudgeGlbOrientation } = await import("@/lib/admin/glb-pipeline");
   let bytes: Uint8Array;
@@ -856,16 +885,12 @@ export async function setJewelryAttachPoint(
   if (!jewelry?.glbUrl)
     return { ok: false, error: "У украшения нет 3D-модели" };
 
-  // Server-side fetch of our own blob — not subject to the cross-origin challenge
-  // that blocks the browser (see lib/jewelry/glb-proxy.ts).
-  const res = await fetch(jewelry.glbUrl);
-  if (!res.ok) {
-    return {
-      ok: false,
-      error: `Не удалось загрузить модель: HTTP ${res.status}`,
-    };
-  }
-  const buffer = await res.arrayBuffer();
+  // Re-download the current model resiliently. The blob host challenges server-side
+  // fetches too (anti-abuse 403), so this reuses the preview's cached bytes and
+  // retries the checkpoint — a naked fetch here failed the "Save" with HTTP 403.
+  const loaded = await loadGlbForMutation(jewelry.glbUrl);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const buffer = loaded.buffer;
 
   const { setGlbAttachPoint } = await import("@/lib/admin/glb-pipeline");
   let bytes: Uint8Array;
@@ -1020,24 +1045,33 @@ export async function analyzeJewelryScale(
     // Measure the REAL bounding box via gltf-transform getBounds (applies the
     // KHR_mesh_quantization dequant scale). The old JSON-accessor parser read
     // quantized integers (~65535) on compressed models → nonsense km-scale sizes.
-    const res = await fetch(targetUrl);
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: `Не удалось загрузить модель: HTTP ${res.status}`,
-      };
-    }
-    const { measureGlbSizeM } = await import("@/lib/admin/glb-pipeline");
-    const sizeM = await measureGlbSizeM(await res.arrayBuffer());
+    const loaded = await loadGlbForMutation(targetUrl);
+    if (!loaded.ok) return { ok: false, error: loaded.error };
+    const { measureGlbSizeM, measureRingBandM } = await import(
+      "@/lib/admin/glb-pipeline"
+    );
+    const sizeM = await measureGlbSizeM(loaded.buffer);
     if (!sizeM) {
       return { ok: false, error: "Не удалось измерить геометрию модели" };
     }
 
-    const suggestion = suggestScaleFromSizeM(
-      sizeM,
-      jewelry.gauge,
-      jewelry.size,
-    );
+    // Rings scale by the BAND diameter (a pendant/charm would inflate the bbox max
+    // axis and shrink the ring); fall back to the bounding box for everything else.
+    let suggestion = suggestScaleFromSizeM(sizeM, jewelry.gauge, jewelry.size);
+    if (jewelry.type === "RING") {
+      const band = await measureRingBandM(loaded.buffer);
+      if (band) {
+        const ringScale = suggestScale(
+          {
+            sizeDimMm: band.outerDiameterM * 1000,
+            gaugeDimMm: band.tubeDiameterM * 1000,
+          },
+          jewelry.gauge,
+          jewelry.size,
+        );
+        if (ringScale) suggestion = ringScale;
+      }
+    }
 
     return {
       ok: true,

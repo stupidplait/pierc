@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCachedPublicUser } from "@/lib/public/queries";
 import { ru } from "@/lib/i18n/ru";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 export type ProfileState = { ok?: boolean; error?: string };
 
@@ -67,7 +68,11 @@ export async function updateMyProfile(
   });
 
   const data: Prisma.UserUpdateInput = { name, email, phone };
-  if (!current?.telegramChatId) {
+  // Only touch the Telegram handle when the feature is on AND the bot isn't the
+  // source of truth. With Telegram disabled the edit form omits the field, so
+  // writing `normalizeTelegram(undefined)` here would silently null a stored
+  // handle on every profile save — guard against that.
+  if (TELEGRAM_ENABLED && !current?.telegramChatId) {
     data.telegram = normalizeTelegram(parsed.data.telegram);
   }
 

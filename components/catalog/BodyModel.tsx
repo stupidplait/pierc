@@ -27,10 +27,10 @@ import { buildBoundsTrees } from "@/lib/three/bvh";
  *
  * Body height is 1.7 m, feet on Y=0.
  */
-export function BodyModel() {
+export function BodyModel({ onReady }: { onReady?: () => void }) {
   return (
     <Suspense fallback={null}>
-      <BodyMesh />
+      <BodyMesh onReady={onReady} />
     </Suspense>
   );
 }
@@ -40,8 +40,19 @@ export function BodyModel() {
 // offline, ad-blockers, or the Expo WebView. See public/draco/.
 const DRACO_PATH = "/draco/";
 
-function BodyMesh() {
+function BodyMesh({ onReady }: { onReady?: () => void }) {
   const gltf = useGLTF("/models/body/body.glb", DRACO_PATH);
+
+  // The body GLB is the only async asset in the initial showroom (the dais,
+  // dome gradient and grid are all procedural), so "the body has mounted" IS
+  // "the scene is ready". Fire once this component commits — which only happens
+  // after `useGLTF` resolves (instantly on a cache hit, after the load on a
+  // cold visit). This is what lets the scene cover dismiss WITHOUT depending on
+  // drei's `useProgress` — a module singleton shared with the landing's r3f
+  // canvases whose stale state could otherwise strand the loader forever.
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
 
   // Hide all `anchor:*` empties so they don't render or eat picks.
   // Mark the scene as body model for occlusion culling optimization.

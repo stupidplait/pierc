@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/notifications/telegram";
 import { verifyTelegramLinkToken } from "@/lib/telegram/link-token";
 import { reportError } from "@/lib/observability/logger";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 // Telegram Bot webhook. Handles the account-linking deep-link:
 //   user opens t.me/<bot>?start=<token> → Telegram sends us /start <token> →
@@ -25,6 +26,12 @@ interface TgUpdate {
 }
 
 export async function POST(request: Request) {
+  // Kill-switch: when Telegram is disabled the bot is not part of the product,
+  // so the webhook is "gone" — refuse to process or link any account.
+  if (!TELEGRAM_ENABLED) {
+    return NextResponse.json({ ok: false }, { status: 404 });
+  }
+
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!expected) {
     // Fail closed in production: an unconfigured secret would let anyone POST

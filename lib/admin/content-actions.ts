@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertAdmin } from "@/lib/admin/auth-helpers";
 import { isFaqCategoryKey } from "@/components/faq/faqData";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 import {
   parseSettingsFormData,
   settingsFieldErrors,
@@ -398,6 +399,17 @@ export async function updateSettings(
   const data = Object.fromEntries(
     Object.entries(parsed.data).map(([k, v]) => [k, v ? String(v) : null]),
   );
+
+  // A disabled feature's settings fields aren't rendered, so they'd come back
+  // absent → null and wipe the stored values on every save. Leave them
+  // untouched instead of clobbering them.
+  if (!TELEGRAM_ENABLED) {
+    delete (data as Record<string, unknown>).telegramUrl;
+    delete (data as Record<string, unknown>).telegramChatId;
+  }
+  if (!INSTAGRAM_ENABLED) {
+    delete (data as Record<string, unknown>).instagramUrl;
+  }
 
   await prisma.settings.upsert({
     where: { id: "default" },

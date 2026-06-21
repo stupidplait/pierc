@@ -192,7 +192,12 @@ export function SettingsWorkspace({ initial }: { initial: SettingsLike }) {
                       <CardDescription>{section.lead}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid gap-5 sm:grid-cols-2">
+                      {/* grid-cols-1 (= minmax(0,1fr)) is required at the base:
+                          without it the implicit mobile column is auto/max-content
+                          and the prefixed-URL field forces it ~370px wide → page
+                          overflow < sm. The explicit track clamps it + lets the
+                          input shrink. */}
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         {section.fields.map((field) => {
                           const nonce = fieldNonce[field.name] ?? 0;
                           return (

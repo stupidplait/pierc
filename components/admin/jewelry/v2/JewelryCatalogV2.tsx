@@ -11,25 +11,19 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { CARD } from "@/components/admin/form/styles";
-import { JewelryFilters, type JewelryStatus } from "./JewelryFilters";
-import { JewelryList, type JewelryRow } from "./JewelryBoard";
-import { JewelryListSkeleton } from "./JewelryBoardSkeleton";
-import { StatusTabs } from "./StatusFilter";
+import type { JewelryStatus } from "../types";
+import { Toolbar } from "./Toolbar";
+import { StatusTabs } from "./StatusTabs";
+import { JewelryBoardV2, type JewelryRow } from "./Board";
+import { BoardSkeletonV2 } from "./BoardSkeleton";
 
 /**
- * Catalog orchestrator — the single client island the server page renders. It
- * owns the filter→URL navigation (every control is a scroll-preserving
- * `router.replace` inside a transition) and the transition's `isPending`: while
- * a search/filter is in flight it swaps the list for the board skeleton, giving
- * loading feedback instead of a silently-stale list. Filters and the status
- * tabs stay live throughout.
- *
- * The list area sits in an `AnimatedHeight` wrapper so the card grows/shrinks
- * smoothly with the row count. The pending skeleton renders the *same* number of
- * rows as the outgoing list, so entering the loading state doesn't move the
- * height — only real result changes animate.
+ * Catalog orchestrator — the single client island the page renders. Owns the
+ * filter→URL navigation (every control is a scroll-preserving `router.replace`
+ * in a transition; `isPending` swaps the list for the skeleton) wired to the
+ * responsive board children. Fully responsive from 320px.
  */
-export function JewelryCatalog({
+export function JewelryCatalogV2({
   q,
   categoryIds,
   status,
@@ -55,22 +49,13 @@ export function JewelryCatalog({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  // The staggered blur-reveal is a first-impression flourish. Once the admin
-  // touches a filter, updates swap skeleton → list without re-cascading every
-  // row (set in the handlers below — never a ref/effect, per the strict
-  // react-hooks lint).
   const [hasInteracted, setHasInteracted] = useState(false);
 
-  // All filter writes funnel through here: clone the current params, mutate,
-  // and replace inside a transition so `isPending` drives the skeleton.
   const navigate = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParams.toString());
       mutate(params);
       const qs = params.toString();
-      // Re-clicking the active tab (or any control that lands on the same query)
-      // would otherwise fire a transition that refetches identical rows — the
-      // skeleton flashes while the same data comes back. Bail when nothing moved.
       if (qs === searchParams.toString()) return;
       setHasInteracted(true);
       startTransition(() => {
@@ -110,8 +95,8 @@ export function JewelryCatalog({
   const animateIn = !hasInteracted && !isPending;
 
   return (
-    <div className="flex flex-col gap-8">
-      <JewelryFilters
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <Toolbar
         q={q}
         categoryIds={categoryIds}
         featured={featured}
@@ -123,11 +108,6 @@ export function JewelryCatalog({
         clearAll={clearAll}
       />
 
-      {/* Same blur-rise as the toolbar above, so the list-with-tabs card enters
-          as one cohesive unit with the rest of the page rather than popping in.
-          Fires once on mount (initial → animate); filter updates don't re-run it,
-          they swap the skeleton inside. The genuine first-paint row stagger still
-          cascades within this card. */}
       <motion.div
         initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -143,9 +123,9 @@ export function JewelryCatalog({
         />
         <AnimatedHeight>
           {isPending ? (
-            <JewelryListSkeleton count={rows.length || 6} />
+            <BoardSkeletonV2 count={rows.length || 6} />
           ) : (
-            <JewelryList rows={rows} animateIn={animateIn} />
+            <JewelryBoardV2 rows={rows} animateIn={animateIn} />
           )}
         </AnimatedHeight>
       </motion.div>
@@ -154,14 +134,11 @@ export function JewelryCatalog({
 }
 
 /**
- * Animates its own height to fit its content as that content's height changes —
- * a plain CSS `height` transition driven by a ResizeObserver, so the card grows
- * and shrinks smoothly with no transform scaling (and therefore none of the
- * row-jumping that framer's `layout` produced). The height is written
- * imperatively in the observer callback (no inline style, no re-render per
- * resize). Honours reduced motion via the `motion-reduce:transition-none`
- * variant. The first measurement sets height from `auto`, which doesn't
- * transition — so the first paint never animates.
+ * Animates its own height to fit its content as that content changes — a plain
+ * CSS height transition driven by a ResizeObserver (no transform scaling, so no
+ * row-jumping). Height is written imperatively in the observer (no re-render per
+ * resize). Honours reduced motion; the first measurement (from auto) doesn't
+ * transition.
  */
 function AnimatedHeight({ children }: { children: ReactNode }) {
   const outerRef = useRef<HTMLDivElement>(null);

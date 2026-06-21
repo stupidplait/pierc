@@ -44,8 +44,12 @@ export default async function ProtectedAdminLayout({
 
       <AdminSidebar name={name} email={email} />
 
-      <SidebarInset>
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line/70 bg-card/60 px-6 py-3 backdrop-blur-xl md:hidden">
+      {/* min-w-0: as a flex item in the SidebarProvider row, the content column
+          must be allowed to shrink below its content's intrinsic width — without
+          it a wide descendant (e.g. a nowrap row) forces the whole page wider
+          than the viewport (horizontal overflow at < lg). */}
+      <SidebarInset className="min-w-0">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line/70 bg-card/60 px-4 py-3 backdrop-blur-xl sm:px-6 md:hidden">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger />
             <Link
@@ -58,9 +62,12 @@ export default async function ProtectedAdminLayout({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 sm:px-10 sm:py-12">
+        {/* Single, mobile-first content region — `SidebarInset` is the only
+            <main> in the tree (no nested landmark). Padding scales UP from a
+            320px-safe base so admin pages never collapse on the narrowest phones. */}
+        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
           {children}
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

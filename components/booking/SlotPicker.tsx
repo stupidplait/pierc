@@ -10,6 +10,8 @@ import {
 import type { WizardSlot } from "@/lib/booking/wizard-types";
 import { ru } from "@/lib/i18n/ru";
 import { SITE } from "@/lib/site";
+import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 const RU_WEEKDAY = new Intl.DateTimeFormat("ru-RU", { weekday: "short" });
 const RU_MONTH = new Intl.DateTimeFormat("ru-RU", { month: "short" });
@@ -121,14 +123,23 @@ export function SlotPicker({
     return (
       <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-mute">{ru.pages.book.slotStep.empty}</p>
-        <a
-          href={SITE.telegram}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
-        >
-          {ru.pages.book.slotStep.emptyCta} <span aria-hidden="true">→</span>
-        </a>
+        {TELEGRAM_ENABLED ? (
+          <a
+            href={SITE.telegram}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+          >
+            {ru.pages.book.slotStep.emptyCta} <span aria-hidden="true">→</span>
+          </a>
+        ) : (
+          <a
+            href={`tel:${ruPhoneHref(SITE.phone)}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+          >
+            {formatRuPhone(SITE.phone)} <span aria-hidden="true">→</span>
+          </a>
+        )}
       </div>
     );
   }

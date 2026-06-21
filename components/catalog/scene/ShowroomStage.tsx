@@ -11,6 +11,7 @@ import { CameraRig } from "../CameraRig";
 import { PostFx } from "./PostFx";
 import { CatalogSceneLoader } from "./SceneLoader";
 import { CharacterDais } from "./environments/CharacterDais";
+import { markSceneReady } from "@/lib/catalog/scene-ready";
 import type { AnchorWire, EquippedMap, JewelryWire } from "@/lib/catalog/types";
 import type {
   EnvVariant,
@@ -100,7 +101,6 @@ export function ShowroomStage({
   hud,
   bg,
   dots,
-  loader,
 }: ShowroomStageProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const reduced = useReducedMotion() ?? false;
@@ -195,7 +195,9 @@ export function ShowroomStage({
         <SceneEnvironment env={env} bg={bg} />
 
         <Turntable enabled={turntableOn}>
-          <BodyModel />
+          {/* Dismiss the scene cover the moment the body is in the graph —
+              decoupled from drei's shared useProgress (see scene-ready.ts). */}
+          <BodyModel onReady={markSceneReady} />
           <AnchorDots
             anchors={anchors}
             selectedId={selectedId}
@@ -216,7 +218,7 @@ export function ShowroomStage({
         <PostFx hud={hud} />
       </Canvas>
 
-      <CatalogSceneLoader variant={loader} />
+      <CatalogSceneLoader />
     </div>
   );
 }

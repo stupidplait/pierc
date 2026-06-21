@@ -6,10 +6,9 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 import { ru } from "@/lib/i18n/ru";
 import { firstPhotoUrl, formatPrice } from "@/lib/jewelry/format";
-import type { JewelryStatus } from "@/components/admin/jewelry/JewelryFilters";
-import type { JewelryRow } from "@/components/admin/jewelry/JewelryBoard";
-import { CatalogHeader } from "@/components/admin/jewelry/CatalogHeader";
-import { JewelryCatalog } from "@/components/admin/jewelry/JewelryCatalog";
+import type { JewelryStatus, JewelryRow } from "@/components/admin/jewelry/types";
+import { CatalogHeaderV2 } from "@/components/admin/jewelry/v2/CatalogHeaderV2";
+import { JewelryCatalogV2 } from "@/components/admin/jewelry/v2/JewelryCatalogV2";
 
 export const metadata: Metadata = {
   title: ru.admin.nav.jewelry,
@@ -39,8 +38,8 @@ export default async function AdminJewelryPage({
 }: AdminJewelryPageProps) {
   const sp = await searchParams;
   const q = sp.q?.trim() || "";
-  // `category` is now a comma-joined list of ids (multi-select). "all" is the
-  // legacy single-select sentinel and maps to no filter.
+  // `category` is a comma-joined list of ids (multi-select). "all" is the legacy
+  // single-select sentinel and maps to no filter.
   const categoryIds = (sp.category ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -126,8 +125,8 @@ export default async function AdminJewelryPage({
   }));
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <CatalogHeader />
+    <div>
+      <CatalogHeaderV2 />
 
       {deleteError === "has-bookings" ? (
         <div
@@ -139,7 +138,7 @@ export default async function AdminJewelryPage({
         </div>
       ) : null}
 
-      <JewelryCatalog
+      <JewelryCatalogV2
         q={q}
         categoryIds={categoryIds}
         status={status}

@@ -1,20 +1,15 @@
 // Route-level loader for /catalog. Overrides the generic content skeleton at
 // app/loading.tsx — the catalog is a full-bleed dark 3D stage, so a card-grid
-// skeleton mismatches badly. This matches the scene's dark surface + the same
-// spinner the WebGL stage shows, so route-stream → scene-load reads as one
-// continuous load.
+// skeleton mismatches badly. Renders the SAME spinner the chunk fallback and
+// the in-canvas scene cover use, so route-stream → chunk-download → scene-load
+// reads as one continuous loader rather than several stacked preloaders.
 
-import { catalogStrings } from "@/lib/i18n/ru";
+import { CatalogLoadingScreen } from "@/components/catalog/scene/CatalogLoadingScreen";
 
 export default function CatalogLoading() {
-  return (
-    <div className="grid h-svh place-items-center bg-bg">
-      <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
-        <span className="size-9 animate-spin rounded-full border-2 border-line border-t-accent" />
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mute">
-          {catalogStrings.showroom.sceneLoading}
-        </p>
-      </div>
-    </div>
-  );
+  // The route fallback is the single loader that announces to assistive tech;
+  // the downstream chunk fallback + in-canvas cover render the same visual but
+  // stay out of the a11y tree so the caption isn't re-read on every boundary
+  // swap (see CatalogLoadingScreen `announce`).
+  return <CatalogLoadingScreen className="h-svh" announce />;
 }

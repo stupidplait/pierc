@@ -1,4 +1,5 @@
 import { CARD } from "@/components/admin/form/styles";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 
 function Field({ full }: { full?: boolean }) {
   return (
@@ -25,6 +26,15 @@ function SectionCard({ fields }: { fields: { key: string; full?: boolean }[] }) 
   );
 }
 
+// Mirror SETTINGS_SECTIONS (components/admin/settings/model.ts): the Instagram
+// + Telegram fields drop out of "social" when their flags are off (a fully
+// empty social section is omitted), and the Telegram-only "integrations"
+// section is omitted when Telegram is off — so the skeleton matches the form.
+const socialFields = [
+  ...(INSTAGRAM_ENABLED ? [{ key: "instagram" }] : []),
+  ...(TELEGRAM_ENABLED ? [{ key: "telegram" }] : []),
+];
+
 const SECTIONS: { key: string; fields: { key: string; full?: boolean }[] }[] = [
   {
     key: "contacts",
@@ -35,8 +45,12 @@ const SECTIONS: { key: string; fields: { key: string; full?: boolean }[] }[] = [
       { key: "hours" },
     ],
   },
-  { key: "social", fields: [{ key: "instagram" }, { key: "telegram" }] },
-  { key: "integrations", fields: [{ key: "chatId", full: true }] },
+  ...(socialFields.length > 0
+    ? [{ key: "social", fields: socialFields }]
+    : []),
+  ...(TELEGRAM_ENABLED
+    ? [{ key: "integrations", fields: [{ key: "chatId", full: true }] }]
+    : []),
 ];
 
 export default function Loading() {

@@ -16,7 +16,10 @@ export type SettingsFieldErrors = Partial<Record<SettingsFieldName, string>>;
 export const SETTINGS_VALIDATION_SUMMARY = "Проверьте поля формы";
 
 const emptyToUndefined = (v: unknown) =>
-  typeof v === "string" && v.trim() === "" ? undefined : v;
+  // Treat absent (null — e.g. a field that isn't rendered when its feature flag
+  // is off) the same as empty, so parsing stays valid and the field is simply
+  // skipped instead of failing the whole form.
+  v == null || (typeof v === "string" && v.trim() === "") ? undefined : v;
 
 const normalizeUrlInput = (v: unknown) => {
   const u = emptyToUndefined(v);

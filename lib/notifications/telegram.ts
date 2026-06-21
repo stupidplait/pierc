@@ -1,3 +1,5 @@
+import { TELEGRAM_ENABLED } from "@/lib/flags";
+
 // Telegram bot wrapper. Direct fetch to the Bot API; no SDK.
 //
 // Setup (one-time, by the studio admin):
@@ -30,7 +32,10 @@ export type TelegramSendResult =
     };
 
 export function isTelegramConfigured(): boolean {
-  return Boolean(process.env.TELEGRAM_BOT_TOKEN);
+  // The TELEGRAM_ENABLED kill-switch layers on top of the token check: with the
+  // flag off, every send path (booking / status / cancellation / admin test)
+  // short-circuits to "skipped" through this single gate.
+  return TELEGRAM_ENABLED && Boolean(process.env.TELEGRAM_BOT_TOKEN);
 }
 
 // Resolve the bot's @username (needed to build t.me deep-links). Prefers an

@@ -75,6 +75,12 @@ model AnchorPoint {
   // facing anchors (ear/hip/ankle). Null → renderer derives a hoop frame from
   // `rotation` (deriveRingRotation in lib/catalog/place-jewelry.ts).
   ringRotation    Json?
+  // How a hoop (RING) seats here:
+  //   "dangle" (default) — hangs from the band-top, front-facing (lobes, navel).
+  //   "captive" — CENTERED on the piercing, wrapping the rim, facing the camera
+  //     (ear cartilage). Without it a cartilage hoop dangles INTO the pinna and is
+  //     occluded — only its top arc shows. See lib/catalog/place-jewelry.ts.
+  hoopSeat        String                 @default("dangle")
   // [{ name, position, target, fov }, ...]
   cameraPresets   Json
   // Replaces the old implicit M2M to Jewelry. See JewelryAnchorBinding

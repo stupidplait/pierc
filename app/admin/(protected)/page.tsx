@@ -4,13 +4,20 @@ import { prisma } from "@/lib/prisma";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
+
 import { ru } from "@/lib/i18n/ru";
-import type { Metric, QuickAction } from "@/components/admin/dashboard/types";
-import { StatusBoard } from "@/components/admin/dashboard/StatusBoard";
+import type { QuickAction } from "@/components/admin/dashboard/types";
+import type { MetricV2, TodayItem } from "@/components/admin/dashboard/v2/types";
+import { DashboardV2 } from "@/components/admin/dashboard/v2/DashboardV2";
 
 export const metadata: Metadata = {
   title: ru.admin.dashboard.title,
 };
+
+const RU_TIME = new Intl.DateTimeFormat("ru-RU", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -19,7 +26,7 @@ export default async function AdminDashboardPage() {
   const start = startOfToday();
   const end = endOfToday();
 
-  const [pendingBookings, todayAppointments, pendingReview, lowStock] =
+  const [pendingBookings, todayAppointments, pendingReview, lowStock, todayAppts] =
     await Promise.all([
       prisma.jewelryBooking.count({ where: { status: "RESERVED" } }),
       prisma.appointment.count({
@@ -32,18 +39,28 @@ export default async function AdminDashboardPage() {
       prisma.jewelry.count({
         where: { status: "PUBLISHED", inStock: { lte: 1 } },
       }),
+      // Today's schedule — confirmed + still-pending visits, time-ordered.
+      prisma.appointment.findMany({
+        where: {
+          status: { in: ["CONFIRMED", "PENDING"] },
+          slot: { startsAt: { gte: start, lt: end } },
+        },
+        orderBy: { slot: { startsAt: "asc" } },
+        include: {
+          user: { select: { name: true } },
+          slot: { select: { startsAt: true } },
+          service: { select: { name: true } },
+        },
+        take: 8,
+      }),
     ]);
 
-  const c = ru.admin.dashboard.cards;
   const cs = ru.admin.dashboard.cardsShort;
-
-  const metrics: Metric[] = [
+  const metrics: MetricV2[] = [
     {
       key: "pendingBookings",
       href: "/admin/bookings?status=RESERVED",
-      title: c.pendingBookingsTitle,
-      titleShort: cs.pendingBookings,
-      lead: c.pendingBookingsLead,
+      label: cs.pendingBookings,
       count: pendingBookings,
       tone: pendingBookings > 0 ? "primary" : "neutral",
       urgent: pendingBookings > 0,
@@ -51,9 +68,7 @@ export default async function AdminDashboardPage() {
     {
       key: "todayAppointments",
       href: "/admin/appointments?today=1",
-      title: c.todayAppointmentsTitle,
-      titleShort: cs.todayAppointments,
-      lead: c.todayAppointmentsLead,
+      label: cs.todayAppointments,
       count: todayAppointments,
       tone: "neutral",
       urgent: false,
@@ -61,9 +76,7 @@ export default async function AdminDashboardPage() {
     {
       key: "pendingReview",
       href: "/admin/jewelry?status=PENDING_REVIEW",
-      title: c.pendingReviewTitle,
-      titleShort: cs.pendingReview,
-      lead: c.pendingReviewLead,
+      label: cs.pendingReview,
       count: pendingReview,
       tone: pendingReview > 0 ? "primary" : "neutral",
       urgent: pendingReview > 0,
@@ -71,9 +84,7 @@ export default async function AdminDashboardPage() {
     {
       key: "lowStock",
       href: "/admin/jewelry?lowStock=1",
-      title: c.lowStockTitle,
-      titleShort: cs.lowStock,
-      lead: c.lowStockLead,
+      label: cs.lowStock,
       count: lowStock,
       tone: lowStock > 0 ? "warn" : "neutral",
       urgent: lowStock > 0,
@@ -82,8 +93,6 @@ export default async function AdminDashboardPage() {
 
   const qa = ru.admin.dashboard.quickActions;
   const quickActions: QuickAction[] = [
-    // Lazy create — a plain link to the editor; the row is only persisted on the
-    // first save there (no more abandoned blank drafts from a stray click).
     { href: "/admin/jewelry/new", label: qa.newJewelry, kind: "jewelry" },
     { href: "/admin/slots", label: qa.slots, kind: "slots" },
     { href: "/admin/bookings", label: qa.bookings, kind: "bookings" },
@@ -92,11 +101,21 @@ export default async function AdminDashboardPage() {
     { href: "/admin/settings", label: qa.settings, kind: "settings" },
   ];
 
+  const today: TodayItem[] = todayAppts.map((a) => ({
+    id: a.id,
+    href: `/admin/appointments?today=1&sel=${a.id}`,
+    time: a.slot ? RU_TIME.format(a.slot.startsAt) : "—",
+    customer: a.user.name || "—",
+    service: a.service?.name ?? null,
+    status: a.status,
+  }));
+
   return (
-    <StatusBoard
+    <DashboardV2
       adminName={adminName}
       metrics={metrics}
       quickActions={quickActions}
+      today={today}
     />
   );
 }

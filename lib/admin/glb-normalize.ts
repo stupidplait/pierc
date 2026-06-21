@@ -524,6 +524,218 @@ function median(xs: number[]): number {
   return s.length ? s[Math.floor(s.length / 2)] : 0;
 }
 
+// ── Robust ring-band circle fit (pendant / charm tolerant) ─────────────────────
+// A "ring with a pendant" (charm/key/gem hanging off the band) is NOT a clean
+// torus: the hanging mass drags the vertex centroid off the band's true center and
+// inflates the radial profile, so the old "centroid + (inner+outer)/2" estimate put
+// attach:primary in the middle of the pendant instead of on the band. We instead fit
+// a CIRCLE to just the load-bearing band: project to the ring plane, then iteratively
+// reweight (IRLS, Tukey biweight on the radial residual) so the band — the dominant,
+// constant-radius loop — wins and the pendant is down-weighted to zero. The fitted
+// circle gives the true center + band radius; the trimmed-out cluster IS the pendant
+// (its direction tells us which way the piece hangs, so attach goes to the OPPOSITE
+// side). For a clean hoop nothing is trimmed and it reduces to the plain estimate.
+
+/** Solve a 3×3 linear system M·x = c via Gaussian elimination with partial
+ *  pivoting. Returns null when (near-)singular. */
+function solveLinear3(
+  M: number[][],
+  c: number[],
+): [number, number, number] | null {
+  const a = [
+    [M[0][0], M[0][1], M[0][2], c[0]],
+    [M[1][0], M[1][1], M[1][2], c[1]],
+    [M[2][0], M[2][1], M[2][2], c[2]],
+  ];
+  for (let col = 0; col < 3; col++) {
+    let piv = col;
+    for (let r = col + 1; r < 3; r++) {
+      if (Math.abs(a[r][col]) > Math.abs(a[piv][col])) piv = r;
+    }
+    if (Math.abs(a[piv][col]) < 1e-12) return null;
+    const t = a[col];
+    a[col] = a[piv];
+    a[piv] = t;
+    for (let r = 0; r < 3; r++) {
+      if (r === col) continue;
+      const f = a[r][col] / a[col][col];
+      for (let k = col; k < 4; k++) a[r][k] -= f * a[col][k];
+    }
+  }
+  return [a[0][3] / a[0][0], a[1][3] / a[1][1], a[2][3] / a[2][2]];
+}
+
+/** Weighted Kåsa algebraic circle fit over 2D points → {a,b,R} (center + radius),
+ *  or null when degenerate. */
+function kasaCircle(
+  u: number[],
+  v: number[],
+  w: number[],
+): { a: number; b: number; R: number } | null {
+  let Suu = 0, Suv = 0, Su = 0, Svv = 0, Sv = 0, Sw = 0, cu = 0, cv = 0, c1 = 0;
+  for (let i = 0; i < u.length; i++) {
+    const wi = w[i];
+    if (wi <= 0) continue;
+    const ui = u[i];
+    const vi = v[i];
+    const g = -(ui * ui + vi * vi);
+    Suu += wi * ui * ui; Suv += wi * ui * vi; Su += wi * ui;
+    Svv += wi * vi * vi; Sv += wi * vi; Sw += wi;
+    cu += wi * ui * g; cv += wi * vi * g; c1 += wi * g;
+  }
+  const sol = solveLinear3(
+    [[Suu, Suv, Su], [Suv, Svv, Sv], [Su, Sv, Sw]],
+    [cu, cv, c1],
+  );
+  if (!sol) return null;
+  const [D, E, F] = sol;
+  const a = -D / 2;
+  const b = -E / 2;
+  const disc = a * a + b * b - F;
+  if (!(disc > 0)) return null;
+  return { a, b, R: Math.sqrt(disc) };
+}
+
+interface BandFit {
+  center: Vector3; // band circle center, in the input (baked) frame
+  normal: Vector3; // refined plane normal (hole axis)
+  radius: number; // band centerline radius
+  innerR: number; // band inner radius (hole edge) — for hole ratio / scale
+  outerR: number; // band outer radius
+  inlierFrac: number; // fraction of vertices on the band (≈1 = clean hoop)
+  pendantDir: Vector3 | null; // unit dir center→pendant, or null when no hanging mass
+}
+
+/** Fit the ring BAND robustly, tolerating a pendant/charm. `origin0`/`normal0` are
+ *  the provisional plane (vertex centroid + least-variance PCA axis). Returns null
+ *  when the band can't be isolated (caller falls back to the centroid estimate). */
+function fitBandCircle(
+  pts: number[][],
+  origin0: Vector3,
+  normal0: Vector3,
+): BandFit | null {
+  const n = normal0.clone().normalize();
+  // Orthonormal in-plane basis (U, V) ⟂ n.
+  const seed = Math.abs(n.x) < 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
+  const U = seed.sub(n.clone().multiplyScalar(seed.dot(n))).normalize();
+  const V = n.clone().cross(U).normalize();
+
+  const N = pts.length;
+  const u = new Array<number>(N);
+  const v = new Array<number>(N);
+  const d = new Vector3();
+  for (let i = 0; i < N; i++) {
+    d.set(pts[i][0], pts[i][1], pts[i][2]).sub(origin0);
+    u[i] = d.dot(U);
+    v[i] = d.dot(V);
+  }
+
+  const w = new Array<number>(N).fill(1);
+  let fit = kasaCircle(u, v, w);
+  if (!fit) return null;
+
+  // IRLS with a Tukey biweight on the radial residual. The median residual reflects
+  // the BAND as long as it's the majority of vertices (a pendant is a minority), so
+  // the robust scale isn't inflated by the pendant and its points redescend to w=0.
+  // A tight tuning constant (2.0, vs the textbook 4.685) is needed because the
+  // initial algebraic fit is already pulled toward the pendant — a lenient cutoff
+  // would keep the pendant's near side and stay stuck on that biased circle.
+  for (let iter = 0; iter < 24; iter++) {
+    const resid = new Array<number>(N);
+    const abs = new Array<number>(N);
+    for (let i = 0; i < N; i++) {
+      const r = Math.hypot(u[i] - fit.a, v[i] - fit.b) - fit.R;
+      resid[i] = r;
+      abs[i] = Math.abs(r);
+    }
+    const mad = 1.4826 * (median(abs) || 1e-6);
+    const c = Math.max(2.0 * mad, 1e-9); // Tukey tuning constant (tight — see above)
+    for (let i = 0; i < N; i++) {
+      const t = resid[i] / c;
+      w[i] = Math.abs(t) < 1 ? (1 - t * t) ** 2 : 0;
+    }
+    const next = kasaCircle(u, v, w);
+    if (!next) break;
+    fit = next;
+  }
+
+  // Split band (inliers) vs pendant (outliers).
+  const inIdx: number[] = [];
+  const outIdx: number[] = [];
+  for (let i = 0; i < N; i++) {
+    if (w[i] > 0.5) inIdx.push(i);
+    else outIdx.push(i);
+  }
+  const inlierFrac = inIdx.length / N;
+  if (inlierFrac < 0.3 || inIdx.length < 32) return null; // band too small → unreliable
+
+  // Band radial extent from inliers (hole edge ↔ outer edge), for hole ratio / scale.
+  const radial = inIdx
+    .map((i) => Math.hypot(u[i] - fit.a, v[i] - fit.b))
+    .sort((x, y) => x - y);
+  const rpct = (p: number) =>
+    radial[Math.min(radial.length - 1, Math.max(0, Math.floor(p * radial.length)))];
+  const innerR = rpct(0.05);
+  const outerR = rpct(0.95);
+
+  // Band center in the baked frame.
+  const center = origin0.clone().addScaledVector(U, fit.a).addScaledVector(V, fit.b);
+
+  // Refine the plane normal from the band inliers only — a flat charm barely tilts
+  // the global PCA normal, but a 3D pendant (sticking out of the ring plane) can.
+  let normal = n;
+  const { vectors: inVecs } = computePrincipalAxes(inIdx.map((i) => pts[i]));
+  if (inVecs[2].lengthSq() > 0.5) normal = inVecs[2];
+
+  // Pendant direction = where the trimmed-out mass sits, relative to the center,
+  // projected into the ring plane. Null when there's no meaningful hanging cluster.
+  let pendantDir: Vector3 | null = null;
+  if (outIdx.length > Math.max(8, 0.05 * N)) {
+    const pc = new Vector3();
+    for (const i of outIdx) pc.add(d.set(pts[i][0], pts[i][1], pts[i][2]));
+    pc.multiplyScalar(1 / outIdx.length).sub(center);
+    pc.addScaledVector(normal, -pc.dot(normal)); // drop the out-of-plane component
+    if (pc.lengthSq() > 1e-12) pendantDir = pc.normalize();
+  }
+
+  return { center, normal, radius: fit.R, innerR, outerR, inlierFrac, pendantDir };
+}
+
+/**
+ * Measure a RING's load-bearing band — EXCLUDING any pendant/charm — for scale.
+ * Fits the band circle and returns its outer diameter + tube (wire) diameter in the
+ * doc's units. After `bakeNodeTransforms` the units are real meters even for a
+ * meshopt-quantized model (the KHR_mesh_quantization dequant scale lives on the node
+ * transform, which the bake folds into the vertices), so this works on the FINAL
+ * compressed GLB. Returns null when no band can be isolated (caller falls back to the
+ * whole-bbox measurement). MUTATES `doc` (bakes transforms) — pass a throwaway doc
+ * used only for measurement. Never throws.
+ *
+ * This is why a "ring with a pendant" no longer renders too small: the old scale
+ * came from the whole bounding box (max axis = the pendant-inflated height), so the
+ * ring shrank to make that height match `size`; measuring the band diameter instead
+ * scales the actual ring.
+ */
+export function measureRingBandFromDoc(
+  doc: Document,
+): { outerDiameterM: number; tubeDiameterM: number } | null {
+  try {
+    if (hasSharedMesh(doc)) return null;
+    bakeNodeTransforms(doc);
+    const pts = gatherPositions(doc);
+    if (pts.length < 64) return null;
+    const { centroid, vectors } = computePrincipalAxes(pts);
+    const band = fitBandCircle(pts, centroid, vectors[2]);
+    if (!band) return null;
+    return {
+      outerDiameterM: band.outerR * 2,
+      tubeDiameterM: Math.max(1e-6, band.outerR - band.innerR),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Analyze + reorient a RING (hoop) document in place. Per the parametric
  * convention (docs/20-multi-anchor-jewelry.md, shape_seamless_hoop.py): the ring
@@ -559,21 +771,36 @@ export function normalizeRingDocument(
     }
 
     const { centroid, values, vectors } = computePrincipalAxes(pts);
-    const normal = vectors[2]; // least variance = the ring's hole axis
+    const normalPCA = vectors[2]; // least variance = the ring's hole axis
 
-    // In-plane radial distances (perpendicular to the normal) → inner/outer radius.
-    const radii: number[] = new Array(pts.length);
-    const tmp = new Vector3();
-    for (let i = 0; i < pts.length; i++) {
-      tmp.set(pts[i][0], pts[i][1], pts[i][2]).sub(centroid);
-      const along = tmp.dot(normal);
-      radii[i] = Math.sqrt(Math.max(0, tmp.lengthSq() - along * along));
+    // Robust band fit: isolate the load-bearing hoop from a pendant/charm so the
+    // center, radius and normal come from the BAND, not the whole (pendant-shifted)
+    // mesh. Null → couldn't isolate a band; fall back to the global centroid estimate.
+    const band = fitBandCircle(pts, centroid, normalPCA);
+    const center = band ? band.center : centroid;
+    const normal = band ? band.normal : normalPCA;
+
+    // In-plane radii (perpendicular to the normal), measured around the CENTER. From
+    // the fitted band when available (excludes the pendant), else global percentiles.
+    let innerR: number;
+    let outerR: number;
+    if (band) {
+      innerR = band.innerR;
+      outerR = band.outerR;
+    } else {
+      const radii: number[] = new Array(pts.length);
+      const tmp = new Vector3();
+      for (let i = 0; i < pts.length; i++) {
+        tmp.set(pts[i][0], pts[i][1], pts[i][2]).sub(center);
+        const along = tmp.dot(normal);
+        radii[i] = Math.sqrt(Math.max(0, tmp.lengthSq() - along * along));
+      }
+      radii.sort((a, b) => a - b);
+      const pct = (p: number) =>
+        radii[Math.min(radii.length - 1, Math.max(0, Math.floor(p * radii.length)))];
+      innerR = pct(0.02);
+      outerR = pct(0.98);
     }
-    radii.sort((a, b) => a - b);
-    const pct = (p: number) =>
-      radii[Math.min(radii.length - 1, Math.max(0, Math.floor(p * radii.length)))];
-    const innerR = pct(0.02);
-    const outerR = pct(0.98);
     const outerDiameterM = outerR * 2;
     const tubeR = Math.max(1e-6, (outerR - innerR) / 2);
     const holeRatio = outerR > 1e-9 ? innerR / outerR : 0;
@@ -596,7 +823,7 @@ export function normalizeRingDocument(
     const binInner = new Array(ANG_BINS).fill(Infinity);
     const pv = new Vector3();
     for (const p of pts) {
-      pv.set(p[0], p[1], p[2]).sub(centroid).applyQuaternion(q);
+      pv.set(p[0], p[1], p[2]).sub(center).applyQuaternion(q);
       const pr = Math.hypot(pv.x, pv.y);
       const a = Math.atan2(pv.y, pv.x); // −π..π
       const b = Math.min(
@@ -639,16 +866,26 @@ export function normalizeRingDocument(
     //   • CHARM — a heavy lump (gem/pendant) hangs at the BOTTOM; the bare wire
     //     opposite it is the skin contact → top.
     //   • UNIFORM hoop — any band point is equivalent; no roll.
+    const hasPendant = !!band?.pendantDir;
     const hasNarrowing = narrowDepth > 0.25 || gapFraction > 0.08;
     const hasCharm = charmHeight > 0.25;
-    const rollAmbiguous = hasNarrowing || hasCharm;
+    const rollAmbiguous = hasPendant || hasNarrowing || hasCharm;
 
     // Baseline roll about +Z; +π/2 maps a feature to the top (+Y), −π/2 to the
     // bottom (−Y). A later AI roll bake may override this against the photo.
     let baselineRoll = 0;
-    let feature: "narrowing" | "charm" | "none" = "none";
+    let feature: "pendant" | "narrowing" | "charm" | "none" = "none";
     let mountBin = -1;
-    if (hasNarrowing) {
+    if (hasPendant) {
+      // A hanging pendant/charm sinks to the BOTTOM (−Y); the bare band opposite it
+      // is the skin contact → top. The direction comes straight from the trimmed-out
+      // cluster, so this is robust even when the bail reads as a thin "mount" (which
+      // is exactly what the narrowing rule used to mis-place onto the pendant).
+      const pd = band!.pendantDir!.clone().applyQuaternion(q);
+      const pendAngle = Math.atan2(pd.y, pd.x);
+      baselineRoll = -Math.PI / 2 - pendAngle;
+      feature = "pendant";
+    } else if (hasNarrowing) {
       const mountAngle = circularMeanAngle(thinW, ANG_BINS);
       baselineRoll = Math.PI / 2 - mountAngle; // narrowing/gap → top
       mountBin = Math.min(
@@ -662,11 +899,11 @@ export function normalizeRingDocument(
       feature = "charm";
     }
 
-    // Orient: ring normal → +Z, centroid → origin, then the baseline roll about +Z.
+    // Orient: ring normal → +Z, band center → origin, then the baseline roll about +Z.
     const M = new Matrix4()
       .makeRotationZ(baselineRoll)
       .multiply(new Matrix4().makeRotationFromQuaternion(q))
-      .multiply(new Matrix4().makeTranslation(-centroid.x, -centroid.y, -centroid.z));
+      .multiply(new Matrix4().makeTranslation(-center.x, -center.y, -center.z));
     const m = [...M.elements] as unknown as Parameters<typeof transformMesh>[1];
     for (const mesh of doc.getRoot().listMeshes()) transformMesh(mesh, m);
 
@@ -674,8 +911,9 @@ export function normalizeRingDocument(
     // centerline of whatever feature ended up on top: for a narrowing that's the
     // necked wire (its own outer−inner midline), otherwise the mean band centerline.
     // A later AI roll bake rotates geometry beneath this fixed +Y marker.
-    const bandRadius =
-      feature === "narrowing" && mountBin >= 0 && binInner[mountBin] !== Infinity
+    const bandRadius = band
+      ? band.radius // fitted band centerline — the pendant can't drag it inward
+      : feature === "narrowing" && mountBin >= 0 && binInner[mountBin] !== Infinity
         ? Math.max((binOuter[mountBin] + binInner[mountBin]) / 2, 1e-4)
         : (innerR + outerR) / 2;
     const attachLocal: [number, number, number] = [0, bandRadius, 0];
@@ -704,7 +942,7 @@ export function normalizeRingDocument(
     return {
       ok: true,
       confidence: Number(confidence.toFixed(2)),
-      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}, feature ${feature}, roll-amb ${rollAmbiguous}`,
+      note: `flat ${flatness.toFixed(2)}, round ${roundness.toFixed(2)}, hole ${holeRatio.toFixed(2)}, feature ${feature}, band ${band ? `${Math.round(band.inlierFrac * 100)}%` : "—"}, roll-amb ${rollAmbiguous}`,
       suggestedScale,
       attachLocal,
       rollAmbiguous,

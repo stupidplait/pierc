@@ -12,29 +12,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/shadcn/ui/tooltip";
-import { CategoryMultiSelect } from "./CategoryMultiSelect";
+import { CategoryMultiSelect } from "../CategoryMultiSelect";
 
-export type JewelryStatus =
-  | "DRAFT"
-  | "PROCESSING"
-  | "PENDING_REVIEW"
-  | "PUBLISHED"
-  | "REJECTED";
-
-// Search waits this long after the last keystroke before pushing to the URL, so
-// typing doesn't fire a navigation per character.
+// Search waits this long after the last keystroke before pushing to the URL.
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
- * Catalog toolbar — presentational. The parent (JewelryCatalog) owns the
- * filter→URL navigation and its `isPending`; this renders the controls and
- * reports changes through `setParam` / `setMulti` / `clearAll`. Status lives on
- * the board (StatusTabs), so the toolbar is just search · categories · quick
- * filters · reset. Search is the one piece of local state — a snappy mirror of
- * `q`, debounced before it reaches the URL; when `q` changes from outside our
- * own typing (clear, reset, back/forward) we re-sync during render.
+ * Catalog toolbar (v2) — fully responsive. At 320px the search field takes its
+ * own full-width row, then the controls cluster (category · featured · low-stock
+ * · reset) sits on a second row, with the category combobox flexing to fill and
+ * the icon chips + reset pinned to the right. From sm up it collapses to the
+ * familiar single wrapping row (search grows, controls trail to the right).
+ *
+ * Presentational: the parent owns the filter→URL navigation; search is the one
+ * piece of local state (a snappy mirror of `q`, debounced before the URL, and
+ * re-synced when `q` changes from outside our own typing).
  */
-export function JewelryFilters({
+export function Toolbar({
   q,
   categoryIds,
   featured,
@@ -102,9 +96,10 @@ export function JewelryFilters({
         initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className={`${CARD} flex flex-wrap items-center gap-2.5 p-2.5`}
+        className={`${CARD} flex flex-col gap-2.5 p-2.5 sm:flex-row sm:flex-wrap sm:items-center`}
       >
-        <div className="relative min-w-48 flex-1">
+        {/* Search — full width at 320, grows inline from sm. */}
+        <div className="relative w-full sm:min-w-48 sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-mute/60" />
           <Input
             type="search"
@@ -133,31 +128,33 @@ export function JewelryFilters({
           </AnimatePresence>
         </div>
 
-        <CategoryMultiSelect
-          categories={categories}
-          selected={categoryIds}
-          onChange={(ids) => setMulti("category", ids)}
-        />
+        {/* Controls cluster — its own row at 320 (category fills, chips + reset
+            trail right); flows inline from sm. */}
+        <div className="flex items-center gap-2.5">
+          <CategoryMultiSelect
+            categories={categories}
+            selected={categoryIds}
+            onChange={(ids) => setMulti("category", ids)}
+            wrapperClassName="min-w-0 flex-1 sm:flex-none"
+            triggerClassName="w-full min-w-0 sm:w-auto sm:min-w-40"
+          />
 
-        <IconToggleChip
-          label={t.featuredLabel}
-          hint={t.featuredHint}
-          icon={Star}
-          active={featured}
-          onToggle={(on) => setParam("featured", on ? "1" : "")}
-        />
-        <IconToggleChip
-          label={t.lowStockLabel}
-          hint={t.lowStockHint}
-          icon={PackageMinus}
-          active={lowStock}
-          onToggle={(on) => setParam("lowStock", on ? "1" : "")}
-        />
+          <IconToggleChip
+            label={t.featuredLabel}
+            hint={t.featuredHint}
+            icon={Star}
+            active={featured}
+            onToggle={(on) => setParam("featured", on ? "1" : "")}
+          />
+          <IconToggleChip
+            label={t.lowStockLabel}
+            hint={t.lowStockHint}
+            icon={PackageMinus}
+            active={lowStock}
+            onToggle={(on) => setParam("lowStock", on ? "1" : "")}
+          />
 
-        {/* Reset-all — an icon that fades in (no instant pop), split from the
-            filters by a hairline so it reads as a utility, not another filter. */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="h-6 w-px bg-line" aria-hidden="true" />
+          <span className="h-6 w-px shrink-0 bg-line" aria-hidden="true" />
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -165,7 +162,7 @@ export function JewelryFilters({
                 onClick={handleReset}
                 disabled={!hasFilters}
                 aria-label={t.clear}
-                className="inline-flex size-11 items-center justify-center rounded-xl border border-ink/15 bg-ink/3 text-mute transition-colors hover:border-ink/35 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-ink/15 bg-ink/3 text-mute transition-colors hover:border-ink/35 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
               >
                 <RotateCcw className="size-4" />
               </button>
@@ -179,12 +176,10 @@ export function JewelryFilters({
 }
 
 /**
- * Quick-filter chip — an icon-only square button that fills with ink when
- * active, matching the height of the search/category controls. A visually-
- * hidden native checkbox carries the state (keyboard-accessible and clear of
- * the strict a11y lint on dynamic aria-pressed) and names the control for
- * screen readers; the tooltip surfaces the label + what the filter does, since
- * there's no visible text.
+ * Quick-filter chip — icon-only square that fills with ink when active. A
+ * visually-hidden native checkbox carries the state (keyboard-accessible, clear
+ * of the strict a11y lint) and names the control; the tooltip surfaces the label
+ * + what the filter does.
  */
 function IconToggleChip({
   label,
@@ -203,7 +198,7 @@ function IconToggleChip({
     <Tooltip>
       <TooltipTrigger asChild>
         <label
-          className={`inline-flex size-11 cursor-pointer items-center justify-center rounded-xl border transition-colors duration-150 has-focus-visible:ring-2 has-focus-visible:ring-ink/30 ${
+          className={`inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors duration-150 has-focus-visible:ring-2 has-focus-visible:ring-ink/30 ${
             active
               ? "border-ink bg-ink text-bg"
               : "border-ink/15 bg-ink/3 text-mute hover:border-ink/35 hover:text-ink"

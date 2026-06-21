@@ -3,6 +3,7 @@ import * as WebBrowser from "expo-web-browser";
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -69,6 +70,18 @@ function hostOf(url: string): string {
 export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
   function PiercWebView({ source, onUrlChange }, ref) {
     const webViewRef = useRef<WebView | null>(null);
+    // Auto-retry for transient document errors (a 404 cached before the route
+    // was deployed, a deploy still propagating, or the first hit before the
+    // edge bot-mitigation cookie is set). The fix is a *remount* — not
+    // reload() — because that's what reliably refetches from the network on
+    // iOS (where reload() can serve the WKWebView cache) and is exactly what
+    // the manual retry button does (it unmounts the error screen, then mounts
+    // a fresh WebView). Bumping `reloadKey` remounts the inner WebView; the
+    // count caps attempts so a genuinely broken page still reaches the error
+    // screen instead of looping.
+    const retryCountRef = useRef(0);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
     const [currentUrl, setCurrentUrl] = useState<string>(source);
     const [canGoBack, setCanGoBack] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -98,6 +111,13 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
       }),
       [],
     );
+
+    // Clear any pending auto-retry timer on unmount.
+    useEffect(() => {
+      return () => {
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      };
+    }, []);
 
     // ── Hardware back button (Android) ──────────────────────────
     // Only active when this tab is focused. Pops WebView history if
@@ -162,6 +182,30 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
         if (/\.(ico|png|jpe?g|gif|webp|svg|css|js|mjs|map|json|woff2?|ttf|eot)(\?.*)?$/i.test(url)) {
           return;
         }
+        // Don't treat 403 as fatal. Edge protections (Vercel Attack Challenge
+        // Mode / bot mitigation) serve a "verify your browser" interstitial as
+        // a *403 document* with embedded JS that auto-solves and redirects to
+        // 200. If we unmount the WebView here, that JS never runs and the user
+        // is stuck on a dead-end error screen. Let the WebView render the 403
+        // body so the challenge can complete; a genuine Forbidden page is rare
+        // for this app and still renders (just without the native error UI).
+        if (statusCode === 403) return;
+        // Transient document error → remount after a short delay instead of
+        // failing. A fresh WebView instance refetches from the network (a 404
+        // cached before deploy / mid-propagation clears), the delay lets the
+        // edge bot-mitigation cookie settle, and the cache-bust query on the
+        // remounted source (see render) guarantees the cache is bypassed.
+        // Capped at 2 attempts per mount.
+        if (retryCountRef.current < 2) {
+          retryCountRef.current += 1;
+          const delay = 600 * retryCountRef.current; // 600ms, then 1200ms
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = setTimeout(
+            () => setReloadKey((k) => k + 1),
+            delay,
+          );
+          return;
+        }
         setErrorMessage(`Ошибка ${statusCode}${description ? ` · ${description}` : ""}`);
         setFailedUrl(url);
       },
@@ -202,7 +246,9 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
               onPress={() => {
                 setErrorMessage(null);
                 setFailedUrl(null);
-                webViewRef.current?.reload();
+                retryCountRef.current = 0;
+                if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+                setReloadKey((k) => k + 1);
               }}
             >
               <Text style={styles.retryText}>Попробовать снова</Text>
@@ -210,8 +256,17 @@ export const PiercWebView = forwardRef<PiercWebViewHandle, PiercWebViewProps>(
           </View>
         ) : (
           <WebView
+            // Bumping `key` mounts a fresh WebView — the auto-retry (and manual
+            // retry) path. The cache-bust query on retries forces a network
+            // refetch past any stale cached document.
+            key={reloadKey}
             ref={webViewRef}
-            source={{ uri: source }}
+            source={{
+              uri:
+                reloadKey === 0
+                  ? source
+                  : `${source}${source.includes("?") ? "&" : "?"}_retry=${reloadKey}`,
+            }}
             style={[styles.webView, { marginTop: insets.top }]}
             // Marks every request's user-agent so the web app can switch to
             // "app mode" (hide its header/footer, full-height forms, safe areas).

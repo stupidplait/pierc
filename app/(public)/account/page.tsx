@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/jewelry/format";
 import { getBotUsername } from "@/lib/notifications/telegram";
 import { signTelegramLinkToken } from "@/lib/telegram/link-token";
 import { AccountView } from "@/components/account/AccountView";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 // Skip build-time prerender — reads live data via Prisma.
 export const dynamic = "force-dynamic";
@@ -140,11 +141,12 @@ export default async function AccountPage() {
       }
     : null;
 
-  // Telegram connect deep-link — only when the bot is reachable and the user
-  // hasn't already linked a chat.
-  const telegramConnected = Boolean(profile?.telegramChatId);
+  // Telegram connect deep-link — only when the feature is on, the bot is
+  // reachable, and the user hasn't already linked a chat. With Telegram
+  // disabled the whole contact row is hidden, so don't even compute the link.
+  const telegramConnected = TELEGRAM_ENABLED && Boolean(profile?.telegramChatId);
   let telegramConnectUrl: string | null = null;
-  if (!telegramConnected) {
+  if (TELEGRAM_ENABLED && !telegramConnected) {
     // Independent reads — run them together instead of serially. (Token signing
     // is a cheap HMAC, so computing it even when botUsername is null is fine.)
     const [botUsername, token] = await Promise.all([
@@ -161,7 +163,7 @@ export default async function AccountPage() {
       userName={profile?.name || user.name || t.title}
       email={profile?.email || user.email}
       phone={profile?.phone ?? null}
-      telegram={profile?.telegram ?? null}
+      telegram={TELEGRAM_ENABLED ? (profile?.telegram ?? null) : null}
       telegramConnected={telegramConnected}
       telegramConnectUrl={telegramConnectUrl}
       dev={DEV}

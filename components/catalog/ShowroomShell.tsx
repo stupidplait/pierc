@@ -30,11 +30,14 @@ export function ShowroomShell({
     loader = "spinner",
   } = props;
 
-  // Constrains the draggable side-rail so it can't be flung off-screen.
-  const shellRef = useRef<HTMLDivElement>(null);
+  // Bounds the draggable side-rail. Inset below the fixed site header (see the
+  // bounds div) so the rail — grabbable only by its top handle — can never be
+  // parked behind the header, where the handle would be unreachable and the
+  // panel would be stuck.
+  const dragBoundsRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={shellRef} className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       <ShowroomStage
         anchors={anchors}
         jewelry={jewelry}
@@ -54,7 +57,17 @@ export function ShowroomShell({
         onSelectAnchor={onSelectAnchor}
       />
 
-      <InventoryLayer cards={cards} constraintsRef={shellRef} {...props} />
+      {/* Drag field for the inventory rail — inset below the fixed site header
+          so the panel can never be dragged into the band behind it (where its
+          only grab handle would sit under the header and stop responding).
+          pointer-events-none so it never intercepts clicks on the 3D scene. */}
+      <div
+        ref={dragBoundsRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-4 bottom-4 top-24"
+      />
+
+      <InventoryLayer cards={cards} constraintsRef={dragBoundsRef} {...props} />
     </div>
   );
 }

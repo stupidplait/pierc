@@ -1,5 +1,6 @@
 import { ru } from "@/lib/i18n/ru";
 import { ruPhoneHref } from "@/lib/phone";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 
 export interface LocalBusinessInput {
   /** Absolute base URL of the deployment, e.g. "https://piercing.studio". */
@@ -30,10 +31,12 @@ export function buildLocalBusinessJsonLd(
   const base = input.baseUrl.replace(/\/$/, "");
   const studioName = ru.studio.name;
 
-  // sameAs — collect any social links.
+  // sameAs — collect any social links. A channel is omitted when its
+  // kill-switch is off so the public knowledge-graph doesn't advertise a
+  // hidden channel.
   const sameAs: string[] = [];
-  if (s?.instagramUrl) sameAs.push(s.instagramUrl);
-  if (s?.telegramUrl) sameAs.push(s.telegramUrl);
+  if (INSTAGRAM_ENABLED && s?.instagramUrl) sameAs.push(s.instagramUrl);
+  if (TELEGRAM_ENABLED && s?.telegramUrl) sameAs.push(s.telegramUrl);
 
   // We always emit name + url + image even if Settings is empty; that
   // alone is useful to Google. Bail out only if there's literally no

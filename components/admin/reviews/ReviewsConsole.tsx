@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { domMax, LazyMotion, m, MotionConfig } from "framer-motion";
@@ -14,31 +14,16 @@ import { REVEAL_EASE } from "@/components/motion/entrance";
 import { blurReveal } from "@/components/motion/Stagger";
 import { AnimateNumber } from "@/components/ui/AnimateNumber";
 import { WordReveal } from "@/components/motion/WordReveal";
-import { VariantSwitcher } from "@/components/admin/content/VariantSwitcher";
-import { ReviewsWall, type CardVariant } from "./ReviewsWall";
+import { ReviewsWall } from "./ReviewsWall";
 import { ru } from "@/lib/i18n/ru";
 import { cn } from "@/lib/utils";
 
 const t = ru.admin.reviews;
 
-// ── Trial switchers — temporary affordances while we pick a final look. ─────────
-//   toolbar: where the Add + "only favorites" controls live.
-//   cards:   how the wall renders each review.
-type ToolbarVariant = "cluster" | "header" | "icons";
-const TOOLBAR_OPTIONS = [
-  { value: "cluster", label: "Группа" },
-  { value: "header", label: "В шапке" },
-  { value: "icons", label: "Иконки" },
-] as const;
-const CARD_OPTIONS = [
-  { value: "wall", label: "Стена" },
-  { value: "grid", label: "Сетка" },
-] as const;
-
 const NEW_HREF = "/admin/reviews/new";
 
-// Toolbar-height primary action (the header/atelier SAVE_PILL is taller — this
-// matches the tab strip's py-1.5 row so the cluster reads as one bar).
+// Toolbar-height primary action (the atelier SAVE_PILL is taller — this matches
+// the tab strip's py-1.5 row so the toolbar reads as one bar).
 const PRIMARY =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-2 text-sm font-medium text-bg transition-colors duration-150 hover:bg-ink/90 active:scale-[0.98]";
 
@@ -53,10 +38,6 @@ function entrance(animateIn: boolean, index = 0) {
  * "featured only" toggle, every write a scroll-preserving `router.replace`
  * inside a transition) and gates the first-paint blur-stagger on `animateIn`, so
  * the cascade plays once on load and never re-runs on a filter change.
- *
- * Two trial switchers let us compare button placements and card treatments side
- * by side; both live in client state, so flipping a variant survives the
- * server round-trips a filter change triggers.
  */
 export function ReviewsConsole({
   items,
@@ -74,8 +55,6 @@ export function ReviewsConsole({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [hasInteracted, setHasInteracted] = useState(false);
-  const [toolbar, setToolbar] = useState<ToolbarVariant>("cluster");
-  const [cards, setCards] = useState<CardVariant>("wall");
 
   // All filter writes funnel through here: clone the live params, mutate, and
   // replace inside a transition so `isPending` can dim the wall. Bail when the
@@ -126,21 +105,6 @@ export function ReviewsConsole({
     { value: "REJECTED", label: t.filter.rejected, count: counts.REJECTED },
   ];
 
-  const tabs = (
-    <StatusTabs
-      options={statusOptions}
-      status={status}
-      animateIn={animateIn}
-      onSelect={selectStatus}
-      // In the "header" layout the favorites toggle is folded into the strip.
-      trailing={
-        toolbar === "header" ? (
-          <FavoritesSegment active={featuredOnly} onToggle={toggleFeatured} />
-        ) : null
-      }
-    />
-  );
-
   return (
     <LazyMotion features={domMax}>
       <MotionConfig reducedMotion="user">
@@ -165,77 +129,27 @@ export function ReviewsConsole({
                 className="mt-3 max-w-prose text-base text-mute"
               />
             </div>
-
-            {/* "header" layout keeps the primary Add pill up here (catalog convention). */}
-            {toolbar === "header" ? (
-              <m.div {...entrance(animateIn)} className="shrink-0">
-                <Link href={NEW_HREF} className={PRIMARY}>
-                  <Plus className="size-4" />
-                  {t.addNew}
-                </Link>
-              </m.div>
-            ) : null}
           </header>
 
-          {/* ── Trial switchers (temporary) ─────────────────────────────── */}
+          {/* ── Toolbar: status segments + favorites toggle + Add ───────── */}
           <m.div
             {...entrance(animateIn)}
-            className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2"
+            className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
           >
-            <VariantSwitcher
-              label="Кнопки:"
-              value={toolbar}
-              options={TOOLBAR_OPTIONS}
-              onChange={setToolbar}
+            <StatusTabs
+              options={statusOptions}
+              status={status}
+              animateIn={animateIn}
+              onSelect={selectStatus}
             />
-            <VariantSwitcher
-              label="Карточки:"
-              value={cards}
-              options={CARD_OPTIONS}
-              onChange={setCards}
-            />
-          </m.div>
-
-          {/* ── Toolbar: status segments + the two controls ─────────────── */}
-          {toolbar === "cluster" ? (
-            <m.div
-              {...entrance(animateIn)}
-              className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              {tabs}
-              <div className="flex items-center gap-2">
-                <FavoritesButton active={featuredOnly} onToggle={toggleFeatured} />
-                <Link href={NEW_HREF} className={cn(PRIMARY, "shrink-0")}>
-                  <Plus className="size-4" />
-                  <span className="hidden sm:inline">{t.addNew}</span>
-                </Link>
-              </div>
-            </m.div>
-          ) : null}
-
-          {toolbar === "header" ? (
-            <m.div {...entrance(animateIn)} className="mb-7">
-              {tabs}
-            </m.div>
-          ) : null}
-
-          {toolbar === "icons" ? (
-            <m.div
-              {...entrance(animateIn)}
-              className="mb-7 flex flex-wrap items-center gap-2"
-            >
-              {tabs}
-              <span aria-hidden className="mx-0.5 hidden h-7 w-px bg-line sm:block" />
-              <FavoritesButton
-                active={featuredOnly}
-                onToggle={toggleFeatured}
-                iconOnly
-              />
-              <Link href={NEW_HREF} aria-label={t.addNew} className={cn(PRIMARY, "px-0 size-10")}>
+            <div className="flex items-center gap-2">
+              <FavoritesButton active={featuredOnly} onToggle={toggleFeatured} />
+              <Link href={NEW_HREF} className={cn(PRIMARY, "shrink-0")}>
                 <Plus className="size-4" />
+                <span className="hidden sm:inline">{t.addNew}</span>
               </Link>
-            </m.div>
-          ) : null}
+            </div>
+          </m.div>
 
           {/* ── Wall ────────────────────────────────────────────────────── */}
           {items.length === 0 ? (
@@ -251,7 +165,7 @@ export function ReviewsConsole({
                 isPending && "pointer-events-none opacity-60",
               )}
             >
-              <ReviewsWall items={items} variant={cards} animateIn={animateIn} />
+              <ReviewsWall items={items} animateIn={animateIn} />
             </div>
           )}
         </div>
@@ -264,21 +178,18 @@ export function ReviewsConsole({
  * Status segmented control — selecting one scopes the wall to that status. Each
  * tab cascades in (its own blur-rise, offset by index) over the strip's own
  * entrance, and the active pill slides between tabs via a shared `layoutId`.
- * Counts roll 0 → n once on mount and spring on later changes. `trailing` lets
- * the "header" layout fold the favorites toggle into the same strip.
+ * Counts roll 0 → n once on mount and spring on later changes.
  */
 function StatusTabs({
   options,
   status,
   animateIn,
   onSelect,
-  trailing,
 }: {
   options: { value: ReviewStatus | ""; label: string; count: number }[];
   status: ReviewStatus | "";
   animateIn: boolean;
   onSelect: (status: ReviewStatus | "") => void;
-  trailing?: ReactNode;
 }) {
   return (
     <nav
@@ -320,68 +231,31 @@ function StatusTabs({
           </m.button>
         );
       })}
-
-      {trailing ? (
-        <>
-          <span aria-hidden className="mx-0.5 h-5 w-px self-center bg-line" />
-          {trailing}
-        </>
-      ) : null}
     </nav>
   );
 }
 
-/** Standalone "only favorites" toggle — outline pill (or icon-only) that fills
- *  accent when active. Used by the cluster + icons layouts. */
+/** Standalone "only favorites" toggle — outline pill that fills accent when active. */
 function FavoritesButton({
   active,
   onToggle,
-  iconOnly = false,
 }: {
   active: boolean;
   onToggle: () => void;
-  iconOnly?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      aria-label={iconOnly ? t.featuredOnlyLabel : undefined}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border text-sm font-medium transition-colors duration-150 active:scale-[0.98]",
-        iconOnly ? "size-10" : "px-4 py-2",
+        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-colors duration-150 active:scale-[0.98]",
         active
           ? "border-accent/50 bg-accent/10 text-accent"
           : "border-line text-mute hover:border-ink/30 hover:text-ink",
       )}
     >
       <Star className={cn("size-4", active && "fill-current")} aria-hidden />
-      {iconOnly ? null : <span>{t.featuredOnlyLabel}</span>}
-    </button>
-  );
-}
-
-/** "Only favorites" as a borderless segment folded inside the status strip
- *  ("header" layout). Mirrors a tab's padding so the strip reads as one control. */
-function FavoritesSegment({
-  active,
-  onToggle,
-}: {
-  active: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={active}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
-        active ? "bg-accent/15 text-accent" : "text-mute hover:text-ink",
-      )}
-    >
-      <Star className={cn("size-3.5", active && "fill-current")} aria-hidden />
       <span>{t.featuredOnlyLabel}</span>
     </button>
   );

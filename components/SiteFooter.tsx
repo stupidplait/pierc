@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { SITE } from "@/lib/site";
 import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 
 interface SiteFooterProps {
     classes: {
@@ -32,9 +33,11 @@ export function SiteFooter({ classes }: SiteFooterProps) {
                         <a href="#showcase">3D-визуализатор</a>
                         <a href="#try-on">Каталог украшений</a>
                         <a href="#reserve">Бронирование</a>
-                        <a href={SITE.telegram} target="_blank" rel="noreferrer noopener">
-                            Telegram-бот
-                        </a>
+                        {TELEGRAM_ENABLED ? (
+                            <a href={SITE.telegram} target="_blank" rel="noreferrer noopener">
+                                Telegram-бот
+                            </a>
+                        ) : null}
                     </div>
                     <div>
                         <span className={classes.footerH}>Студия</span>
@@ -44,12 +47,16 @@ export function SiteFooter({ classes }: SiteFooterProps) {
                     </div>
                     <div>
                         <span className={classes.footerH}>Связь</span>
-                        <a href={SITE.telegram} target="_blank" rel="noreferrer noopener">
-                            Telegram · @piercerkzn
-                        </a>
-                        <a href={SITE.instagram} target="_blank" rel="noreferrer noopener">
-                            Instagram · @piercer.kzn
-                        </a>
+                        {TELEGRAM_ENABLED ? (
+                            <a href={SITE.telegram} target="_blank" rel="noreferrer noopener">
+                                Telegram · @piercerkzn
+                            </a>
+                        ) : null}
+                        {INSTAGRAM_ENABLED ? (
+                            <a href={SITE.instagram} target="_blank" rel="noreferrer noopener">
+                                Instagram · @piercer.kzn
+                            </a>
+                        ) : null}
                         <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
                         <a href={`tel:${ruPhoneHref(SITE.phone)}`}>{formatRuPhone(SITE.phone)}</a>
                     </div>

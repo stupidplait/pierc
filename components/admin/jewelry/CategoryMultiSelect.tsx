@@ -36,10 +36,16 @@ export function CategoryMultiSelect({
   categories,
   selected,
   onChange,
+  wrapperClassName,
+  triggerClassName,
 }: {
   categories: Category[];
   selected: string[];
   onChange: (ids: string[]) => void;
+  /** Optional override for the outer relative wrapper (e.g. flex-1 on mobile). */
+  wrapperClassName?: string;
+  /** Optional override for the trigger button (e.g. shrink to fill on mobile). */
+  triggerClassName?: string;
 }) {
   const t = ru.admin.jewelry;
   const [open, setOpen] = React.useState(false);
@@ -67,13 +73,16 @@ export function CategoryMultiSelect({
           the trigger <button>, so it sits in an overlay alongside the chevron:
           the chip catches its own clicks (clears), the chevron is click-through
           to the trigger (opens), and the rest of the trigger opens too. */}
-      <div className="relative inline-flex">
+      <div className={cn("relative inline-flex", wrapperClassName)}>
         <PopoverTrigger asChild>
           <button
             type="button"
             aria-label={t.categoryLabel}
             data-placeholder={selected.length === 0}
-            className="flex h-11 w-auto min-w-40 items-center rounded-xl border border-ink/15 bg-ink/3 pl-3.5 pr-14 text-sm text-ink outline-none transition-colors hover:border-ink/35 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 data-[placeholder=true]:text-mute"
+            className={cn(
+              "flex h-11 w-auto min-w-40 items-center rounded-xl border border-ink/15 bg-ink/3 pl-3.5 pr-14 text-sm text-ink outline-none transition-colors hover:border-ink/35 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 data-[placeholder=true]:text-mute",
+              triggerClassName,
+            )}
           >
             <span className="truncate">{triggerLabel}</span>
           </button>

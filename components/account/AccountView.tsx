@@ -7,6 +7,7 @@ import { ru } from "@/lib/i18n/ru";
 import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 import { signOutPublicAction } from "@/lib/user/auth-actions";
 import { disconnectTelegram, devToggleTelegram } from "@/lib/user/profile-actions";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EditProfileDrawer } from "@/components/account/EditProfileDrawer";
 import { ContentBackdrop } from "@/components/backdrop/ContentBackdrop";
@@ -179,33 +180,35 @@ export function AccountView({
                     )}
                   </dd>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="flex items-center gap-1.5 text-mute">
-                    {t.telegramLabel}
-                    {telegramConnected ? <DisconnectTelegram /> : null}
-                  </dt>
-                  <dd className="flex min-w-0 items-center gap-2 text-ink">
-                    {telegramConnected ? (
-                      <span className="truncate">
-                        {telegram || t.tgConnectedShort}
-                      </span>
-                    ) : telegramConnectUrl ? (
-                      <a
-                        href={telegramConnectUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 font-medium text-ink underline-offset-4 transition-colors duration-150 hover:text-accent hover:underline"
-                      >
-                        <TelegramIcon />
-                        {t.tgConnect}
-                      </a>
-                    ) : (
-                      <span className="truncate">{telegram || "—"}</span>
-                    )}
-                  </dd>
-                </div>
+                {TELEGRAM_ENABLED ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-mute">
+                      {t.telegramLabel}
+                      {telegramConnected ? <DisconnectTelegram /> : null}
+                    </dt>
+                    <dd className="flex min-w-0 items-center gap-2 text-ink">
+                      {telegramConnected ? (
+                        <span className="truncate">
+                          {telegram || t.tgConnectedShort}
+                        </span>
+                      ) : telegramConnectUrl ? (
+                        <a
+                          href={telegramConnectUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 font-medium text-ink underline-offset-4 transition-colors duration-150 hover:text-accent hover:underline"
+                        >
+                          <TelegramIcon />
+                          {t.tgConnect}
+                        </a>
+                      ) : (
+                        <span className="truncate">{telegram || "—"}</span>
+                      )}
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
-              {dev ? (
+              {dev && TELEGRAM_ENABLED ? (
                 <div className="pt-1">
                   <DevTelegramToggle />
                 </div>

@@ -5,6 +5,7 @@ import { Drawer } from "@/components/booking/Drawer";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { ru } from "@/lib/i18n/ru";
 import { updateMyProfile } from "@/lib/user/profile-actions";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 const t = ru.pages.account;
 
@@ -91,20 +92,22 @@ export function EditProfileDrawer({
             placeholder={t.phonePlaceholder}
           />
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-mute">{t.telegramLabel}</span>
-            <input
-              name="telegram"
-              type="text"
-              defaultValue={telegram ?? ""}
-              disabled={telegramConnected}
-              placeholder={t.telegramPlaceholder}
-              className={FIELD}
-            />
-            {telegramConnected ? (
-              <span className="text-xs text-mute">{t.telegramLockedHint}</span>
-            ) : null}
-          </label>
+          {TELEGRAM_ENABLED ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-mute">{t.telegramLabel}</span>
+              <input
+                name="telegram"
+                type="text"
+                defaultValue={telegram ?? ""}
+                disabled={telegramConnected}
+                placeholder={t.telegramPlaceholder}
+                className={FIELD}
+              />
+              {telegramConnected ? (
+                <span className="text-xs text-mute">{t.telegramLockedHint}</span>
+              ) : null}
+            </label>
+          ) : null}
 
           {error ? (
             <p

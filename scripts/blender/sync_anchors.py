@@ -34,10 +34,14 @@ WHAT IT DOES
     ankle), in the renderer's exact three.js Euler('XYZ') convention. This replaces
     the old "rotation is hand-authored and never corrected" behaviour — the root
     cause of posts pointing at the wrong angle.
-  • DERIVES the hoop orientation (`ringRotation`) so a ring HANGS (band-top up) and
-    faces FRONT (+Z) — i.e. perpendicular to the body surface, the way a real hoop
-    earring dangles. On the ear this is a clean circle hanging perpendicular to the
-    pinna, not a ring lying flat in the ear's plane.
+  • DERIVES each hoop's seat (`hoopSeat`) + orientation (`ringRotation`):
+      - ear cartilage → "captive": the ring is CENTERED on the piercing (renderer
+        skips the band-top hang) and FACES the catalog camera, so it reads as a
+        circle wrapping the rim instead of dangling INTO (and being occluded by)
+        the pinna.
+      - lobes / navel / nose / … → "dangle": the ring HANGS from the band-top
+        facing FRONT (+Z), like an earring in open space.
+    hoopSeat defaults from anatomy but a hand-authored value is preserved.
   • Converts Blender (Z-up) → glTF (Y-up) coords.
   • Updates `prisma/seed-data/anchors.json` (position + rotation + camera target;
     preserves name, place, side, fov, ringRotation — only the seated bits change).
@@ -255,14 +259,19 @@ for a in anchors_doc:
         continue
     dist, loc_w, face_n = hit
 
-    # ── position: snap onto the deployed (glb) surface.
-    if a.get("lockPosition") is not True and POS_THRESH_M < dist < MAX_SNAP_M:
+    # ── position: write the empty's on-skin point whenever it differs from the
+    # recorded position. The empty is the source of truth, so MOVING it — even to
+    # another spot that's already ON the surface — must propagate. (The old guard
+    # `POS_THRESH_M < dist` only fired when the empty floated >1.5mm OFF the skin,
+    # so dragging an empty along the surface silently did nothing — anchors.json
+    # kept the stale position while the rotation re-derived at the new spot.)
+    if a.get("lockPosition") is not True and dist < MAX_SNAP_M:
         new_pos = blender_to_gltf(loc_w)
         old_pos = a["position"]
         dx = round(new_pos["x"] - old_pos["x"], 4)
         dy = round(new_pos["y"] - old_pos["y"], 4)
         dz = round(new_pos["z"] - old_pos["z"], 4)
-        if (dx, dy, dz) != (0.0, 0.0, 0.0):
+        if max(abs(dx), abs(dy), abs(dz)) > POS_THRESH_M:  # moved/snapped > 1.5mm
             a["position"] = new_pos
             for cp in a.get("cameraPresets", []):
                 if cp.get("target") is not None:
@@ -286,23 +295,42 @@ for a in anchors_doc:
     else:
         kept.append(slug)
 
-# ── ringRotation pass: orient a HOOP to hang (band-top up) and FACE the anchor's
-# catalog camera, so on a laterally-viewed anchor (the whole ear family) a hoop
-# reads as a clean circle instead of edge-on. Pure data (camera preset + anchor
-# position) — no mesh needed. Front-viewed anchors already face their camera, so
-# the threshold leaves them untouched; only the lateral ones (ear/hip/ankle) move.
+# ── hoopSeat + ringRotation pass: decide how each HOOP seats, then orient it.
+#   • "captive" (ear cartilage) — the ring is CENTERED on the piercing and wraps the
+#     rim, so it must FACE the anchor's catalog camera → reads as a circle on the
+#     cartilage. (The renderer skips the band-top hang for these, else the ring
+#     dangles INTO the pinna and is occluded — see placeSingleAnchor.)
+#   • "dangle" (lobes, navel, nose, …) — the ring HANGS from the band-top facing
+#     FRONT (+Z), the way an earring dangles in open space below the anchor.
+# hoopSeat defaults from anatomy (ear cartilage = captive, everything else =
+# dangle); an explicit value already in anchors.json is preserved. Pure data
+# (camera preset + anchor position) — no mesh needed.
 WORLD_FORWARD = (0.0, 0.0, 1.0)
 fixed_ring = []
 for a in anchors_doc:
     if a.get("place") in INTERNAL_PLACES or a.get("lockRingRotation") is True:
         continue
-    # A hoop hangs FRONT-FACING (perpendicular to the body surface, like a real
-    # earring): hole-axis = world FRONT (+Z), band-top = world up. On the ear this
-    # is a circle dangling perpendicular to the pinna — NOT a ring lying flat in the
-    # ear's plane (which is what an earlier "face the lateral camera" attempt did,
-    # making ear hoops read as running ALONG the ear).
-    zc = Vector(WORLD_FORWARD)                              # world front (+Z)
-    xc = Vector((0.0, 1.0, 0.0)).cross(zc).normalized()
+    seat = a.get("hoopSeat")
+    if seat not in ("captive", "dangle"):
+        seat = "captive" if (a.get("place") == "EAR" and "lobe" not in a["slug"]) else "dangle"
+        a["hoopSeat"] = seat
+    if seat == "captive":
+        # face the anchor's catalog camera (horizontal) → a circle from that view
+        cps = a.get("cameraPresets") or []
+        cam = cps[0].get("position") if cps else None
+        if cam is None:
+            continue
+        p = a["position"]
+        zc = Vector((cam["x"] - p["x"], 0.0, cam["z"] - p["z"]))
+        if zc.length < 1e-6:
+            continue
+        zc.normalize()
+    else:
+        zc = Vector(WORLD_FORWARD)                          # dangle → face front (+Z)
+    xc = Vector((0.0, 1.0, 0.0)).cross(zc)
+    if xc.length < 1e-6:
+        continue
+    xc.normalize()
     yc = zc.cross(xc).normalized()
     rex, rey, rez = _mat_to_euler_xyz([[xc.x, yc.x, zc.x], [xc.y, yc.y, zc.y], [xc.z, yc.z, zc.z]])
     cur = a.get("ringRotation")
@@ -310,7 +338,7 @@ for a in anchors_doc:
         ch = _euler_xyz_outz(cur["x"], cur["y"], cur["z"])
         ch = Vector((ch.x, 0.0, ch.z))
         if ch.length > 1e-6 and math.degrees(math.acos(max(-1.0, min(1.0, ch.normalized().dot(zc))))) <= RING_THRESH_DEG:
-            continue  # already hangs front-facing
+            continue  # already oriented this way
     a["ringRotation"] = {"x": clean(rex), "y": clean(rey), "z": clean(rez)}
     fixed_ring.append(a["slug"])
 
@@ -331,7 +359,7 @@ if moved_pos:
 if fixed_rot:
     print(f"    ↳ re-oriented (post normal): {', '.join(fixed_rot)}")
 if fixed_ring:
-    print(f"    ↳ re-faced (hoop→front): {', '.join(fixed_ring)}")
+    print(f"    ↳ re-seated/faced (hoop): {', '.join(fixed_ring)}")
 if unknown_in_blend:
     print(f"  WARN: {len(unknown_in_blend)} empties in .blend with no JSON entry: {sorted(unknown_in_blend)}")
 

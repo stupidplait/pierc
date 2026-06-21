@@ -77,14 +77,16 @@ async function rehostGlb(
   }
   const buffer = await res.arrayBuffer();
 
-  const { optimizeGlb, measureGlbSizeM } = await import("@/lib/admin/glb-pipeline");
+  const { optimizeGlb, measureGlbSizeM, measureRingBandM } = await import(
+    "@/lib/admin/glb-pipeline"
+  );
   const opt = await optimizeGlb(buffer, normalize ? { normalize } : {});
 
-  // Unified scale: measure the FINAL (oriented, compressed) GLB's real bbox and
-  // derive glbScale via the shared formula — the SAME measurement + rule the
-  // manual upload + analyzer use, so a piece gets one scale regardless of path.
-  // Only single-anchor types get a glbScale — multi-anchor (BARBELL) scale is
-  // derived by the renderer from the two-anchor span, so leave it untouched.
+  // Unified scale: measure the FINAL (oriented, compressed) GLB and derive glbScale
+  // via the shared formula, so a piece gets one scale regardless of path. RINGS scale
+  // by their BAND diameter (a pendant/charm would inflate the whole-bbox max axis and
+  // shrink the ring); everything else uses the bounding box. Multi-anchor (BARBELL)
+  // scale is renderer-derived from the two-anchor span, so it's left untouched.
   const singleAnchor = normalize?.type === "STUD" || normalize?.type === "RING";
   let placement = opt.placement;
   if (
@@ -93,11 +95,34 @@ async function rehostGlb(
     normalize &&
     (normalize.gauge || normalize.size)
   ) {
-    const { suggestScaleFromSizeM } = await import("@/lib/admin/glb-scale");
-    const sizeM = await measureGlbSizeM(opt.bytes);
-    const s = sizeM
-      ? suggestScaleFromSizeM(sizeM, normalize.gauge ?? null, normalize.size ?? null)
-      : null;
+    const { suggestScale, suggestScaleFromSizeM } = await import(
+      "@/lib/admin/glb-scale"
+    );
+    let s: { scale: number } | null = null;
+    if (normalize.type === "RING") {
+      const band = await measureRingBandM(opt.bytes);
+      if (band) {
+        s = suggestScale(
+          {
+            sizeDimMm: band.outerDiameterM * 1000,
+            gaugeDimMm: band.tubeDiameterM * 1000,
+          },
+          normalize.gauge ?? null,
+          normalize.size ?? null,
+        );
+      }
+    }
+    if (!s) {
+      // STUD, or a ring whose band couldn't be isolated → whole-bbox measurement.
+      const sizeM = await measureGlbSizeM(opt.bytes);
+      s = sizeM
+        ? suggestScaleFromSizeM(
+            sizeM,
+            normalize.gauge ?? null,
+            normalize.size ?? null,
+          )
+        : null;
+    }
     if (s) placement = { ...placement, suggestedScale: s.scale };
   }
 

@@ -5,6 +5,7 @@ import { m, useInView, type Variants } from "framer-motion";
 import { JEWELRY_ITEMS } from "@/components/showcase/JewelryShowcase";
 import { SITE } from "@/lib/site";
 import { Reveal } from "@/components/motion/Reveal";
+import { TELEGRAM_ENABLED } from "@/lib/flags";
 
 /**
  * Chapter 3 — "ЗАБРОНИРУЙ" / Reserve close.
@@ -267,11 +268,13 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
 
                 {/* Single ceremonial CTA — leading accent dot reinforces
                     the doorway metaphor; on hover, text shifts from the
-                    bright accent to dark ink. */}
+                    bright accent to dark ink. With Telegram disabled this
+                    hands off to the on-site booking flow instead. */}
                 <a
-                    href={SITE.telegram}
-                    target="_blank"
-                    rel="noreferrer noopener"
+                    href={TELEGRAM_ENABLED ? SITE.telegram : "/book"}
+                    {...(TELEGRAM_ENABLED
+                        ? { target: "_blank", rel: "noreferrer noopener" }
+                        : {})}
                     className="group/cta flex items-center justify-between gap-4 mt-1
                                py-3.5 pr-1
                                border-t border-t-accent/55
@@ -286,7 +289,7 @@ const Chapter3 = forwardRef<HTMLElement, Chapter3Props>(function Chapter3(
                             className="inline-block w-1.5 h-1.5 rounded-full bg-accent transition-transform duration-200 group-hover/cta:scale-110"
                         />
                         <span className="font-sans text-[clamp(13px,1.2vw,15px)] font-medium uppercase tracking-[0.18em]">
-                            Передать в Telegram
+                            {TELEGRAM_ENABLED ? "Передать в Telegram" : "Перейти к записи"}
                         </span>
                     </span>
                     <span

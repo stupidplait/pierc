@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ru } from "@/lib/i18n/ru";
 import { formatRuPhone, ruPhoneHref } from "@/lib/phone";
 import { getSettings } from "@/lib/public/queries";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 
 export async function Footer() {
   const settings = await getSettings();
@@ -63,41 +64,47 @@ export async function Footer() {
           <p className="mt-3 text-sm text-ink">{hours ?? "–"}</p>
         </div>
 
+        {INSTAGRAM_ENABLED || TELEGRAM_ENABLED ? (
         <div>
           <h2 className="text-sm font-medium uppercase tracking-[0.2em] text-mute">
             {ru.footer.socialHeading}
           </h2>
           <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              {instagram ? (
-                <a
-                  href={instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ink hover:text-primary"
-                >
-                  {ru.footer.instagramLabel}
-                </a>
-              ) : (
-                <span className="text-mute">{ru.footer.instagramLabel}</span>
-              )}
-            </li>
-            <li>
-              {telegram ? (
-                <a
-                  href={telegram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ink hover:text-primary"
-                >
-                  {ru.footer.telegramLabel}
-                </a>
-              ) : (
-                <span className="text-mute">{ru.footer.telegramLabel}</span>
-              )}
-            </li>
+            {INSTAGRAM_ENABLED ? (
+              <li>
+                {instagram ? (
+                  <a
+                    href={instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-ink hover:text-primary"
+                  >
+                    {ru.footer.instagramLabel}
+                  </a>
+                ) : (
+                  <span className="text-mute">{ru.footer.instagramLabel}</span>
+                )}
+              </li>
+            ) : null}
+            {TELEGRAM_ENABLED ? (
+              <li>
+                {telegram ? (
+                  <a
+                    href={telegram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-ink hover:text-primary"
+                  >
+                    {ru.footer.telegramLabel}
+                  </a>
+                ) : (
+                  <span className="text-mute">{ru.footer.telegramLabel}</span>
+                )}
+              </li>
+            ) : null}
           </ul>
         </div>
+        ) : null}
       </div>
 
       <div className="border-t border-line">

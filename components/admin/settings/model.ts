@@ -1,4 +1,5 @@
 import { ru } from "@/lib/i18n/ru";
+import { TELEGRAM_ENABLED, INSTAGRAM_ENABLED } from "@/lib/flags";
 
 export interface SettingsLike {
   contactEmail?: string | null;
@@ -45,7 +46,17 @@ export interface SectionDef {
 
 const t = ru.admin.settings;
 
-export const SETTINGS_SECTIONS: SectionDef[] = [
+// Per-field feature gates: a field is rendered only when its flag is on (true
+// when no flag governs it). Telegram + Instagram each have a kill-switch.
+// Sections left empty after filtering (e.g. the Telegram-only integrations
+// section) are dropped entirely.
+const FIELD_ENABLED: Partial<Record<FieldName, boolean>> = {
+  telegramUrl: TELEGRAM_ENABLED,
+  telegramChatId: TELEGRAM_ENABLED,
+  instagramUrl: INSTAGRAM_ENABLED,
+};
+
+const ALL_SETTINGS_SECTIONS: SectionDef[] = [
   {
     key: "contacts",
     heading: t.contactsHeading,
@@ -113,3 +124,10 @@ export const SETTINGS_SECTIONS: SectionDef[] = [
     ],
   },
 ];
+
+export const SETTINGS_SECTIONS: SectionDef[] = ALL_SETTINGS_SECTIONS.map(
+  (section) => ({
+    ...section,
+    fields: section.fields.filter((f) => FIELD_ENABLED[f.name] ?? true),
+  }),
+).filter((section) => section.fields.length > 0);

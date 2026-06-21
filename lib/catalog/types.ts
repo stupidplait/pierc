@@ -46,6 +46,15 @@ export interface AnchorWire {
    * deriveRingRotation in place-jewelry.ts). Studs/posts always use `rotation`.
    */
   ringRotation?: Vec3 | null;
+  /**
+   * How a hoop (RING) seats on this anchor:
+   *   "dangle" — hangs from the band-top, front-facing (lobes, navel).
+   *   "captive" — CENTERED on the piercing, wrapping the rim, facing the camera
+   *     (ear cartilage), so it reads as a circle on the cartilage instead of a
+   *     ring dangling INTO (and occluded by) the pinna. See placeSingleAnchor.
+   *  Absent → treated as "dangle".
+   */
+  hoopSeat?: "dangle" | "captive";
   cameraPresets: CameraPreset[];
 }
 

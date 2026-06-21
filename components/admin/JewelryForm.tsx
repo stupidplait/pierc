@@ -1092,7 +1092,7 @@ export function JewelryForm({
   );
 
   const barActions = (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
       <BackButton
         fallbackHref={backHref}
         label={t.backToList}
@@ -1210,7 +1210,10 @@ export function JewelryForm({
         <div className="sticky bottom-4 z-20 mt-1">
           <div className="relative">
             {floatingChecklist}
-            <div className="flex items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card/95 px-3 py-2.5 shadow-elev backdrop-blur sm:px-4 sm:py-3">
+            {/* flex-wrap: at narrow widths Back+Save (grouped in `barActions`,
+                forced to w-full) drop to their own row so nothing is pushed off
+                the edge; single row from sm. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card/95 px-3 py-2.5 shadow-elev backdrop-blur sm:flex-nowrap sm:px-4 sm:py-3">
               {deleteSlot ? <div className="shrink-0">{deleteSlot}</div> : null}
               {progressCompact}
               {saveStateZone}

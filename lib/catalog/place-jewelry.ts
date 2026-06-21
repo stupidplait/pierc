@@ -174,6 +174,11 @@ const RING_OUTWARD_BLEND = 0.45;
 const WORLD_UP = new Vector3(0, 1, 0);
 const WORLD_FORWARD = new Vector3(0, 0, 1);
 
+// Outward tilt of a captive cartilage ring about its piercing, so it swings OUT
+// over the rim edge instead of hanging straight down into the concave skin beside
+// it. Radians; tuned against the reference photo.
+const CARTILAGE_LEAN = 0.28;
+
 function eulerToQuat(r: Vec3): Quaternion {
   return new Quaternion().setFromEuler(new Euler(r.x, r.y, r.z, "XYZ"));
 }
@@ -241,15 +246,30 @@ export function placeSingleAnchor(
   type?: JewelryType,
   rotationOffset?: Vec3 | null,
 ) {
-  const quat = orientationForPiece(anchor, type, rotationOffset);
+  let quat = orientationForPiece(anchor, type, rotationOffset);
+  // Captive cartilage ring: tilt it OUTWARD about the piercing so it wraps over the
+  // rim edge (like the reference) instead of hanging straight down into the ear.
+  // Applied to the orientation; the attach-offset below re-derives from it, so the
+  // band-top (wire) stays on the piercing.
+  if (type === "RING" && anchor.hoopSeat === "captive") {
+    const normal = new Vector3(0, 0, 1).applyQuaternion(eulerToQuat(anchor.rotation));
+    const tiltAxis = new Vector3().crossVectors(normal, WORLD_UP);
+    if (tiltAxis.lengthSq() > 1e-6) {
+      quat = new Quaternion()
+        .setFromAxisAngle(tiltAxis.normalize(), CARTILAGE_LEAN)
+        .multiply(quat);
+    }
+  }
   group.scale.setScalar(scale);
   group.quaternion.copy(quat);
   group.position.set(anchor.position.x, anchor.position.y, anchor.position.z);
 
   if (!attachLocal) return; // legacy GLB without attach:primary — done.
 
-  // Offset the mesh so attach:primary lands exactly on the anchor (the group's
-  // origin currently sits there; we want the attach point there instead).
+  // Offset the mesh so attach:primary (the band-top — a point on the ring's WIRE)
+  // lands exactly on the anchor, so the ring threads THROUGH the piercing (the wire
+  // passes through it) and encircles the adjacent cartilage edge — like a real
+  // captive ring. Studs land their post-neck here so the post embeds.
   const localOffset = attachLocal
     .clone()
     .applyQuaternion(quat)

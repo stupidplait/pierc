@@ -502,6 +502,11 @@ export const ru = {
         content: "Контент",
         settings: "Настройки",
       },
+      // ── New-version dashboard (preview at /admin/new-version) ──
+      metricsHeading: "Обзор",
+      todayHeading: "Сегодня",
+      todayEmpty: "На сегодня записей нет.",
+      todaySeeAll: "Все записи",
     },
     content: {
       title: "Контент",
